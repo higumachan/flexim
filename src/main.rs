@@ -1,11 +1,15 @@
 use egui_extras::install_image_loaders;
 use egui_tiles::SimplificationOptions;
-use flexim_data_type::FlImage;
-use flexim_data_visualize::DataVisualize;
+use flexim_data_type::{FlImage, FlTensor2D};
+use flexim_data_visualize::visualize::{
+    DataVisualize, FlImageVisualize, FlTensor2DVisualize, StackVisualize,
+};
+use ndarray::Array2;
 use std::sync::Arc;
 
 struct Pane {
     nr: usize,
+    name: String,
     content: Arc<dyn DataVisualize>,
 }
 
@@ -23,7 +27,7 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
         pane: &mut Pane,
     ) -> egui_tiles::UiResponse {
         // Give each pane a unique color:
-        pane.content.visualize("main_image", ui)
+        pane.content.visualize(&pane.name, ui)
     }
 
     fn simplification_options(&self) -> SimplificationOptions {
@@ -54,9 +58,10 @@ fn main() -> Result<(), eframe::Error> {
 
 fn create_tree() -> egui_tiles::Tree<Pane> {
     let mut next_view_nr = 0;
-    let mut gen_pane = |image: Arc<FlImage>| {
+    let mut gen_pane = |name: String, image: Arc<dyn DataVisualize>| {
         let pane = Pane {
             nr: next_view_nr,
+            name,
             content: image,
         };
         next_view_nr += 1;
@@ -67,12 +72,24 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
 
     let mut tabs = vec![];
     tabs.push({
-        let image1 = Arc::new(FlImage::new(
+        let image1 = Arc::new(FlImageVisualize::new(FlImage::new(
             include_bytes!("../assets/flexim-logo-1.png").to_vec(),
+        )));
+        let tensor = Arc::new(FlTensor2DVisualize::new(
+            0,
+            FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
+                // center peak gauss
+                let x = (x as f64 - 256.0) / 100.0;
+                let y = (y as f64 - 256.0) / 100.0;
+                (-(x * x + y * y) / 2.0).exp()
+            })),
         ));
-        let children = (0..2)
-            .map(|_| tiles.insert_pane(gen_pane(image1.clone())))
-            .collect();
+        let stack = Arc::new(StackVisualize::new(vec![image1.clone(), tensor.clone()]));
+        let mut children = vec![];
+        children.push(tiles.insert_pane(gen_pane("image".to_string(), image1.clone())));
+        children.push(tiles.insert_pane(gen_pane("tensor".to_string(), tensor)));
+        children.push(tiles.insert_pane(gen_pane("stack".to_string(), stack)));
+
         tiles.insert_horizontal_tile(children)
     });
 

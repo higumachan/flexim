@@ -22,6 +22,8 @@ flexim-data-type = { path = "crates/flexim-data-type" }
 flexim-data-visualize = { path = "crates/flexim-data-visualize" }
 eframe = "0.24.1"
 env_logger = "0.10.1"
+scarlet = "1.2.0"
+unwrap-ord = "0.1.2"
 
 
 [dependencies]
@@ -32,3 +34,4 @@ flexim-data-type.workspace = true
 flexim-data-visualize.workspace = true
 eframe.workspace = true
 env_logger.workspace = true
+ndarray.workspace = true

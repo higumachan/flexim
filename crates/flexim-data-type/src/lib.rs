@@ -1,6 +1,7 @@
 use image::DynamicImage;
 use ndarray::{Array2, Array3};
 use polars::frame::DataFrame;
+use std::io::Bytes;
 
 pub struct FlImage {
     // png buffer

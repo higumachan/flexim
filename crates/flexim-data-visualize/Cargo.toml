@@ -9,3 +9,7 @@ edition = "2021"
 flexim-data-type.workspace = true
 egui.workspace = true
 egui_tiles.workspace = true
+scarlet.workspace = true
+ndarray.workspace = true
+image.workspace = true
+unwrap-ord.workspace = true
