@@ -24,6 +24,7 @@ eframe = "0.24.1"
 env_logger = "0.10.1"
 scarlet = "1.2.0"
 unwrap-ord = "0.1.2"
+itertools = "0.12.0"
 
 
 [dependencies]
@@ -35,3 +36,4 @@ flexim-data-visualize.workspace = true
 eframe.workspace = true
 env_logger.workspace = true
 ndarray.workspace = true
+itertools.workspace = true

@@ -122,6 +122,32 @@ impl DataVisualize for FlTensor2DVisualize {
     }
 }
 
+pub fn stack_visualize(name: &str, ui: &mut Ui, stack: &Vec<Arc<dyn DataVisualize>>) -> UiResponse {
+    if stack.len() == 0 {
+        return UiResponse::None;
+    }
+    let stack = stack
+        .iter()
+        .map(|s| s.render(ui))
+        .flatten()
+        .collect::<Vec<_>>();
+    let image = egui::Image::from_bytes(format!("bytes://{}_0.png", name), stack[0].value.clone());
+    image
+        .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
+        .unwrap();
+    let response = ui.add(image);
+    let rect = response.rect;
+    for (i, image) in stack.iter().enumerate().skip(1) {
+        let image = Image::from_bytes(format!("bytes://{}_{}.png", name, i), image.value.clone());
+        let image = image.tint(egui::Color32::from_rgba_premultiplied(255, 255, 255, 128));
+        image
+            .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
+            .unwrap();
+        ui.put(rect, image);
+    }
+    UiResponse::None
+}
+
 pub struct StackVisualize {
     stack: Vec<Arc<dyn DataRender>>,
 }

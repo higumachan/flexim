@@ -1,10 +1,13 @@
+use egui::ahash::{HashMap, HashMapExt, HashSet};
 use egui_extras::install_image_loaders;
-use egui_tiles::SimplificationOptions;
+use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
 use flexim_data_type::{FlImage, FlTensor2D};
 use flexim_data_visualize::visualize::{
-    DataVisualize, FlImageVisualize, FlTensor2DVisualize, StackVisualize,
+    stack_visualize, DataVisualize, FlImageVisualize, FlTensor2DVisualize, StackVisualize,
 };
+use itertools::Itertools;
 use ndarray::Array2;
+use std::fmt::{Debug, Formatter, Pointer};
 use std::sync::Arc;
 
 struct Pane {
@@ -13,7 +16,22 @@ struct Pane {
     content: Arc<dyn DataVisualize>,
 }
 
-struct TreeBehavior {}
+#[derive(Clone)]
+struct StackTab {
+    contents: Vec<Arc<dyn DataVisualize>>,
+}
+
+impl Debug for StackTab {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StackTab")
+            .field("contents", &self.contents.len())
+            .finish()
+    }
+}
+
+struct TreeBehavior {
+    stack_tabs: HashMap<TileId, StackTab>,
+}
 
 impl egui_tiles::Behavior<Pane> for TreeBehavior {
     fn tab_title_for_pane(&mut self, pane: &Pane) -> egui::WidgetText {
@@ -23,11 +41,16 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
     fn pane_ui(
         &mut self,
         ui: &mut egui::Ui,
-        _tile_id: egui_tiles::TileId,
+        tile_id: egui_tiles::TileId,
         pane: &mut Pane,
     ) -> egui_tiles::UiResponse {
-        // Give each pane a unique color:
-        pane.content.visualize(&pane.name, ui)
+        // スタックタブの場合はデータを重ねて可視化する
+        dbg!(tile_id);
+        if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+            stack_visualize(pane.name.as_str(), ui, &stack_tab.contents)
+        } else {
+            pane.content.visualize(&pane.name, ui)
+        }
     }
 
     fn simplification_options(&self) -> SimplificationOptions {
@@ -50,7 +73,9 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         install_image_loaders(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            let mut behavior = TreeBehavior {};
+            let mut behavior = TreeBehavior {
+                stack_tabs: dbg!(collect_stack_tabs(&tree)),
+            };
             tree.ui(&mut behavior, ui);
         });
     })
@@ -96,4 +121,48 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
     let root = tiles.insert_tab_tile(tabs);
 
     egui_tiles::Tree::new("my_tree", root, tiles)
+}
+
+fn collect_stack_tabs(tree: &Tree<Pane>) -> HashMap<TileId, StackTab> {
+    let mut stack_tabs = HashMap::new();
+    for t in tree.tiles.tiles() {
+        match t {
+            Tile::Container(Container::Tabs(tabs)) => {
+                // all tab is pane
+                let child_tiles = tabs
+                    .children
+                    .iter()
+                    .map(|&c| (c, tree.tiles.get(c)))
+                    .collect_vec();
+                if child_tiles.len() >= 2
+                    && child_tiles
+                        .iter()
+                        .all(|(_, t)| t.map(|t| t.is_pane()).unwrap_or(false))
+                {
+                    for (id, _) in child_tiles.iter() {
+                        for (_, t) in child_tiles.iter() {
+                            match t {
+                                Some(Tile::Pane(p)) => {
+                                    stack_tabs
+                                        .entry(*id)
+                                        .and_modify(|m: &mut Vec<Arc<dyn DataVisualize>>| {
+                                            m.push(p.content.clone())
+                                        })
+                                        .or_insert(vec![p.content.clone()]);
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        };
+    }
+
+    HashMap::from_iter(
+        stack_tabs
+            .into_iter()
+            .map(|(k, v)| (k, StackTab { contents: v })),
+    )
 }
