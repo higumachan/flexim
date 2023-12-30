@@ -13,3 +13,4 @@ scarlet.workspace = true
 ndarray.workspace = true
 image.workspace = true
 unwrap-ord.workspace = true
+itertools.workspace = true

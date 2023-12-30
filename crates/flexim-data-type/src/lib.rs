@@ -14,6 +14,7 @@ impl FlImage {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FlTensor2D<A> {
     pub value: Array2<A>,
 }
