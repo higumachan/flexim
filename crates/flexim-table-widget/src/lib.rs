@@ -1,12 +1,11 @@
 use egui::ahash::{HashMap, HashSet, HashSetExt};
 use egui::Key::{N, T};
+use egui::WidgetType::TextEdit;
 use egui::{Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use polars::prelude::*;
-use std::cell::RefCell;
-use std::ops::{BitAnd, Deref, DerefMut, RangeInclusive};
+use std::ops::{BitAnd, DerefMut};
 use std::sync::Mutex;
-use std::task::Poll;
 
 pub struct FlTable {
     dataframe: Arc<DataFrame>,
@@ -17,7 +16,7 @@ impl FlTable {
         Self { dataframe }
     }
 
-    pub fn view(&self, ui: &mut egui::Ui) {
+    pub fn draw(&self, ui: &mut Ui) {
         let id = ui.make_persistent_id("fl_table");
         let mut state = ui.memory_mut(|mem| {
             mem.data
@@ -129,6 +128,9 @@ impl ColumnFilter {
                 };
                 ui.add(slider);
             }
+            Some(Filter::SearchFilter(search)) => {
+                ui.text_edit_singleline(search);
+            }
             _ => {}
         }
     }
@@ -157,7 +159,7 @@ impl ColumnFilter {
         } else if dtype == &DataType::Utf8 {
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(Some(Filter::SearchFilter(None)))),
+                filter: Arc::new(Mutex::new(Some(Filter::SearchFilter(String::new())))),
             }
         } else if let DataType::Categorical(d) = dtype {
             Self {
@@ -175,7 +177,7 @@ impl ColumnFilter {
 
 #[derive(Debug, Clone)]
 enum Filter {
-    SearchFilter(Option<String>),
+    SearchFilter(String),
     RangeFilter { min: f64, max: f64 },
     CategoricalFilter(HashSet<String>),
 }
@@ -183,10 +185,7 @@ enum Filter {
 impl Filter {
     fn apply(&self, series: &Series) -> Option<BooleanChunked> {
         match self {
-            Filter::SearchFilter(search) => {
-                let search = search.as_ref().map(|t| t.as_str())?;
-                Some(series.utf8().ok()?.contains(search, true).ok()?)
-            }
+            Filter::SearchFilter(search) => Some(series.utf8().ok()?.contains(search, true).ok()?),
             Filter::RangeFilter { min, max } => {
                 let series = series.cast(&DataType::Float64).ok()?;
                 let series = series.f64().ok()?;

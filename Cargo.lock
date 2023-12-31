@@ -1339,6 +1339,8 @@ dependencies = [
  "flexim-data-visualize",
  "itertools 0.12.0",
  "ndarray",
+ "rand",
+ "serde",
 ]
 
 [[package]]

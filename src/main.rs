@@ -1,12 +1,16 @@
+use eframe::emath::Rect;
 use egui::ahash::{HashMap, HashMapExt, HashSet};
+use egui::emath::RectTransform;
+use egui::{Align, Button, DragValue, Id, Layout, Pos2, Ui, Vec2, Widget};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
 use flexim_data_type::{FlImage, FlTensor2D};
 use flexim_data_visualize::visualize::{
-    stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender,
+    stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
 };
 use itertools::Itertools;
 use ndarray::Array2;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter, Pointer};
 use std::sync::Arc;
 
@@ -16,8 +20,12 @@ struct Pane {
     content: Arc<dyn DataRender>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct StackId(u64);
+
 #[derive(Clone)]
 struct StackTab {
+    id: Id,
     contents: Vec<(String, Arc<dyn DataRender>)>,
 }
 
@@ -41,16 +49,55 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
     fn pane_ui(
         &mut self,
         ui: &mut egui::Ui,
-        tile_id: egui_tiles::TileId,
+        tile_id: TileId,
         pane: &mut Pane,
     ) -> egui_tiles::UiResponse {
         // スタックタブの場合はデータを重ねて可視化する
-        dbg!(tile_id);
-        if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
-            stack_visualize(ui, &stack_tab.contents)
+        let id = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+            stack_tab.id
         } else {
-            visualize(ui, &pane.name, pane.content.as_ref())
-        }
+            tile_id.egui_id(ui.id())
+        };
+        let mut state = ui
+            .memory_mut(|mem| mem.data.get_persisted::<VisualizeState>(id))
+            .unwrap_or_default();
+
+        let response = ui
+            .with_layout(Layout::top_down(Align::Min), |ui| {
+                ui.with_layout(
+                    Layout::left_to_right(Align::Min)
+                        .with_main_align(Align::Center)
+                        .with_main_wrap(true),
+                    |ui| {
+                        let b = ui.button("-");
+                        if b.clicked() {
+                            state.scale -= 0.1;
+                        }
+                        let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
+                        if dv.clicked() {
+                            state.scale = 1.0;
+                        }
+
+                        let b = ui.button("+");
+                        if b.clicked() {
+                            state.scale += 0.1;
+                        }
+                    },
+                );
+
+                let response = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+                    stack_visualize(ui, &mut state, &stack_tab.contents)
+                } else {
+                    visualize(ui, &mut state, &pane.name, pane.content.as_ref())
+                };
+                response
+            })
+            .inner;
+
+        state.verify();
+        ui.memory_mut(|mem| mem.data.insert_persisted(id, state));
+
+        response
     }
 
     fn simplification_options(&self) -> SimplificationOptions {
@@ -74,7 +121,7 @@ fn main() -> Result<(), eframe::Error> {
         install_image_loaders(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut behavior = TreeBehavior {
-                stack_tabs: dbg!(collect_stack_tabs(&tree)),
+                stack_tabs: dbg!(collect_stack_tabs(ui, &tree)),
             };
             tree.ui(&mut behavior, ui);
         });
@@ -121,7 +168,7 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
     egui_tiles::Tree::new("my_tree", root, tiles)
 }
 
-fn collect_stack_tabs(tree: &Tree<Pane>) -> HashMap<TileId, StackTab> {
+fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTab> {
     let mut stack_tabs = HashMap::new();
     for t in tree.tiles.tiles() {
         match t {
@@ -158,9 +205,13 @@ fn collect_stack_tabs(tree: &Tree<Pane>) -> HashMap<TileId, StackTab> {
         };
     }
 
-    HashMap::from_iter(
-        stack_tabs
-            .into_iter()
-            .map(|(k, (v))| (k, StackTab { contents: v })),
-    )
+    HashMap::from_iter(stack_tabs.into_iter().map(|(k, (v))| {
+        (
+            k,
+            StackTab {
+                id: ui.next_auto_id(),
+                contents: v,
+            },
+        )
+    }))
 }

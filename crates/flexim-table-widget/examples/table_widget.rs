@@ -54,7 +54,7 @@ fn main() {
     eframe::run_simple_native("FlTable Example", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut table = FlTable::new(df.clone());
-            table.view(ui);
+            table.draw(ui);
         });
     })
     .unwrap();

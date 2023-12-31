@@ -1,5 +1,7 @@
 use crate::cache::{Poll, VisualizedImageCache};
-use egui::{Id, Image, ImageSource, LayerId, Layout, Pos2, Rect, Ui, Vec2};
+use egui::emath::RectTransform;
+use egui::scroll_area::State;
+use egui::{Id, Image, ImageSource, LayerId, Layout, Pos2, Rect, Ui, Vec2, Widget};
 use egui_tiles::UiResponse;
 use flexim_data_type::{FlImage, FlTensor2D};
 use image::{DynamicImage, ImageBuffer, Rgb};
@@ -8,6 +10,34 @@ use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use std::sync::Arc;
 use unwrap_ord::UnwrapOrd;
+
+#[derive(Debug, Clone)]
+pub struct VisualizeState {
+    pub scale: f64,
+    pub shift: Vec2,
+}
+
+impl VisualizeState {
+    pub fn uv_rect(&self) -> Rect {
+        Rect::from_center_size(
+            Pos2::new(0.5, 0.5) + self.shift,
+            Vec2::new(1.0 / self.scale as f32, 1.0 / self.scale as f32),
+        )
+    }
+
+    pub fn verify(&mut self) {
+        self.scale = self.scale.clamp(0.0, 10.0);
+    }
+}
+
+impl Default for VisualizeState {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+            shift: Vec2::ZERO,
+        }
+    }
+}
 
 pub trait DataRender {
     fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>>;
@@ -102,9 +132,15 @@ impl DataRender for FlTensor2DRender {
     }
 }
 
-pub fn visualize(ui: &mut Ui, name: &str, render: &dyn DataRender) -> UiResponse {
+pub fn visualize(
+    ui: &mut Ui,
+    state: &mut VisualizeState,
+    name: &str,
+    render: &dyn DataRender,
+) -> UiResponse {
     if let Some(image) = render.render(ui) {
         let image = Image::from_bytes(format!("bytes://{}.png", name), image.value.clone());
+        let image = image.uv(state.uv_rect());
         image
             .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
             .unwrap();
@@ -115,7 +151,11 @@ pub fn visualize(ui: &mut Ui, name: &str, render: &dyn DataRender) -> UiResponse
     UiResponse::None
 }
 
-pub fn stack_visualize(ui: &mut Ui, stack: &Vec<(String, Arc<dyn DataRender>)>) -> UiResponse {
+pub fn stack_visualize(
+    ui: &mut Ui,
+    visualize_state: &mut VisualizeState,
+    stack: &Vec<(String, Arc<dyn DataRender>)>,
+) -> UiResponse {
     if stack.len() == 0 {
         return UiResponse::None;
     }
@@ -127,6 +167,7 @@ pub fn stack_visualize(ui: &mut Ui, stack: &Vec<(String, Arc<dyn DataRender>)>) 
 
     let (name, v) = &stack[0];
     let image = egui::Image::from_bytes(format!("bytes://{}_0.png", name), v.value.clone());
+    let image = image.uv(visualize_state.uv_rect());
     image
         .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
         .unwrap();
@@ -134,6 +175,7 @@ pub fn stack_visualize(ui: &mut Ui, stack: &Vec<(String, Arc<dyn DataRender>)>) 
     let rect = response.rect;
     for (i, (name, image)) in stack.iter().enumerate().skip(1) {
         let image = Image::from_bytes(format!("bytes://{}_{}.png", name, i), image.value.clone());
+        let image = image.uv(visualize_state.uv_rect());
         let image = image.tint(egui::Color32::from_rgba_premultiplied(255, 255, 255, 128));
         image
             .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
