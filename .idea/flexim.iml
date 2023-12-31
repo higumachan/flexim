@@ -4,6 +4,8 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-data-type/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-data-visualize/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-table-widget/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-table-widget/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
