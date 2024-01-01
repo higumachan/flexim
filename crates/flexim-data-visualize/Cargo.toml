@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 flexim-data-type.workspace = true
+flexim-data-view.workspace = true
 egui.workspace = true
 egui_tiles.workspace = true
 scarlet.workspace = true
@@ -16,3 +17,4 @@ unwrap-ord.workspace = true
 itertools.workspace = true
 num-traits.workspace = true
 anyhow.workspace = true
+rand.workspace = true

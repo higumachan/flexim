@@ -5,20 +5,30 @@ use egui::load::DefaultTextureLoader;
 use egui::{Align, Button, DragValue, Grid, Id, Layout, Pos2, ScrollArea, Ui, Vec2, Widget};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
-use flexim_data_type::{FlData, FlImage, FlTensor2D};
+use flexim_data_type::{FlData, FlDataFrame, FlDataFrameRectangle, FlImage, FlTensor2D};
+use flexim_data_view::{DataView, DataViewCreatable, FlDataFrameView};
+use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_data_visualize::visualize::{
-    into_visualize, stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender,
-    VisualizeState,
+    stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
 };
 use itertools::Itertools;
 use ndarray::Array2;
+use polars::datatypes::StructChunked;
+use polars::prelude::{CsvReader, IntoSeries, NamedFrom, SerReader, Series};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter, Pointer};
+use std::io::Cursor;
 use std::sync::Arc;
+
+#[derive(Clone)]
+enum PaneContent {
+    Visualize(Arc<dyn DataRender>),
+    DataView(Arc<dyn DataView>),
+}
 
 struct Pane {
     name: String,
-    content: Arc<dyn DataRender>,
+    content: PaneContent,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -59,51 +69,60 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
         } else {
             tile_id.egui_id(ui.id())
         };
-        let mut state = ui
-            .memory_mut(|mem| mem.data.get_persisted::<VisualizeState>(id))
-            .unwrap_or_default();
 
-        let response = ui
-            .with_layout(Layout::top_down(Align::Min), |ui| {
-                ui.with_layout(
-                    Layout::left_to_right(Align::Min)
-                        .with_main_align(Align::Center)
-                        .with_main_wrap(true),
-                    |ui| {
-                        let b = ui.button("-");
-                        if b.clicked() {
-                            state.scale -= 0.1;
+        match &pane.content {
+            PaneContent::Visualize(content) => {
+                let mut state = ui
+                    .memory_mut(|mem| mem.data.get_persisted::<VisualizeState>(id))
+                    .unwrap_or_default();
+
+                let response = ui
+                    .with_layout(Layout::top_down(Align::Min), |ui| {
+                        ui.with_layout(
+                            Layout::left_to_right(Align::Min)
+                                .with_main_align(Align::Center)
+                                .with_main_wrap(true),
+                            |ui| {
+                                let b = ui.button("-");
+                                if b.clicked() {
+                                    state.scale -= 0.1;
+                                }
+                                let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
+                                if dv.clicked() {
+                                    state.scale = 1.0;
+                                }
+
+                                let b = ui.button("+");
+                                if b.clicked() {
+                                    state.scale += 0.1;
+                                }
+                            },
+                        );
+
+                        let response = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+                            stack_visualize(ui, &mut state, &stack_tab.contents)
+                        } else {
+                            visualize(ui, &mut state, &pane.name, content.as_ref())
+                        };
+
+                        if response.dragged() {
+                            state.shift -= response.drag_delta() / response.rect.size();
                         }
-                        let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
-                        if dv.clicked() {
-                            state.scale = 1.0;
-                        }
 
-                        let b = ui.button("+");
-                        if b.clicked() {
-                            state.scale += 0.1;
-                        }
-                    },
-                );
+                        response
+                    })
+                    .inner;
 
-                let response = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
-                    stack_visualize(ui, &mut state, &stack_tab.contents)
-                } else {
-                    visualize(ui, &mut state, &pane.name, pane.content.as_ref())
-                };
+                state.verify();
+                ui.memory_mut(|mem| mem.data.insert_persisted(id, state));
 
-                if response.dragged() {
-                    state.shift -= response.drag_delta() / response.rect.size();
-                }
-
-                response
-            })
-            .inner;
-
-        state.verify();
-        ui.memory_mut(|mem| mem.data.insert_persisted(id, state));
-
-        UiResponse::None
+                UiResponse::None
+            }
+            PaneContent::DataView(view) => {
+                view.draw(ui);
+                UiResponse::None
+            }
+        }
     }
 
     fn simplification_options(&self) -> SimplificationOptions {
@@ -163,6 +182,7 @@ fn main() -> Result<(), eframe::Error> {
                 }))
                 .into(),
             ),
+            ManagedData::new("tabledata".to_string(), load_sample_data().into()),
         ],
     };
 
@@ -196,8 +216,10 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
                     |ui| {
                         ui.label(&d.name);
 
-                        if ui.button("+").clicked() {
-                            insert_root_tile(&mut app.tree, d);
+                        if d.data.is_visualizable() || d.data.data_view_creatable() {
+                            if ui.button("+").clicked() {
+                                insert_root_tile(&mut app.tree, d);
+                            }
                         }
                     },
                 );
@@ -211,7 +233,7 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
     let mut gen_pane = |name: String, image: Arc<dyn DataRender>| {
         let pane = Pane {
             name,
-            content: image,
+            content: PaneContent::Visualize(image),
         };
         next_view_nr += 1;
         pane
@@ -221,20 +243,20 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
 
     let mut tabs = vec![];
     tabs.push({
-        let image1 = Arc::new(FlImageRender::new(FlImage::new(
+        let image1 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
             include_bytes!("../assets/flexim-logo-1.png").to_vec(),
-        )));
-        let image2 = Arc::new(FlImageRender::new(FlImage::new(
+        ))));
+        let image2 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
             include_bytes!("../assets/tall.png").to_vec(),
-        )));
-        let tensor = Arc::new(FlTensor2DRender::new(FlTensor2D::new(
+        ))));
+        let tensor = Arc::new(FlTensor2DRender::new(Arc::new(FlTensor2D::new(
             Array2::from_shape_fn((512, 512), |(y, x)| {
                 // center peak gauss
                 let x = (x as f64 - 256.0) / 100.0;
                 let y = (y as f64 - 256.0) / 100.0;
                 (-(x * x + y * y) / 2.0).exp()
             }),
-        )));
+        ))));
         let mut children = vec![];
         children.push(tiles.insert_pane(gen_pane("image".to_string(), image1.clone())));
         children.push(tiles.insert_pane(gen_pane("tall".to_string(), image2.clone())));
@@ -260,20 +282,32 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
                     .map(|&c| (c, tree.tiles.get(c)))
                     .collect_vec();
                 if child_tiles.len() >= 2
-                    && child_tiles
-                        .iter()
-                        .all(|(_, t)| t.map(|t| t.is_pane()).unwrap_or(false))
+                    && child_tiles.iter().all(|(_, t)| {
+                        t.map(|t| {
+                            matches!(
+                                t,
+                                Tile::Pane(Pane {
+                                    content: PaneContent::Visualize(_),
+                                    ..
+                                })
+                            )
+                        })
+                        .unwrap_or(false)
+                    })
                 {
                     for (id, _) in child_tiles.iter() {
                         for (_, t) in child_tiles.iter() {
                             match t {
-                                Some(Tile::Pane(p)) => {
+                                Some(Tile::Pane(Pane {
+                                    name,
+                                    content: PaneContent::Visualize(content),
+                                })) => {
                                     stack_tabs
                                         .entry(*id)
                                         .and_modify(|m: &mut Vec<(String, Arc<dyn DataRender>)>| {
-                                            m.push((p.name.clone(), p.content.clone()))
+                                            m.push((name.clone(), content.clone()))
                                         })
-                                        .or_insert(vec![(p.name.clone(), p.content.clone())]);
+                                        .or_insert(vec![(name.clone(), content.clone())]);
                                 }
                                 _ => unreachable!(),
                             }
@@ -297,10 +331,9 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
 }
 
 fn insert_root_tile(tree: &mut Tree<Pane>, data: &ManagedData) {
-    dbg!("inserted");
     let tile_id = tree.tiles.insert_pane(Pane {
         name: data.name.clone(),
-        content: into_visualize(data.data.as_ref()).unwrap(),
+        content: into_pane_content(data.data.as_ref()).unwrap(),
     });
     if let Some(root) = tree.root() {
         let root = tree.tiles.get_mut(root).unwrap();
@@ -316,5 +349,60 @@ fn insert_root_tile(tree: &mut Tree<Pane>, data: &ManagedData) {
             }
             _ => unreachable!("root tile is not pane"),
         }
+    }
+}
+
+fn load_sample_data() -> FlDataFrame {
+    let data = Vec::from(include_bytes!("../assets/sample.csv"));
+    let data = Cursor::new(data);
+    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+
+    let df = df.apply("Face", read_rectangle).unwrap().clone();
+
+    FlDataFrame::new(df)
+}
+
+fn read_rectangle(s: &Series) -> Series {
+    let mut x1 = vec![];
+    let mut y1 = vec![];
+    let mut x2 = vec![];
+    let mut y2 = vec![];
+    for s in s.utf8().unwrap().into_iter() {
+        let s: Option<&str> = s;
+        if let Some(s) = s {
+            let t = serde_json::from_str::<FlDataFrameRectangle>(s).unwrap();
+            x1.push(Some(t.x1));
+            y1.push(Some(t.y1));
+            x2.push(Some(t.x2));
+            y2.push(Some(t.y2));
+        } else {
+            x1.push(None);
+            y1.push(None);
+            x2.push(None);
+            y2.push(None);
+        }
+    }
+    let x1 = Series::new("x1", x1);
+    let y1 = Series::new("y1", y1);
+    let x2 = Series::new("x2", x2);
+    let y2 = Series::new("y2", y2);
+
+    StructChunked::new("Face", &[x1, y1, x2, y2])
+        .unwrap()
+        .into_series()
+}
+
+pub fn into_pane_content(fl_data: &FlData) -> anyhow::Result<PaneContent> {
+    match fl_data {
+        FlData::Image(fl_image) => Ok(PaneContent::Visualize(Arc::new(FlImageRender::new(
+            fl_image.clone(),
+        )))),
+        FlData::Tensor(fl_tensor2d) => Ok(PaneContent::Visualize(Arc::new(FlTensor2DRender::new(
+            fl_tensor2d.clone(),
+        )))),
+        FlData::DataFrame(fl_dataframe) => Ok(PaneContent::DataView(Arc::new(
+            FlDataFrameView::new(fl_dataframe.clone()),
+        ))),
+        _ => anyhow::bail!("not supported"),
     }
 }

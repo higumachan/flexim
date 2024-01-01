@@ -6,29 +6,34 @@ use polars::prelude::{
 };
 use rand::{random, thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+
+pub trait FlDataTrait {
+    fn id(&self) -> usize;
+}
 
 #[derive(Debug, Clone)]
 pub enum FlData {
-    Image(FlImage),
-    Tensor(FlTensor2D<f64>),
-    DataFrame(FlDataFrame),
+    Image(Arc<FlImage>),
+    Tensor(Arc<FlTensor2D<f64>>),
+    DataFrame(Arc<FlDataFrame>),
 }
 
 impl From<FlImage> for FlData {
     fn from(value: FlImage) -> Self {
-        Self::Image(value)
+        Self::Image(Arc::new(value))
     }
 }
 
 impl From<FlTensor2D<f64>> for FlData {
     fn from(value: FlTensor2D<f64>) -> Self {
-        Self::Tensor(value)
+        Self::Tensor(Arc::new(value))
     }
 }
 
 impl From<FlDataFrame> for FlData {
     fn from(value: FlDataFrame) -> Self {
-        Self::DataFrame(value)
+        Self::DataFrame(Arc::new(value))
     }
 }
 
@@ -48,6 +53,12 @@ impl FlImage {
     }
 }
 
+impl FlDataTrait for FlImage {
+    fn id(&self) -> usize {
+        self.id
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FlTensor2D<A> {
     pub id: usize,
@@ -60,6 +71,12 @@ impl<A> FlTensor2D<A> {
             id: gen_id(),
             value,
         }
+    }
+}
+
+impl FlDataTrait for FlTensor2D<f64> {
+    fn id(&self) -> usize {
+        self.id
     }
 }
 
@@ -90,6 +107,12 @@ impl FlDataFrame {
             id: gen_id(),
             value,
         }
+    }
+}
+
+impl FlDataTrait for FlDataFrame {
+    fn id(&self) -> usize {
+        self.id
     }
 }
 

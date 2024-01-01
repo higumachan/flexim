@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 flexim-table-widget.workspace = true
 flexim-data-type.workspace = true
+rand.workspace = true
+egui.workspace = true

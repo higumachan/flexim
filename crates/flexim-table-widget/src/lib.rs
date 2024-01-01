@@ -3,48 +3,51 @@ use egui::Key::{N, T};
 use egui::WidgetType::TextEdit;
 use egui::{Slider, Ui};
 use egui_extras::{Column, TableBuilder};
+use flexim_data_type::FlDataFrame;
 use polars::prelude::*;
 use std::ops::{BitAnd, DerefMut};
 use std::sync::Mutex;
 
+#[derive(Debug, Clone)]
 pub struct FlTable {
-    dataframe: Arc<DataFrame>,
+    dataframe: Arc<FlDataFrame>,
 }
 
 impl FlTable {
-    pub fn new(dataframe: Arc<DataFrame>) -> Self {
+    pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
         Self { dataframe }
     }
 
     pub fn draw(&self, ui: &mut Ui) {
-        let id = ui.make_persistent_id("fl_table");
+        let id = ui.make_persistent_id(("fl_table", self.dataframe.id));
         let mut state = ui.memory_mut(|mem| {
             mem.data
                 .get_persisted::<FlTableState>(id)
                 .unwrap_or_else(|| {
-                    let t = FlTableState::new(&self.dataframe);
+                    let t = FlTableState::new(&self.dataframe.value);
                     mem.data.insert_persisted(id, t.clone());
                     t
                 })
         });
 
-        let columns = self.dataframe.get_column_names();
+        let dataframe = &self.dataframe.value;
+        let columns = dataframe.get_column_names();
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
         let mut col_filter_mask = std::iter::repeat(true)
-            .take(self.dataframe.height())
+            .take(dataframe.height())
             .collect::<BooleanChunked>();
 
         for col in &columns {
             builder = builder.column(Column::auto().resizable(true));
             let filter = state.filters.get(*col).unwrap().filter.lock().unwrap();
-            let series = self.dataframe.column(col).unwrap();
+            let series = dataframe.column(col).unwrap();
             if let Some(filter) = filter.as_ref() {
                 if let Some(m) = filter.apply(series) {
                     col_filter_mask = col_filter_mask.bitand(m);
                 }
             }
         }
-        let dataframe = self.dataframe.filter(&col_filter_mask).unwrap();
+        let dataframe = dataframe.filter(&col_filter_mask).unwrap();
         builder
             .header(32.0, |mut header| {
                 for col in columns {

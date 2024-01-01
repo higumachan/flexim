@@ -34,10 +34,12 @@ num-traits = "0.2.17"
 
 
 [dependencies]
+anyhow.workspace = true
 egui.workspace = true
 egui_extras.workspace = true
 egui_tiles.workspace = true
 flexim-data-type.workspace = true
+flexim-data-view.workspace = true
 flexim-data-visualize.workspace = true
 eframe.workspace = true
 env_logger.workspace = true
@@ -45,3 +47,5 @@ ndarray.workspace = true
 itertools.workspace = true
 serde.workspace = true
 rand.workspace = true
+polars.workspace = true
+serde_json.workspace = true

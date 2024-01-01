@@ -52,10 +52,8 @@ pub struct FlImageRender {
 }
 
 impl FlImageRender {
-    pub fn new(content: FlImage) -> Self {
-        Self {
-            content: Arc::new(content),
-        }
+    pub fn new(content: Arc<FlImage>) -> Self {
+        Self { content }
     }
 }
 
@@ -66,11 +64,11 @@ impl DataRender for FlImageRender {
 }
 
 pub struct FlTensor2DRender {
-    content: FlTensor2D<f64>,
+    content: Arc<FlTensor2D<f64>>,
 }
 
 impl FlTensor2DRender {
-    pub fn new(content: FlTensor2D<f64>) -> Self {
+    pub fn new(content: Arc<FlTensor2D<f64>>) -> Self {
         Self { content }
     }
 }
@@ -152,14 +150,6 @@ pub fn visualize(
         ui.add(image)
     } else {
         ui.spinner()
-    }
-}
-
-pub fn into_visualize(fl_data: &FlData) -> anyhow::Result<Arc<dyn DataRender>> {
-    match fl_data {
-        FlData::Image(fl_image) => Ok(Arc::new(FlImageRender::new(fl_image.clone()))),
-        FlData::Tensor(fl_tensor2d) => Ok(Arc::new(FlTensor2DRender::new(fl_tensor2d.clone()))),
-        _ => anyhow::bail!("not supported"),
     }
 }
 
