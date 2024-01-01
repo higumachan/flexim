@@ -174,6 +174,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.78"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca87830a3e3fb156dc96cfbd31cb620265dd053be734723f22b760d6cc3c3051"
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1350,21 +1356,40 @@ dependencies = [
  "image 0.23.14",
  "ndarray",
  "polars",
+ "rand",
  "serde",
+]
+
+[[package]]
+name = "flexim-data-view"
+version = "0.1.0"
+dependencies = [
+ "flexim-data-type",
+ "flexim-table-widget",
 ]
 
 [[package]]
 name = "flexim-data-visualize"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "egui",
  "egui_tiles",
  "flexim-data-type",
  "image 0.23.14",
  "itertools 0.12.0",
  "ndarray",
+ "num-traits",
  "scarlet",
  "unwrap-ord",
+]
+
+[[package]]
+name = "flexim-image-utility"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "image 0.23.14",
 ]
 
 [[package]]

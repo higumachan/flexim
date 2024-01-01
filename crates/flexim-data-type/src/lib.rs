@@ -4,49 +4,92 @@ use polars::frame::DataFrame;
 use polars::prelude::{
     AnyValue, ChunkedSet, DataType, Field, NamedFrom, PolarsResult, StructChunked,
 };
-use polars::series::Series;
+use rand::{random, thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use std::io::Bytes;
 
+#[derive(Debug, Clone)]
+pub enum FlData {
+    Image(FlImage),
+    Tensor(FlTensor2D<f64>),
+    DataFrame(FlDataFrame),
+}
+
+impl From<FlImage> for FlData {
+    fn from(value: FlImage) -> Self {
+        Self::Image(value)
+    }
+}
+
+impl From<FlTensor2D<f64>> for FlData {
+    fn from(value: FlTensor2D<f64>) -> Self {
+        Self::Tensor(value)
+    }
+}
+
+impl From<FlDataFrame> for FlData {
+    fn from(value: FlDataFrame) -> Self {
+        Self::DataFrame(value)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct FlImage {
+    pub id: usize,
     // png buffer
     pub value: Vec<u8>,
 }
 
 impl FlImage {
     pub fn new(value: Vec<u8>) -> Self {
-        Self { value }
+        Self {
+            id: gen_id(),
+            value,
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct FlTensor2D<A> {
+    pub id: usize,
     pub value: Array2<A>,
 }
 
 impl<A> FlTensor2D<A> {
     pub fn new(value: Array2<A>) -> Self {
-        Self { value }
+        Self {
+            id: gen_id(),
+            value,
+        }
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FlTensor3D<A> {
+    pub id: usize,
     pub value: Array3<A>,
 }
 
 impl<A> FlTensor3D<A> {
     pub fn new(value: Array3<A>) -> Self {
-        Self { value }
+        Self {
+            id: gen_id(),
+            value,
+        }
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FlDataFrame {
+    pub id: usize,
     pub value: DataFrame,
 }
 
 impl FlDataFrame {
     pub fn new(value: DataFrame) -> Self {
-        Self { value }
+        Self {
+            id: gen_id(),
+            value,
+        }
     }
 }
 
@@ -67,6 +110,10 @@ impl FlDataFrameRectangle {
             Field::new("y2", DataType::Float64),
         ]
     }
+}
+
+fn gen_id() -> usize {
+    random()
 }
 
 #[cfg(test)]

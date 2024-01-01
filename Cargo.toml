@@ -11,6 +11,7 @@ members = [
 ]
 
 [workspace.dependencies]
+anyhow = "1.0.78"
 egui = "0.24.1"
 egui_extras = { version = "0.24.2", features = ["image", "svg"] }
 egui_tiles = "0.4.0"
@@ -20,13 +21,16 @@ polars = { version = "0.35.4", features = ["serde", "dtype-struct", "dtype-categ
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.108"
 flexim-data-type = { path = "crates/flexim-data-type" }
+flexim-data-view = { path = "crates/flexim-data-view" }
 flexim-data-visualize = { path = "crates/flexim-data-visualize" }
+flexim-table-widget = { path = "crates/flexim-table-widget" }
 eframe = "0.24.1"
 env_logger = "0.10.1"
 scarlet = "1.2.0"
 unwrap-ord = "0.1.2"
 itertools = "0.12.0"
 rand = "0.8.5"
+num-traits = "0.2.17"
 
 
 [dependencies]

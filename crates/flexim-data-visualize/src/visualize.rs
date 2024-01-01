@@ -1,11 +1,15 @@
 use crate::cache::{Poll, VisualizedImageCache};
 use egui::emath::RectTransform;
+use egui::load::TexturePoll;
 use egui::scroll_area::State;
-use egui::{Id, Image, ImageSource, LayerId, Layout, Pos2, Rect, Ui, Vec2, Widget};
+use egui::{
+    Context, Id, Image, ImageSource, LayerId, Layout, Pos2, Rect, Response, Sense, Ui, Vec2, Widget,
+};
 use egui_tiles::UiResponse;
-use flexim_data_type::{FlImage, FlTensor2D};
+use flexim_data_type::{FlData, FlImage, FlTensor2D};
 use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
+use num_traits::float::Float;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use std::sync::Arc;
@@ -26,7 +30,7 @@ impl VisualizeState {
     }
 
     pub fn verify(&mut self) {
-        self.scale = self.scale.clamp(0.0, 10.0);
+        self.scale = self.scale.clamp(0.01, 10.0);
     }
 }
 
@@ -62,13 +66,12 @@ impl DataRender for FlImageRender {
 }
 
 pub struct FlTensor2DRender {
-    id: usize,
     content: FlTensor2D<f64>,
 }
 
 impl FlTensor2DRender {
-    pub fn new(id: usize, content: FlTensor2D<f64>) -> Self {
-        Self { id, content }
+    pub fn new(content: FlTensor2D<f64>) -> Self {
+        Self { content }
     }
 }
 
@@ -76,7 +79,7 @@ impl DataRender for FlTensor2DRender {
     fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>> {
         ui.memory_mut(|mem| {
             let cache = mem.caches.cache::<VisualizedImageCache>();
-            if let Some(image) = cache.get(self.id) {
+            if let Some(image) = cache.get(self.content.id) {
                 if let Poll::Ready(image) = image {
                     Some(image)
                 } else {
@@ -84,7 +87,7 @@ impl DataRender for FlTensor2DRender {
                 }
             } else {
                 let ctx = ui.ctx().clone();
-                let id = self.id;
+                let id = self.content.id;
                 let content = self.content.clone();
                 std::thread::spawn(move || {
                     let cm = scarlet::colormap::ListedColorMap::viridis();
@@ -125,7 +128,7 @@ impl DataRender for FlTensor2DRender {
                         cache.insert(id, FlImage::new(image_png_bytes));
                     })
                 });
-                cache.insert_pending(self.id);
+                cache.insert_pending(self.content.id);
                 None
             }
         })
@@ -137,28 +140,35 @@ pub fn visualize(
     state: &mut VisualizeState,
     name: &str,
     render: &dyn DataRender,
-) -> UiResponse {
+) -> Response {
     if let Some(image) = render.render(ui) {
         let image = Image::from_bytes(format!("bytes://{}.png", name), image.value.clone());
         let image = image.uv(state.uv_rect());
-        image
+        let image = image.sense(Sense::drag());
+        let _texture = image
             .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
             .unwrap();
-        ui.add(image);
+
+        ui.add(image)
     } else {
-        ui.spinner();
+        ui.spinner()
     }
-    UiResponse::None
+}
+
+pub fn into_visualize(fl_data: &FlData) -> anyhow::Result<Arc<dyn DataRender>> {
+    match fl_data {
+        FlData::Image(fl_image) => Ok(Arc::new(FlImageRender::new(fl_image.clone()))),
+        FlData::Tensor(fl_tensor2d) => Ok(Arc::new(FlTensor2DRender::new(fl_tensor2d.clone()))),
+        _ => anyhow::bail!("not supported"),
+    }
 }
 
 pub fn stack_visualize(
     ui: &mut Ui,
     visualize_state: &mut VisualizeState,
     stack: &Vec<(String, Arc<dyn DataRender>)>,
-) -> UiResponse {
-    if stack.len() == 0 {
-        return UiResponse::None;
-    }
+) -> Response {
+    assert_ne!(stack.len(), 0);
     let stack = stack
         .iter()
         .map(|(n, s)| s.render(ui).into_iter().map(move |i| (n.clone(), i)))
@@ -168,21 +178,32 @@ pub fn stack_visualize(
     let (name, v) = &stack[0];
     let image = egui::Image::from_bytes(format!("bytes://{}_0.png", name), v.value.clone());
     let image = image.uv(visualize_state.uv_rect());
+    let image = image.sense(Sense::drag());
     image
         .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
         .unwrap();
     let response = ui.add(image);
     let rect = response.rect;
+    let mut last_image = None;
     for (i, (name, image)) in stack.iter().enumerate().skip(1) {
+        if let Some(image) = last_image {
+            ui.put(rect, image);
+        }
         let image = Image::from_bytes(format!("bytes://{}_{}.png", name, i), image.value.clone());
         let image = image.uv(visualize_state.uv_rect());
         let image = image.tint(egui::Color32::from_rgba_premultiplied(255, 255, 255, 128));
-        image
+        let _texture = image
             .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
             .unwrap();
-        ui.put(rect, image);
+
+        last_image = Some(image);
     }
-    UiResponse::None
+    if let Some(image) = last_image {
+        let image = image.sense(Sense::drag());
+        ui.put(rect, image)
+    } else {
+        response
+    }
 }
 
 #[cfg(test)]
