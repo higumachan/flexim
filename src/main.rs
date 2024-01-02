@@ -41,7 +41,7 @@ pub struct StackId(u64);
 #[derive(Clone)]
 struct StackTab {
     id: Id,
-    contents: Vec<(String, Arc<dyn DataRender>)>,
+    contents: Vec<Arc<dyn DataRender>>,
 }
 
 impl Debug for StackTab {
@@ -230,11 +230,9 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
             ui.set_width(width);
             ui.label("Data");
             for d in &app.data {
-                ui.with_layout(
-                    Layout::left_to_right(Align::Min).with_main_align(Align::Max),
-                    |ui| {
-                        ui.label(&d.name);
-
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    ui.label(&d.name);
+                    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                         if d.data.is_visualizable() || d.data.data_view_creatable() {
                             if ui.button("+").clicked() {
                                 let content = into_pane_content(d.data.as_ref()).unwrap();
@@ -245,8 +243,8 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
                                 insert_root_tile(&mut app.tree, d.name.as_str(), content);
                             }
                         }
-                    },
-                );
+                    });
+                });
             }
         });
     ui.separator();
@@ -264,10 +262,9 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
                     .id_source(d.data_view.id())
                     .show(ui, |ui| {
                         for attr in d.data_view.visualizeable_attributes() {
-                            ui.with_layout(
-                                Layout::left_to_right(Align::Min).with_main_align(Align::Max),
-                                |ui| {
-                                    ui.label(attr.to_string());
+                            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                                ui.label(attr.to_string());
+                                ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                                     if ui.button("+").clicked() {
                                         let render = d.data_view.create_visualize(attr);
                                         insert_root_tile(
@@ -276,8 +273,8 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
                                             PaneContent::Visualize(render),
                                         );
                                     }
-                                },
-                            );
+                                });
+                            });
                         }
                     });
             }
@@ -360,10 +357,10 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
                                 })) => {
                                     stack_tabs
                                         .entry(*id)
-                                        .and_modify(|m: &mut Vec<(String, Arc<dyn DataRender>)>| {
-                                            m.push((name.clone(), content.clone()))
+                                        .and_modify(|m: &mut Vec<Arc<dyn DataRender>>| {
+                                            m.push(content.clone())
                                         })
-                                        .or_insert(vec![(name.clone(), content.clone())]);
+                                        .or_insert(vec![content.clone()]);
                                 }
                                 _ => unreachable!(),
                             }

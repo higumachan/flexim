@@ -11,18 +11,22 @@ use std::sync::Mutex;
 #[derive(Debug, Clone)]
 pub struct FlTable {
     pub dataframe: Arc<FlDataFrame>,
+    state: Arc<FlTableState>,
 }
 
 impl FlTable {
     pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
-        Self { dataframe }
+        Self {
+            dataframe: dataframe.clone(),
+            state: Arc::new(FlTableState::new(&dataframe.value)),
+        }
     }
 
     pub fn draw(&self, ui: &mut Ui) {
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
         let dataframe = self.computed_dataframe(ui);
-        let mut state = self.state(ui);
+        let mut state = self.state();
 
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
@@ -34,7 +38,7 @@ impl FlTable {
                 for col in columns {
                     header.col(|ui| {
                         ui.heading(col.to_string());
-                        state.filters.get_mut(&col.to_string()).unwrap().draw(ui);
+                        state.filters.get(&col.to_string()).unwrap().draw(ui);
                     });
                 }
             })
@@ -53,22 +57,12 @@ impl FlTable {
             });
     }
 
-    fn state(&self, ui: &mut Ui) -> FlTableState {
-        let id = ui.make_persistent_id(("fl_table", self.dataframe.id));
-        let mut state = ui.memory_mut(|mem| {
-            mem.data
-                .get_persisted::<FlTableState>(id)
-                .unwrap_or_else(|| {
-                    let t = FlTableState::new(&self.dataframe.value);
-                    mem.data.insert_persisted(id, t.clone());
-                    t
-                })
-        });
-        state
+    fn state(&self) -> Arc<FlTableState> {
+        self.state.clone()
     }
 
     pub fn computed_dataframe(&self, ui: &mut Ui) -> DataFrame {
-        let state = self.state(ui);
+        let state = self.state();
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
         let mut col_filter_mask = std::iter::repeat(true)
@@ -125,7 +119,7 @@ pub struct ColumnFilter {
 }
 
 impl ColumnFilter {
-    pub fn draw(&mut self, ui: &mut Ui) {
+    pub fn draw(&self, ui: &mut Ui) {
         match self.filter.lock().unwrap().deref_mut() {
             Some(Filter::RangeFilter { min, max }) => {
                 let range = self.aggregated.min_max.map(|(min, max)| min..=max).unwrap();

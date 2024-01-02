@@ -147,9 +147,10 @@ pub struct FlDataFrameViewRender {
 
 impl DataRender for FlDataFrameViewRender {
     fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>> {
+        let id = self.id(ui);
         let result = ui.memory_mut(|mem| {
             let cache = mem.caches.cache::<VisualizedImageCache>();
-            cache.get(self.id(ui)).clone()
+            cache.get(id).clone()
         });
 
         match result {
@@ -214,11 +215,15 @@ impl FlDataFrameViewRender {
         }
     }
 
-    pub fn id(&self, ui: &Ui) -> Id {
+    pub fn id(&self, ui: &mut Ui) -> Id {
+        let df_string = self.dataframe_view.table.computed_dataframe(ui).to_string();
+
+        dbg!(&df_string);
         ui.make_persistent_id((
             "fl_data_frame_view",
             self.dataframe_view.id,
             self.column.as_str(),
+            df_string,
         ))
     }
 }
@@ -230,7 +235,7 @@ pub fn visualize(
     render: &dyn DataRender,
 ) -> Response {
     if let Some(image) = render.render(ui) {
-        let image = Image::from_bytes(format!("bytes://{}.png", name), image.value.clone());
+        let image = Image::from_bytes(format!("bytes://{}.png", image.id), image.value.clone());
         let image = image.uv(state.uv_rect());
         let image = image.sense(Sense::drag());
         let _texture = image
@@ -246,17 +251,17 @@ pub fn visualize(
 pub fn stack_visualize(
     ui: &mut Ui,
     visualize_state: &mut VisualizeState,
-    stack: &Vec<(String, Arc<dyn DataRender>)>,
+    stack: &Vec<Arc<dyn DataRender>>,
 ) -> Response {
     assert_ne!(stack.len(), 0);
     let stack = stack
         .iter()
-        .map(|(n, s)| s.render(ui).into_iter().map(move |i| (n.clone(), i)))
+        .map(|s| s.render(ui).into_iter().map(move |i| i))
         .flatten()
         .collect_vec();
 
-    let (name, v) = &stack[0];
-    let image = egui::Image::from_bytes(format!("bytes://{}_0.png", name), v.value.clone());
+    let v = &stack[0];
+    let image = egui::Image::from_bytes(format!("bytes://{}.png", v.id), v.value.clone());
     let image = image.uv(visualize_state.uv_rect());
     let image = image.sense(Sense::drag());
     image
@@ -265,11 +270,11 @@ pub fn stack_visualize(
     let response = ui.add(image);
     let rect = response.rect;
     let mut last_image = None;
-    for (i, (name, image)) in stack.iter().enumerate().skip(1) {
+    for (_i, image) in stack.iter().enumerate().skip(1) {
         if let Some(image) = last_image {
             ui.put(rect, image);
         }
-        let image = Image::from_bytes(format!("bytes://{}_{}.png", name, i), image.value.clone());
+        let image = Image::from_bytes(format!("bytes://{}.png", image.id), image.value.clone());
         let image = image.uv(visualize_state.uv_rect());
         let image = image.tint(egui::Color32::from_rgba_premultiplied(255, 255, 255, 128));
         let _texture = image
