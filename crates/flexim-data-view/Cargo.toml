@@ -10,3 +10,4 @@ flexim-table-widget.workspace = true
 flexim-data-type.workspace = true
 rand.workspace = true
 egui.workspace = true
+polars.workspace = true

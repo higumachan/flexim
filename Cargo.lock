@@ -1079,7 +1079,7 @@ dependencies = [
  "mime_guess2",
  "resvg",
  "serde",
- "tiny-skia",
+ "tiny-skia 0.8.4",
  "usvg",
 ]
 
@@ -1357,6 +1357,7 @@ dependencies = [
 name = "flexim-data-type"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "image 0.23.14",
  "ndarray",
  "polars",
@@ -1371,6 +1372,7 @@ dependencies = [
  "egui",
  "flexim-data-type",
  "flexim-table-widget",
+ "polars",
  "rand",
 ]
 
@@ -1387,8 +1389,10 @@ dependencies = [
  "itertools 0.12.0",
  "ndarray",
  "num-traits",
+ "polars",
  "rand",
  "scarlet",
+ "tiny-skia 0.11.3",
  "unwrap-ord",
 ]
 
@@ -3161,7 +3165,7 @@ dependencies = [
  "pico-args",
  "rgb",
  "svgtypes",
- "tiny-skia",
+ "tiny-skia 0.8.4",
  "usvg",
 ]
 
@@ -3312,7 +3316,7 @@ dependencies = [
  "log",
  "memmap2 0.5.10",
  "smithay-client-toolkit",
- "tiny-skia",
+ "tiny-skia 0.8.4",
 ]
 
 [[package]]
@@ -3689,7 +3693,22 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "png 0.17.10",
- "tiny-skia-path",
+ "tiny-skia-path 0.8.4",
+]
+
+[[package]]
+name = "tiny-skia"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6a067b809476893fce6a254cf285850ff69c847e6cfbade6a20b655b6c7e80d"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "bytemuck",
+ "cfg-if",
+ "log",
+ "png 0.17.10",
+ "tiny-skia-path 0.11.3",
 ]
 
 [[package]]
@@ -3697,6 +3716,17 @@ name = "tiny-skia-path"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adbfb5d3f3dd57a0e11d12f4f13d4ebbbc1b5c15b7ab0a156d030b21da5f677c"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "strict-num",
+]
+
+[[package]]
+name = "tiny-skia-path"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de35e8a90052baaaf61f171680ac2f8e925a1e43ea9d2e3a00514772250e541"
 dependencies = [
  "arrayref",
  "bytemuck",

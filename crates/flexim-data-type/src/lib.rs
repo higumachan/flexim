@@ -1,11 +1,12 @@
+use anyhow::{bail, Context};
 use image::DynamicImage;
 use ndarray::{Array2, Array3};
+use polars::export::ahash::HashSet;
 use polars::frame::DataFrame;
-use polars::prelude::{
-    AnyValue, ChunkedSet, DataType, Field, NamedFrom, PolarsResult, StructChunked,
-};
+use polars::prelude::*;
 use rand::{random, thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 pub trait FlDataTrait {
@@ -124,6 +125,46 @@ pub struct FlDataFrameRectangle {
     pub y2: f64,
 }
 
+impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
+    type Error = anyhow::Error;
+
+    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
+        let mut x1 = None;
+        let mut y1 = None;
+        let mut x2 = None;
+        let mut y2 = None;
+        let mut update_func = |field: &Field, value: AnyValue| {
+            if !field.dtype.is_float() {
+                bail!("Expected float field, found {:?}", field.dtype);
+            }
+            match field.name().as_str() {
+                "x1" => x1 = Some(value.try_extract().context("Expected float")?),
+                "y1" => y1 = Some(value.try_extract().context("Expected float")?),
+                "x2" => x2 = Some(value.try_extract().context("Expected float")?),
+                "y2" => y2 = Some(value.try_extract().context("Expected float")?),
+                _ => bail!("Unknown field {:?}", field.name()),
+            }
+            Ok(())
+        };
+
+        let value = value.into_static()?;
+        match value {
+            AnyValue::StructOwned(s) => {
+                for (field, value) in s.1.iter().zip(s.0) {
+                    update_func(field, value)?;
+                }
+            }
+            _ => bail!("Expected struct, found {:?}", value),
+        }
+        Ok(Self {
+            x1: x1.context("Missing field x1")?,
+            y1: y1.context("Missing field y1")?,
+            x2: x2.context("Missing field x2")?,
+            y2: y2.context("Missing field y2")?,
+        })
+    }
+}
+
 impl FlDataFrameRectangle {
     pub fn fields() -> Vec<Field> {
         vec![
@@ -132,6 +173,17 @@ impl FlDataFrameRectangle {
             Field::new("x2", DataType::Float64),
             Field::new("y2", DataType::Float64),
         ]
+    }
+
+    pub fn validate_fields(fields: &[Field]) -> bool {
+        let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
+        ["x1", "y1", "x2", "y2"].into_iter().all(|key| {
+            if let Some(dt) = field_map.get(key) {
+                dt.is_float()
+            } else {
+                false
+            }
+        })
     }
 }
 

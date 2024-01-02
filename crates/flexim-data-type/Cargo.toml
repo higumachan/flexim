@@ -11,3 +11,4 @@ ndarray.workspace = true
 serde.workspace = true
 polars.workspace = true
 rand.workspace = true
+anyhow.workspace = true

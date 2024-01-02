@@ -1,33 +1,22 @@
-use egui::{ScrollArea, Ui};
-use flexim_data_type::{FlData, FlDataFrame};
+use egui::{ScrollArea, Ui, Vec2};
+use flexim_data_type::{FlData, FlDataFrame, FlDataFrameRectangle, FlDataTrait};
 use flexim_table_widget::FlTable;
+use polars::prelude::DataType;
 use rand::random;
 use std::sync::Arc;
 
-pub trait DataView {
-    fn draw(&self, ui: &mut Ui);
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FlDataFrameView {
-    id: usize,
-    table: FlTable,
-}
-
-impl DataView for FlDataFrameView {
-    fn draw(&self, ui: &mut Ui) {
-        ScrollArea::horizontal()
-            .enable_scrolling(true)
-            .show(ui, |ui| {
-                self.table.draw(ui);
-            });
-    }
+    pub id: usize,
+    pub size: Vec2,
+    pub table: FlTable,
 }
 
 impl FlDataFrameView {
-    pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
+    pub fn new(dataframe: Arc<FlDataFrame>, size: Vec2) -> Self {
         Self {
             id: gen_id(),
+            size,
             table: FlTable::new(dataframe),
         }
     }

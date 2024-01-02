@@ -6,13 +6,16 @@ use egui::{
     Context, Id, Image, ImageSource, LayerId, Layout, Pos2, Rect, Response, Sense, Ui, Vec2, Widget,
 };
 use egui_tiles::UiResponse;
-use flexim_data_type::{FlData, FlImage, FlTensor2D};
+use flexim_data_type::{FlData, FlDataFrameRectangle, FlImage, FlTensor2D};
+use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 use num_traits::float::Float;
+use polars::prelude::*;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use std::sync::Arc;
+use tiny_skia::{Paint, PathBuilder, Pixmap, PixmapPaint, Stroke, Transform};
 use unwrap_ord::UnwrapOrd;
 
 #[derive(Debug, Clone)]
@@ -71,13 +74,17 @@ impl FlTensor2DRender {
     pub fn new(content: Arc<FlTensor2D<f64>>) -> Self {
         Self { content }
     }
+
+    fn id(&self, ui: &Ui) -> Id {
+        ui.make_persistent_id(("fl_tensor_2d", self.content.id))
+    }
 }
 
 impl DataRender for FlTensor2DRender {
     fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>> {
         ui.memory_mut(|mem| {
             let cache = mem.caches.cache::<VisualizedImageCache>();
-            if let Some(image) = cache.get(self.content.id) {
+            if let Some(image) = cache.get(self.id(ui)) {
                 if let Poll::Ready(image) = image {
                     Some(image)
                 } else {
@@ -85,7 +92,7 @@ impl DataRender for FlTensor2DRender {
                 }
             } else {
                 let ctx = ui.ctx().clone();
-                let id = self.content.id;
+                let id = self.id(ui);
                 let content = self.content.clone();
                 std::thread::spawn(move || {
                     let cm = scarlet::colormap::ListedColorMap::viridis();
@@ -126,10 +133,93 @@ impl DataRender for FlTensor2DRender {
                         cache.insert(id, FlImage::new(image_png_bytes));
                     })
                 });
-                cache.insert_pending(self.content.id);
+                cache.insert_pending(self.id(ui));
                 None
             }
         })
+    }
+}
+
+pub struct FlDataFrameViewRender {
+    pub dataframe_view: FlDataFrameView,
+    pub column: String,
+}
+
+impl DataRender for FlDataFrameViewRender {
+    fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>> {
+        let result = ui.memory_mut(|mem| {
+            let cache = mem.caches.cache::<VisualizedImageCache>();
+            cache.get(self.id(ui)).clone()
+        });
+
+        match result {
+            Some(Poll::Ready(image)) => Some(image),
+            Some(Poll::Pending) => None,
+            None => {
+                let ctx = ui.ctx().clone();
+                let id = self.id(ui);
+                let target_series = self
+                    .dataframe_view
+                    .table
+                    .computed_dataframe(ui)
+                    .column(self.column.as_str())
+                    .unwrap()
+                    .clone();
+
+                let size = self.dataframe_view.size;
+                std::thread::spawn(move || {
+                    let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
+                        target_series.iter().map(TryFrom::try_from).collect();
+
+                    let mut pixmap = Pixmap::new(size.x as u32, size.y as u32).unwrap();
+                    let mut paint = Paint::default();
+                    paint.set_color_rgba8(255, 0, 0, 255);
+                    let stroke = Stroke::default();
+                    for rect in rectangles.unwrap() {
+                        let path = PathBuilder::from_rect(
+                            tiny_skia::Rect::from_ltrb(
+                                rect.x1 as f32,
+                                rect.y1 as f32,
+                                rect.x2 as f32,
+                                rect.y2 as f32,
+                            )
+                            .unwrap(),
+                        );
+                        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+                    }
+
+                    let png_bytes = pixmap.encode_png().unwrap();
+                    let image = FlImage::new(png_bytes);
+
+                    ctx.memory_mut(move |mem| {
+                        let cache = mem.caches.cache::<VisualizedImageCache>();
+                        cache.insert(id, image);
+                    })
+                });
+                ui.memory_mut(|mem| {
+                    let cache = mem.caches.cache::<VisualizedImageCache>();
+                    cache.insert_pending(id);
+                });
+                None
+            }
+        }
+    }
+}
+
+impl FlDataFrameViewRender {
+    pub fn new(dataframe_view: FlDataFrameView, column: String) -> Self {
+        Self {
+            dataframe_view,
+            column,
+        }
+    }
+
+    pub fn id(&self, ui: &Ui) -> Id {
+        ui.make_persistent_id((
+            "fl_data_frame_view",
+            self.dataframe_view.id,
+            self.column.as_str(),
+        ))
     }
 }
 

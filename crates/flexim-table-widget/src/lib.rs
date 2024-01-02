@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct FlTable {
-    dataframe: Arc<FlDataFrame>,
+    pub dataframe: Arc<FlDataFrame>,
 }
 
 impl FlTable {
@@ -19,35 +19,16 @@ impl FlTable {
     }
 
     pub fn draw(&self, ui: &mut Ui) {
-        let id = ui.make_persistent_id(("fl_table", self.dataframe.id));
-        let mut state = ui.memory_mut(|mem| {
-            mem.data
-                .get_persisted::<FlTableState>(id)
-                .unwrap_or_else(|| {
-                    let t = FlTableState::new(&self.dataframe.value);
-                    mem.data.insert_persisted(id, t.clone());
-                    t
-                })
-        });
-
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
+        let dataframe = self.computed_dataframe(ui);
+        let mut state = self.state(ui);
+
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
-        let mut col_filter_mask = std::iter::repeat(true)
-            .take(dataframe.height())
-            .collect::<BooleanChunked>();
 
         for col in &columns {
             builder = builder.column(Column::auto().resizable(true));
-            let filter = state.filters.get(*col).unwrap().filter.lock().unwrap();
-            let series = dataframe.column(col).unwrap();
-            if let Some(filter) = filter.as_ref() {
-                if let Some(m) = filter.apply(series) {
-                    col_filter_mask = col_filter_mask.bitand(m);
-                }
-            }
         }
-        let dataframe = dataframe.filter(&col_filter_mask).unwrap();
         builder
             .header(32.0, |mut header| {
                 for col in columns {
@@ -71,6 +52,40 @@ impl FlTable {
                 }
             });
     }
+
+    fn state(&self, ui: &mut Ui) -> FlTableState {
+        let id = ui.make_persistent_id(("fl_table", self.dataframe.id));
+        let mut state = ui.memory_mut(|mem| {
+            mem.data
+                .get_persisted::<FlTableState>(id)
+                .unwrap_or_else(|| {
+                    let t = FlTableState::new(&self.dataframe.value);
+                    mem.data.insert_persisted(id, t.clone());
+                    t
+                })
+        });
+        state
+    }
+
+    pub fn computed_dataframe(&self, ui: &mut Ui) -> DataFrame {
+        let state = self.state(ui);
+        let dataframe = &self.dataframe.value;
+        let columns = dataframe.get_column_names();
+        let mut col_filter_mask = std::iter::repeat(true)
+            .take(dataframe.height() as usize)
+            .collect::<BooleanChunked>();
+
+        for col in &columns {
+            let filter = state.filters.get(*col).unwrap().filter.lock().unwrap();
+            let series = dataframe.column(col).unwrap();
+            if let Some(filter) = filter.as_ref() {
+                if let Some(m) = filter.apply(series) {
+                    col_filter_mask = col_filter_mask.bitand(m);
+                }
+            }
+        }
+        dataframe.filter(&col_filter_mask).unwrap()
+    }
 }
 
 type ColumnName = String;
@@ -82,7 +97,6 @@ pub struct FlTableState {
 
 impl FlTableState {
     fn new(data_frame: &DataFrame) -> Self {
-        println!("new");
         FlTableState {
             filters: data_frame
                 .iter()

@@ -2,11 +2,15 @@ use eframe::emath::Rect;
 use egui::ahash::{HashMap, HashMapExt, HashSet};
 use egui::emath::RectTransform;
 use egui::load::DefaultTextureLoader;
-use egui::{Align, Button, DragValue, Grid, Id, Layout, Pos2, ScrollArea, Ui, Vec2, Widget};
+use egui::{
+    Align, Button, CollapsingHeader, DragValue, Grid, Id, Layout, Pos2, ScrollArea, Ui, Vec2,
+    Widget,
+};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
 use flexim_data_type::{FlData, FlDataFrame, FlDataFrameRectangle, FlImage, FlTensor2D};
-use flexim_data_view::{DataView, DataViewCreatable, FlDataFrameView};
+use flexim_data_view::{DataViewCreatable, FlDataFrameView};
+use flexim_data_visualize::data_view::DataView;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_data_visualize::visualize::{
     stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
@@ -147,9 +151,22 @@ impl ManagedData {
     }
 }
 
+#[derive(Clone)]
+struct ManagedView {
+    pub name: String,
+    pub data_view: Arc<dyn DataView>,
+}
+
+impl ManagedView {
+    pub fn new(name: String, data_view: Arc<dyn DataView>) -> Self {
+        Self { name, data_view }
+    }
+}
+
 struct App {
     pub tree: Tree<Pane>,
     pub data: Vec<ManagedData>,
+    pub data_view: Vec<ManagedView>,
 }
 
 fn main() -> Result<(), eframe::Error> {
@@ -184,6 +201,7 @@ fn main() -> Result<(), eframe::Error> {
             ),
             ManagedData::new("tabledata".to_string(), load_sample_data().into()),
         ],
+        data_view: vec![],
     };
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
@@ -203,6 +221,7 @@ fn main() -> Result<(), eframe::Error> {
 fn left_panel(app: &mut App, ui: &mut Ui) {
     let width = ui.available_width();
     ScrollArea::vertical()
+        .id_source(0)
         .max_height(ui.available_height() / 2.0)
         .vscroll(true)
         .drag_to_scroll(true)
@@ -218,7 +237,12 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
 
                         if d.data.is_visualizable() || d.data.data_view_creatable() {
                             if ui.button("+").clicked() {
-                                insert_root_tile(&mut app.tree, d);
+                                let content = into_pane_content(d.data.as_ref()).unwrap();
+                                if let PaneContent::DataView(dv) = &content {
+                                    app.data_view
+                                        .push(ManagedView::new(d.name.clone(), dv.clone()));
+                                }
+                                insert_root_tile(&mut app.tree, d.name.as_str(), content);
                             }
                         }
                     },
@@ -226,6 +250,38 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
             }
         });
     ui.separator();
+    ScrollArea::vertical()
+        .id_source(1)
+        .max_height(ui.available_height() / 2.0)
+        .vscroll(true)
+        .drag_to_scroll(true)
+        .enable_scrolling(true)
+        .show(ui, |ui| {
+            ui.set_width(width);
+            ui.label("Data View");
+            for d in &app.data_view {
+                CollapsingHeader::new(&d.name)
+                    .id_source(d.data_view.id())
+                    .show(ui, |ui| {
+                        for attr in d.data_view.visualizeable_attributes() {
+                            ui.with_layout(
+                                Layout::left_to_right(Align::Min).with_main_align(Align::Max),
+                                |ui| {
+                                    ui.label(attr.to_string());
+                                    if ui.button("+").clicked() {
+                                        let render = d.data_view.create_visualize(attr);
+                                        insert_root_tile(
+                                            &mut app.tree,
+                                            format!("{} viz", d.name).as_str(),
+                                            PaneContent::Visualize(render),
+                                        );
+                                    }
+                                },
+                            );
+                        }
+                    });
+            }
+        });
 }
 
 fn create_tree() -> egui_tiles::Tree<Pane> {
@@ -330,10 +386,10 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
     }))
 }
 
-fn insert_root_tile(tree: &mut Tree<Pane>, data: &ManagedData) {
+fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent) {
     let tile_id = tree.tiles.insert_pane(Pane {
-        name: data.name.clone(),
-        content: into_pane_content(data.data.as_ref()).unwrap(),
+        name: name.to_string(),
+        content: pane_content,
     });
     if let Some(root) = tree.root() {
         let root = tree.tiles.get_mut(root).unwrap();
@@ -401,7 +457,7 @@ pub fn into_pane_content(fl_data: &FlData) -> anyhow::Result<PaneContent> {
             fl_tensor2d.clone(),
         )))),
         FlData::DataFrame(fl_dataframe) => Ok(PaneContent::DataView(Arc::new(
-            FlDataFrameView::new(fl_dataframe.clone()),
+            FlDataFrameView::new(fl_dataframe.clone(), Vec2::new(512.0, 512.0)),
         ))),
         _ => anyhow::bail!("not supported"),
     }
