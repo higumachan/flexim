@@ -1,10 +1,14 @@
+mod pane;
+
+use crate::pane::{into_pane_content, Pane, PaneContent};
 use eframe::emath::Rect;
 use egui::ahash::{HashMap, HashMapExt, HashSet};
 use egui::emath::RectTransform;
 use egui::load::DefaultTextureLoader;
+use egui::scroll_area::ScrollBarVisibility;
 use egui::{
-    Align, Button, CollapsingHeader, DragValue, Grid, Id, Layout, Pos2, ScrollArea, Ui, Vec2,
-    Widget,
+    Align, Button, CollapsingHeader, DragValue, Grid, Id, InnerResponse, Layout, Pos2, ScrollArea,
+    Ui, Vec2, Widget,
 };
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
@@ -18,25 +22,31 @@ use flexim_data_visualize::visualize::{
 use itertools::Itertools;
 use ndarray::Array2;
 use polars::datatypes::StructChunked;
+use polars::export::arrow::io::iterator::StreamingIterator;
 use polars::prelude::{CsvReader, IntoSeries, NamedFrom, SerReader, Series};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter, Pointer};
 use std::io::Cursor;
 use std::sync::Arc;
 
-#[derive(Clone)]
-enum PaneContent {
-    Visualize(Arc<dyn DataRender>),
-    DataView(Arc<dyn DataView>),
-}
-
-struct Pane {
-    name: String,
-    content: PaneContent,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StackId(u64);
+
+pub struct Managed<D> {
+    pub tile_id: TileId,
+    pub name: String,
+    pub data: D,
+}
+
+impl<D> Managed<D> {
+    pub fn new(tile_id: TileId, name: String, data: D) -> Self {
+        Self {
+            tile_id,
+            name,
+            data,
+        }
+    }
+}
 
 #[derive(Clone)]
 struct StackTab {
@@ -61,12 +71,7 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
         format!("{}", pane.name).into()
     }
 
-    fn pane_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        tile_id: TileId,
-        pane: &mut Pane,
-    ) -> egui_tiles::UiResponse {
+    fn pane_ui(&mut self, ui: &mut Ui, tile_id: TileId, pane: &mut Pane) -> UiResponse {
         // スタックタブの場合はデータを重ねて可視化する
         let id = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
             stack_tab.id
@@ -151,22 +156,10 @@ impl ManagedData {
     }
 }
 
-#[derive(Clone)]
-struct ManagedView {
-    pub name: String,
-    pub data_view: Arc<dyn DataView>,
-}
-
-impl ManagedView {
-    pub fn new(name: String, data_view: Arc<dyn DataView>) -> Self {
-        Self { name, data_view }
-    }
-}
-
 struct App {
     pub tree: Tree<Pane>,
     pub data: Vec<ManagedData>,
-    pub data_view: Vec<ManagedView>,
+    removing_tiles: Vec<TileId>,
 }
 
 fn main() -> Result<(), eframe::Error> {
@@ -201,7 +194,7 @@ fn main() -> Result<(), eframe::Error> {
             ),
             ManagedData::new("tabledata".to_string(), load_sample_data().into()),
         ],
-        data_view: vec![],
+        removing_tiles: vec![],
     };
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
@@ -215,70 +208,197 @@ fn main() -> Result<(), eframe::Error> {
             };
             app.tree.ui(&mut behavior, ui);
         });
+        end_of_frame(&mut app);
     })
 }
 
+fn end_of_frame(app: &mut App) {
+    for &tile_id in &app.removing_tiles {
+        app.tree.tiles.remove(tile_id);
+    }
+    app.removing_tiles.clear();
+}
+
 fn left_panel(app: &mut App, ui: &mut Ui) {
+    data_list_view(app, ui);
+    ui.separator();
+    data_view_list_view(app, ui);
+    ui.separator();
+    visualize_list_view(app, ui);
+}
+
+fn data_list_view(app: &mut App, ui: &mut Ui) {
     let width = ui.available_width();
     ScrollArea::vertical()
-        .id_source(0)
-        .max_height(ui.available_height() / 2.0)
+        .id_source("data_list")
+        .max_height(ui.available_height() / 3.0)
         .vscroll(true)
         .drag_to_scroll(true)
         .enable_scrolling(true)
         .show(ui, |ui| {
             ui.set_width(width);
             ui.label("Data");
-            for d in &app.data {
-                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                    ui.label(&d.name);
-                    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+            for d in app.data.clone() {
+                left_and_right_layout(
+                    ui,
+                    app,
+                    |_app, ui| {
+                        ui.label(&d.name);
+                    },
+                    |app, ui| {
                         if d.data.is_visualizable() || d.data.data_view_creatable() {
                             if ui.button("+").clicked() {
                                 let content = into_pane_content(d.data.as_ref()).unwrap();
-                                if let PaneContent::DataView(dv) = &content {
-                                    app.data_view
-                                        .push(ManagedView::new(d.name.clone(), dv.clone()));
-                                }
-                                insert_root_tile(&mut app.tree, d.name.as_str(), content);
+                                let tile_id = insert_root_tile(
+                                    &mut app.tree,
+                                    d.name.as_str(),
+                                    content.clone(),
+                                );
                             }
                         }
-                    });
-                });
+                    },
+                )
             }
         });
-    ui.separator();
+}
+
+fn data_view_list_view(app: &mut App, ui: &mut Ui) {
+    let width = ui.available_width();
+    let data_views = app
+        .tree
+        .tiles
+        .iter()
+        .filter_map(|(tile_id, tile)| match tile {
+            Tile::Pane(Pane {
+                content: PaneContent::DataView(v),
+                name,
+            }) => Some(Managed::new(*tile_id, name.clone(), v.clone())),
+            _ => None,
+        })
+        .collect_vec();
+
     ScrollArea::vertical()
-        .id_source(1)
-        .max_height(ui.available_height() / 2.0)
+        .id_source("data_view_list")
+        .max_height(ui.available_height() / 3.0)
         .vscroll(true)
         .drag_to_scroll(true)
         .enable_scrolling(true)
         .show(ui, |ui| {
             ui.set_width(width);
             ui.label("Data View");
-            for d in &app.data_view {
-                CollapsingHeader::new(&d.name)
-                    .id_source(d.data_view.id())
-                    .show(ui, |ui| {
-                        for attr in d.data_view.visualizeable_attributes() {
-                            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                                ui.label(attr.to_string());
-                                ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                                    if ui.button("+").clicked() {
-                                        let render = d.data_view.create_visualize(attr);
-                                        insert_root_tile(
-                                            &mut app.tree,
-                                            format!("{} viz", d.name).as_str(),
-                                            PaneContent::Visualize(render),
-                                        );
-                                    }
-                                });
+            for m in &data_views {
+                left_and_right_layout(
+                    ui,
+                    app,
+                    |app, ui| {
+                        CollapsingHeader::new(&m.name)
+                            .id_source(m.tile_id)
+                            .show(ui, |ui| {
+                                for attr in m.data.visualizeable_attributes() {
+                                    left_and_right_layout_dummy(
+                                        ui,
+                                        app,
+                                        |app, ui| {
+                                            ui.label(attr.to_string());
+                                        },
+                                        |app, ui| {
+                                            if ui.button("+").clicked() {
+                                                let render = m.data.create_visualize(attr.clone());
+                                                insert_root_tile(
+                                                    &mut app.tree,
+                                                    format!("{} viz", m.name).as_str(),
+                                                    PaneContent::Visualize(render),
+                                                );
+                                            }
+                                        },
+                                    );
+                                }
                             });
+                    },
+                    |app, ui| {
+                        let tile_visible = app.tree.tiles.is_visible(m.tile_id);
+                        if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
+                            app.tree.tiles.set_visible(m.tile_id, !tile_visible);
                         }
-                    });
+                        if ui.button("➖").clicked() {
+                            app.removing_tiles.push(m.tile_id);
+                        }
+                    },
+                );
             }
         });
+}
+
+fn visualize_list_view(app: &mut App, ui: &mut Ui) {
+    let width = ui.available_width();
+    let visualizes = app
+        .tree
+        .tiles
+        .iter()
+        .filter_map(|(tile_id, tile)| match tile {
+            Tile::Pane(Pane {
+                content: PaneContent::Visualize(v),
+                name,
+            }) => Some(Managed::new(*tile_id, name.clone(), v.clone())),
+            _ => None,
+        })
+        .collect_vec();
+
+    ScrollArea::vertical()
+        .id_source("visualize list")
+        .max_height(ui.available_height() / 3.0)
+        .vscroll(true)
+        .drag_to_scroll(true)
+        .enable_scrolling(true)
+        .show(ui, |ui| {
+            ui.set_width(width);
+            ui.label("Data View");
+            for m in visualizes {
+                left_and_right_layout(
+                    ui,
+                    app,
+                    |app, ui| {
+                        ui.label(m.name);
+                    },
+                    |app, ui| {
+                        let tile_visible = app.tree.tiles.is_visible(m.tile_id);
+                        if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
+                            app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                        }
+                        if ui.button("➖").clicked() {
+                            app.removing_tiles.push(m.tile_id);
+                        }
+                    },
+                );
+            }
+        });
+}
+
+fn left_and_right_layout<R>(
+    ui: &mut Ui,
+    app: &mut App,
+    left_content: impl FnOnce(&mut App, &mut Ui) -> R,
+    right_content: impl FnOnce(&mut App, &mut Ui) -> R,
+) {
+    ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+        left_content(app, ui);
+        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+            right_content(app, ui)
+        });
+    });
+}
+
+// TODO(higumachan): 最終的には消す
+fn left_and_right_layout_dummy<R>(
+    ui: &mut Ui,
+    app: &mut App,
+    left_content: impl FnOnce(&mut App, &mut Ui) -> R,
+    right_content: impl FnOnce(&mut App, &mut Ui) -> R,
+) {
+    ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+        left_content(app, ui);
+        right_content(app, ui);
+    });
 }
 
 fn create_tree() -> egui_tiles::Tree<Pane> {
@@ -313,7 +433,6 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
         let mut children = vec![];
         children.push(tiles.insert_pane(gen_pane("image".to_string(), image1.clone())));
         children.push(tiles.insert_pane(gen_pane("tall".to_string(), image2.clone())));
-        // children.push(tiles.insert_pane(gen_pane("tensor".to_string(), tensor)));
 
         tiles.insert_horizontal_tile(children)
     });
@@ -383,7 +502,7 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
     }))
 }
 
-fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent) {
+fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent) -> TileId {
     let tile_id = tree.tiles.insert_pane(Pane {
         name: name.to_string(),
         content: pane_content,
@@ -403,6 +522,7 @@ fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent
             _ => unreachable!("root tile is not pane"),
         }
     }
+    tile_id
 }
 
 fn load_sample_data() -> FlDataFrame {
@@ -443,19 +563,4 @@ fn read_rectangle(s: &Series) -> Series {
     StructChunked::new("Face", &[x1, y1, x2, y2])
         .unwrap()
         .into_series()
-}
-
-pub fn into_pane_content(fl_data: &FlData) -> anyhow::Result<PaneContent> {
-    match fl_data {
-        FlData::Image(fl_image) => Ok(PaneContent::Visualize(Arc::new(FlImageRender::new(
-            fl_image.clone(),
-        )))),
-        FlData::Tensor(fl_tensor2d) => Ok(PaneContent::Visualize(Arc::new(FlTensor2DRender::new(
-            fl_tensor2d.clone(),
-        )))),
-        FlData::DataFrame(fl_dataframe) => Ok(PaneContent::DataView(Arc::new(
-            FlDataFrameView::new(fl_dataframe.clone(), Vec2::new(512.0, 512.0)),
-        ))),
-        _ => anyhow::bail!("not supported"),
-    }
 }
