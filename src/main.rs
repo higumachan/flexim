@@ -352,7 +352,7 @@ fn visualize_list_view(app: &mut App, ui: &mut Ui) {
         .enable_scrolling(true)
         .show(ui, |ui| {
             ui.set_width(width);
-            ui.label("Data View");
+            ui.label("Data Visualize");
             for m in visualizes {
                 left_and_right_layout(
                     ui,
@@ -521,6 +521,8 @@ fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent
             }
             _ => unreachable!("root tile is not pane"),
         }
+    } else {
+        tree.root = Some(tile_id);
     }
     tile_id
 }

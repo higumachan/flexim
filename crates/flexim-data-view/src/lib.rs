@@ -1,7 +1,7 @@
-use egui::{ScrollArea, Ui, Vec2};
-use flexim_data_type::{FlData, FlDataFrame, FlDataFrameRectangle, FlDataTrait};
+use egui::Vec2;
+use flexim_data_type::{FlData, FlDataFrame, FlDataTrait};
 use flexim_table_widget::FlTable;
-use polars::prelude::DataType;
+
 use rand::random;
 use std::sync::Arc;
 
@@ -40,7 +40,6 @@ fn gen_id() -> usize {
 }
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn it_works() {}

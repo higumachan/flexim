@@ -1,6 +1,6 @@
 use egui::ahash::{HashMap, HashSet, HashSetExt};
-use egui::Key::{N, T};
-use egui::WidgetType::TextEdit;
+
+
 use egui::{Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::FlDataFrame;
@@ -26,11 +26,11 @@ impl FlTable {
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
         let dataframe = self.computed_dataframe(ui);
-        let mut state = self.state();
+        let state = self.state();
 
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
-        for col in &columns {
+        for _col in &columns {
             builder = builder.column(Column::auto().resizable(true));
         }
         builder
@@ -61,7 +61,7 @@ impl FlTable {
         self.state.clone()
     }
 
-    pub fn computed_dataframe(&self, ui: &mut Ui) -> DataFrame {
+    pub fn computed_dataframe(&self, _ui: &mut Ui) -> DataFrame {
         let state = self.state();
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
@@ -172,7 +172,7 @@ impl ColumnFilter {
                 aggregated,
                 filter: Arc::new(Mutex::new(Some(Filter::SearchFilter(String::new())))),
             }
-        } else if let DataType::Categorical(d) = dtype {
+        } else if let DataType::Categorical(_d) = dtype {
             Self {
                 aggregated,
                 filter: Arc::new(Mutex::new(Some(Filter::CategoricalFilter(HashSet::new())))),

@@ -1,21 +1,21 @@
 use crate::cache::{Poll, VisualizedImageCache};
-use egui::emath::RectTransform;
-use egui::load::TexturePoll;
-use egui::scroll_area::State;
+
+
+
 use egui::{
-    Context, Id, Image, ImageSource, LayerId, Layout, Pos2, Rect, Response, Sense, Ui, Vec2, Widget,
+    Id, Image, Pos2, Rect, Response, Sense, Ui, Vec2,
 };
-use egui_tiles::UiResponse;
-use flexim_data_type::{FlData, FlDataFrameRectangle, FlImage, FlTensor2D};
+
+use flexim_data_type::{FlDataFrameRectangle, FlImage, FlTensor2D};
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
-use num_traits::float::Float;
+
 use polars::prelude::*;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use std::sync::Arc;
-use tiny_skia::{Paint, PathBuilder, Pixmap, PixmapPaint, Stroke, Transform};
+use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 use unwrap_ord::UnwrapOrd;
 
 #[derive(Debug, Clone)]
@@ -61,7 +61,7 @@ impl FlImageRender {
 }
 
 impl DataRender for FlImageRender {
-    fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>> {
+    fn render(&self, _ui: &mut Ui) -> Option<Arc<FlImage>> {
         Some(self.content.clone())
     }
 }
@@ -231,7 +231,7 @@ impl FlDataFrameViewRender {
 pub fn visualize(
     ui: &mut Ui,
     state: &mut VisualizeState,
-    name: &str,
+    _name: &str,
     render: &dyn DataRender,
 ) -> Response {
     if let Some(image) = render.render(ui) {
@@ -293,7 +293,7 @@ pub fn stack_visualize(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn it_works() {}
