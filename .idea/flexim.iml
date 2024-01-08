@@ -9,6 +9,9 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-table-widget/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-table-widget/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-connect/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-connect/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-storage/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

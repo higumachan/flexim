@@ -4,9 +4,9 @@ use ndarray::{Array2, Array3};
 
 use polars::frame::DataFrame;
 use polars::prelude::*;
-use rand::{random};
+use rand::random;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub trait FlDataTrait {
@@ -18,6 +18,16 @@ pub enum FlData {
     Image(Arc<FlImage>),
     Tensor(Arc<FlTensor2D<f64>>),
     DataFrame(Arc<FlDataFrame>),
+}
+
+impl FlData {
+    pub fn id(&self) -> usize {
+        match self {
+            Self::Image(v) => v.id(),
+            Self::Tensor(v) => v.id(),
+            Self::DataFrame(v) => v.id(),
+        }
+    }
 }
 
 impl From<FlImage> for FlData {
@@ -41,7 +51,6 @@ impl From<FlDataFrame> for FlData {
 #[derive(Debug, Clone)]
 pub struct FlImage {
     pub id: usize,
-    // png buffer
     pub value: Vec<u8>,
 }
 
@@ -193,7 +202,6 @@ fn gen_id() -> usize {
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn it_works() {}

@@ -11,19 +11,30 @@ members = [
 ]
 
 [workspace.dependencies]
+tracing = { version = "0.1.40" }
+tracing-subscriber = { version = "0.3.18"}
+tonic = "0.10.2"
+tonic-build = "0.10.2"
+tokio = { version = "1.35.1", features = ["full"] }
+prost = "0.12.3"
 anyhow = "1.0.78"
 egui = "0.24.1"
 egui_extras = { version = "0.24.2", features = ["image", "svg"] }
 egui_tiles = "0.4.0"
 image = "0.23.14"
-ndarray = "0.15.6"
-polars = { version = "0.35.4", features = ["serde", "dtype-struct", "dtype-categorical", "csv", "lazy_regex", "strings" ] }
+ndarray = { version = "0.15.6", features = ["serde"] }
+polars = { version = "0.35.4", features = ["serde", "dtype-struct", "dtype-categorical", "csv", "lazy_regex", "strings", "ipc" ] }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.108"
+bincode = "1.3.3"
 flexim-data-type = { path = "crates/flexim-data-type" }
 flexim-data-view = { path = "crates/flexim-data-view" }
 flexim-data-visualize = { path = "crates/flexim-data-visualize" }
 flexim-table-widget = { path = "crates/flexim-table-widget" }
+flexim-connect = { path = "crates/flexim-connect" }
+flexim-storage = { path = "crates/flexim-storage" }
+num-derive = "0.4.1"
+chrono = "0.4.31"
 eframe = "0.24.1"
 env_logger = "0.10.1"
 scarlet = "1.2.0"

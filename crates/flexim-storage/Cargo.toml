@@ -1,0 +1,12 @@
+[package]
+name = "flexim-storage"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+flexim-data-type.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+rand.workspace = true

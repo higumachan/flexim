@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package flexim_connect;
+
+// EchoRequest is the request for echo.
+message CreateBagRequest {
+  string name = 1;
+}
+
+// EchoResponse is the response for echo.
+message CreateBagResponse {
+  uint64 id = 1;
+  string name = 2;
+}
+
+enum DataType {
+  Image = 0;
+  Tensor2D = 1;
+  DataFrame = 2;
+}
+
+message AppendDataRequest {
+  oneof data {
+    DataMeta meta = 1;
+    bytes data_bytes = 2;
+  }
+
+  message DataMeta {
+    uint64 bag_id = 1;
+    DataType data_type = 4;
+  }
+}
+
+
+message AppendDataResponse {
+  uint64 bag_id = 1;
+  uint64 data_id = 2;
+  uint64 data_size = 3;
+}
+
+service FleximConnect {
+  rpc CreateBag(CreateBagRequest) returns (CreateBagResponse) {}
+  rpc AppendData(stream AppendDataRequest) returns (AppendDataResponse) {}
+}

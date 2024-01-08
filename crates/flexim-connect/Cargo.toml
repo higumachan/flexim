@@ -1,0 +1,22 @@
+[package]
+name = "flexim-connect"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde.workspace = true
+tonic.workspace = true
+prost.workspace = true
+tokio.workspace = true
+polars.workspace = true
+anyhow.workspace = true
+bincode.workspace = true
+ndarray.workspace = true
+flexim-data-type.workspace = true
+flexim-storage.workspace = true
+num-derive.workspace = true
+
+[build-dependencies]
+tonic-build.workspace = true
