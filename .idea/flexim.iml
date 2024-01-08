@@ -12,6 +12,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-connect/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-connect/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-storage/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/flexim_py/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

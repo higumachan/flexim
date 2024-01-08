@@ -27,6 +27,7 @@ message AppendDataRequest {
 
   message DataMeta {
     uint64 bag_id = 1;
+    string name = 2;
     DataType data_type = 4;
   }
 }
@@ -38,7 +39,23 @@ message AppendDataResponse {
   uint64 data_size = 3;
 }
 
+
+message ListBagsRequest {
+}
+
+message ListBagsResponse {
+  repeated BagMeta bag_metas = 1;
+
+  message BagMeta {
+    uint64 id = 1;
+    string name = 2;
+    uint64 number_of_data = 3;
+    string created_at = 4;
+  }
+}
+
 service FleximConnect {
   rpc CreateBag(CreateBagRequest) returns (CreateBagResponse) {}
   rpc AppendData(stream AppendDataRequest) returns (AppendDataResponse) {}
+  rpc ListBags(ListBagsRequest) returns (ListBagsResponse) {}
 }

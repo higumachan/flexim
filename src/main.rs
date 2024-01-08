@@ -12,6 +12,8 @@ use egui::{
 };
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
+use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
+use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{FlData, FlDataFrame, FlDataFrameRectangle, FlImage, FlTensor2D};
 use flexim_data_view::{DataViewCreatable, FlDataFrameView};
 use flexim_data_visualize::data_view::DataView;
@@ -19,6 +21,7 @@ use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_data_visualize::visualize::{
     stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
 };
+use flexim_storage::{BagId, Storage, StorageQuery};
 use itertools::Itertools;
 use ndarray::Array2;
 use polars::datatypes::StructChunked;
@@ -28,6 +31,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter, Pointer};
 use std::io::Cursor;
 use std::sync::Arc;
+use tonic::transport::Server;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StackId(u64);
@@ -141,24 +145,10 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
     }
 }
 
-#[derive(Debug, Clone)]
-struct ManagedData {
-    pub name: String,
-    pub data: Arc<FlData>,
-}
-
-impl ManagedData {
-    pub fn new(name: String, data: FlData) -> Self {
-        Self {
-            name,
-            data: Arc::new(data),
-        }
-    }
-}
-
 struct App {
     pub tree: Tree<Pane>,
-    pub data: Vec<ManagedData>,
+    pub storage: Arc<Storage>,
+    pub current_bag_id: BagId,
     removing_tiles: Vec<TileId>,
 }
 
@@ -170,30 +160,61 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
+    let storage = Arc::new(Storage::default());
+    let bag_id = storage.create_bag("test".to_string());
+    storage
+        .insert_data(
+            bag_id,
+            "logo".to_string(),
+            FlImage::new(include_bytes!("../assets/flexim-logo-1.png").to_vec()).into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "tall".to_string(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec()).into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "gauss".to_string(),
+            FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
+                // center peak gauss
+                let x = (x as f64 - 256.0) / 100.0;
+                let y = (y as f64 - 256.0) / 100.0;
+                (-(x * x + y * y) / 2.0).exp()
+            }))
+            .into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(bag_id, "tabledata".to_string(), load_sample_data().into())
+        .unwrap();
+
+    {
+        let storage = storage.clone();
+        std::thread::spawn(|| {
+            let mut rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async move {
+                let addr = "[::1]:50051".parse().unwrap();
+                let server_impl = FleximConnectServerImpl::new(storage);
+
+                Server::builder()
+                    .add_service(FleximConnectServer::new(server_impl))
+                    .serve(addr)
+                    .await
+                    .unwrap();
+            });
+        });
+    }
+
     let mut tree = create_tree();
     let mut app = App {
         tree,
-        data: vec![
-            ManagedData::new(
-                "logo".to_string(),
-                FlImage::new(include_bytes!("../assets/flexim-logo-1.png").to_vec()).into(),
-            ),
-            ManagedData::new(
-                "tall".to_string(),
-                FlImage::new(include_bytes!("../assets/tall.png").to_vec()).into(),
-            ),
-            ManagedData::new(
-                "gauss".to_string(),
-                FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
-                    // center peak gauss
-                    let x = (x as f64 - 256.0) / 100.0;
-                    let y = (y as f64 - 256.0) / 100.0;
-                    (-(x * x + y * y) / 2.0).exp()
-                }))
-                .into(),
-            ),
-            ManagedData::new("tabledata".to_string(), load_sample_data().into()),
-        ],
+        storage,
+        current_bag_id: bag_id,
         removing_tiles: vec![],
     };
 
@@ -238,7 +259,9 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
         .show(ui, |ui| {
             ui.set_width(width);
             ui.label("Data");
-            for d in app.data.clone() {
+            let bind = app.storage.get_bag(app.current_bag_id).unwrap();
+            let bag = bind.read().unwrap();
+            for d in &bag.data_list {
                 left_and_right_layout(
                     ui,
                     app,
@@ -248,7 +271,7 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
                     |app, ui| {
                         if d.data.is_visualizable() || d.data.data_view_creatable() {
                             if ui.button("+").clicked() {
-                                let content = into_pane_content(d.data.as_ref()).unwrap();
+                                let content = into_pane_content(&d.data).unwrap();
                                 let tile_id = insert_root_tile(
                                     &mut app.tree,
                                     d.name.as_str(),

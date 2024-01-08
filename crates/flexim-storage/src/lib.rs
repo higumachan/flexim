@@ -5,6 +5,11 @@ use rand::random;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+pub trait StorageQuery {
+    fn list_bags(&self) -> anyhow::Result<Vec<Arc<RwLock<Bag>>>>;
+    fn get_bag(&self, bag_id: BagId) -> anyhow::Result<Arc<RwLock<Bag>>>;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BagId(u64);
 
@@ -18,12 +23,18 @@ impl BagId {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ManagedData {
+    pub name: String,
+    pub data: FlData,
+}
+
 #[derive(Debug)]
 pub struct Bag {
-    id: BagId,
-    name: String,
-    created_at: DateTime<Utc>,
-    data_list: Vec<FlData>,
+    pub id: BagId,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub data_list: Vec<ManagedData>,
 }
 
 #[derive(Default)]
@@ -49,12 +60,25 @@ impl Storage {
         id
     }
 
-    pub fn insert_data(&self, bag_id: BagId, data: FlData) -> anyhow::Result<()> {
+    pub fn insert_data(&self, bag_id: BagId, name: String, data: FlData) -> anyhow::Result<()> {
         let bags = self.bags.read().unwrap();
         let bag = bags.get(&bag_id).context("bag not found")?;
         let mut bag = bag.write().unwrap();
-        bag.data_list.push(data);
+        bag.data_list.push(ManagedData { name, data });
         Ok(())
+    }
+}
+
+impl StorageQuery for Storage {
+    fn list_bags(&self) -> anyhow::Result<Vec<Arc<RwLock<Bag>>>> {
+        let bags = self.bags.read().unwrap();
+        Ok(bags.values().cloned().collect())
+    }
+
+    fn get_bag(&self, bag_id: BagId) -> anyhow::Result<Arc<RwLock<Bag>>> {
+        let bags = self.bags.read().unwrap();
+        let bag = bags.get(&bag_id).context("bag not found")?;
+        Ok(bag.clone())
     }
 }
 
