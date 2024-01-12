@@ -19,7 +19,9 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-storage/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/flexim_py/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/flexim_py" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/flexim_py/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/flexim_py/flexim_sdk" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/flexim_py/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />

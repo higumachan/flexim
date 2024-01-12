@@ -3,6 +3,7 @@ from io import BytesIO
 from typing import Self
 
 import PIL.Image
+import pyarrow
 from pydantic import BaseModel, ConfigDict
 import numpy.typing as npt
 import numpy as np
@@ -12,6 +13,12 @@ import pandas
 class SpecialColumn(str, Enum):
     Rectangle = "Rectangle"
 
+
+class Rectangle(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
 
 class ImageData(BaseModel):
     image: npt.NDArray[np.uint8]
@@ -39,13 +46,19 @@ class DataFrameData(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def from_pandas(self, dataframe: pandas.DataFrame, special_columns: dict[str, SpecialColumn]):
-        self.dataframe = dataframe
-        self.special_columns = special_columns
+    @classmethod
+    def from_pandas(cls, dataframe: pandas.DataFrame, special_columns: dict[str, SpecialColumn]):
+        return cls(
+            dataframe=dataframe,
+            special_columns=special_columns
+        )
 
     def to_bytes(self) -> bytes:
-        # bytes encoded as csv
-        return self.dataframe.to_csv().encode("utf-8")
+        sink = BytesIO()
+        pa_df = pyarrow.Table.from_pandas(self.dataframe)
+        with pyarrow.ipc.new_file(sink, pa_df.schema) as writer:
+            writer.write(pa_df)
+        return sink.getvalue()
 
 
 class Tensor2DData(BaseModel):

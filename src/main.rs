@@ -150,6 +150,8 @@ struct App {
     pub storage: Arc<Storage>,
     pub current_bag_id: BagId,
     removing_tiles: Vec<TileId>,
+    replace_bag_id: Option<BagId>,
+    panel_context: HashMap<BagId, Tree<Pane>>,
 }
 
 fn main() -> Result<(), eframe::Error> {
@@ -216,6 +218,8 @@ fn main() -> Result<(), eframe::Error> {
         storage,
         current_bag_id: bag_id,
         removing_tiles: vec![],
+        replace_bag_id: None,
+        panel_context: HashMap::new(),
     };
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
@@ -238,14 +242,57 @@ fn end_of_frame(app: &mut App) {
         app.tree.tiles.remove(tile_id);
     }
     app.removing_tiles.clear();
+    if let Some(bag_id) = app.replace_bag_id {
+        let panel = std::mem::replace(
+            &mut app.tree,
+            app.panel_context
+                .remove(&bag_id)
+                .unwrap_or_else(|| Tree::empty(bag_id.into_inner().to_string())),
+        );
+        app.panel_context.insert(app.current_bag_id, panel);
+        app.current_bag_id = bag_id;
+        app.replace_bag_id = None;
+    }
 }
 
 fn left_panel(app: &mut App, ui: &mut Ui) {
+    data_bag_list_view(app, ui);
+    ui.separator();
     data_list_view(app, ui);
     ui.separator();
     data_view_list_view(app, ui);
     ui.separator();
     visualize_list_view(app, ui);
+}
+
+fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
+    let width = ui.available_width();
+    ScrollArea::vertical()
+        .id_source("data_bag_list")
+        .max_height(ui.available_height() / 3.0)
+        .vscroll(true)
+        .drag_to_scroll(true)
+        .enable_scrolling(true)
+        .show(ui, |ui| {
+            ui.set_width(width);
+            ui.label("Data Bag");
+            let bags = app.storage.list_bags().unwrap();
+            for bag in bags {
+                let bag = bag.read().unwrap();
+                left_and_right_layout(
+                    ui,
+                    app,
+                    |app, ui| {
+                        ui.label(&bag.name);
+                    },
+                    |app, ui| {
+                        if ui.button("+").clicked() {
+                            app.replace_bag_id = Some(bag.id);
+                        }
+                    },
+                )
+            }
+        });
 }
 
 fn data_list_view(app: &mut App, ui: &mut Ui) {

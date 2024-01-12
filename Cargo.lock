@@ -1540,6 +1540,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "flexim-data-type",
+ "log",
  "rand",
 ]
 
@@ -1563,6 +1564,7 @@ name = "flexim_py"
 version = "0.1.0"
 dependencies = [
  "numpy",
+ "polars",
  "pyo3",
 ]
 

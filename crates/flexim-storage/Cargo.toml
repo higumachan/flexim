@@ -10,3 +10,4 @@ flexim-data-type.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
 rand.workspace = true
+log.workspace = true

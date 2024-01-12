@@ -44,6 +44,7 @@ pub struct Storage {
 
 impl Storage {
     pub fn create_bag(&self, name: String) -> BagId {
+        log::info!("create_bag: name={}", name);
         let id = BagId::new(gen_id());
         let bag = Bag {
             id,
@@ -61,6 +62,8 @@ impl Storage {
     }
 
     pub fn insert_data(&self, bag_id: BagId, name: String, data: FlData) -> anyhow::Result<()> {
+        log::info!("insert_data: bag_id={:?}, name={}", bag_id, name);
+
         let bags = self.bags.read().unwrap();
         let bag = bags.get(&bag_id).context("bag not found")?;
         let mut bag = bag.write().unwrap();
