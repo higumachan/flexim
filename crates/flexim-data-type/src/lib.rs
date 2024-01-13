@@ -2,6 +2,7 @@ use anyhow::{bail, Context};
 
 use ndarray::{Array2, Array3};
 
+use image::{load_from_memory_with_format, EncodableLayout};
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use rand::random;
@@ -60,6 +61,17 @@ impl FlImage {
             id: gen_id(),
             value,
         }
+    }
+
+    pub fn try_from_bytes(value: Vec<u8>) -> anyhow::Result<Self> {
+        {
+            let v = value.as_bytes();
+            image::codecs::png::PngDecoder::new(v).context("png decoder error")?;
+        }
+        Ok(Self {
+            id: gen_id(),
+            value,
+        })
     }
 }
 

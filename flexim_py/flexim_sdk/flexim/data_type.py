@@ -1,6 +1,6 @@
 from enum import Enum
 from io import BytesIO
-from typing import Self
+from typing import Self, Literal
 
 import PIL.Image
 import pyarrow
@@ -21,6 +21,7 @@ class Rectangle(BaseModel):
     y2: float
 
 class ImageData(BaseModel):
+    type: Literal["Image"] = "Image"
     image: npt.NDArray[np.uint8]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -41,6 +42,7 @@ class ImageData(BaseModel):
 
 
 class DataFrameData(BaseModel):
+    type: Literal["DataFrame"] = "DataFrame"
     dataframe: pandas.DataFrame
     special_columns: dict[str, SpecialColumn]
 
@@ -62,6 +64,7 @@ class DataFrameData(BaseModel):
 
 
 class Tensor2DData(BaseModel):
+    type: Literal["Tensor2D"] = "Tensor2D"
     tensor: npt.NDArray[np.float32]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

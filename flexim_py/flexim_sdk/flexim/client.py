@@ -55,7 +55,7 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
             meta=connect_pb2.AppendDataRequest.DataMeta(
                 bag_id=bag_id,
                 name=name,
-                data_type=connect_pb2.DataType.Image
+                data_type=_data_type_to_proto(data)
             ),
         )] + [connect_pb2.AppendDataRequest(
             data_bytes=bytes(list(chunked_data))
@@ -66,3 +66,14 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
     )
 
     print(response)
+
+
+def _data_type_to_proto(data: ImageData | DataFrameData | Tensor2DData) -> connect_pb2.DataType:
+    if isinstance(data, ImageData):
+        return connect_pb2.DataType.Image
+    elif isinstance(data, DataFrameData):
+        return connect_pb2.DataType.DataFrame
+    elif isinstance(data, Tensor2DData):
+        return connect_pb2.DataType.Tensor2D
+    else:
+        raise RuntimeError(f"Unknown data type {type(data)}")

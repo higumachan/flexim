@@ -12,8 +12,8 @@ from flexim.data_type import ImageData, Rectangle, DataFrameData
 
 test_df = pandas.DataFrame([
     {"a": 1, "b": 2, "c": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
-    {"a": 3, "b": 4, "c": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
-    {"a": 5, "b": 6, "c": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
+    {"a": 3, "b": 4, "c": Rectangle(x1=100.0, y1=50.0, x2=200.0, y2=300.0).model_dump()},
+    {"a": 5, "b": 6, "c": Rectangle(x1=400.0, y1=50.0, x2=100.0, y2=500.0).model_dump()},
 ])
 
 

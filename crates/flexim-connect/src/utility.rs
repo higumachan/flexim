@@ -11,7 +11,7 @@ pub(crate) fn protobuf_data_type_to_fl_data(
     buffer: Vec<u8>,
 ) -> anyhow::Result<FlData> {
     Ok(match data_type {
-        DataType::Image => FlData::Image(Arc::new(FlImage::new(buffer))),
+        DataType::Image => FlData::Image(Arc::new(FlImage::try_from_bytes(buffer)?)),
         DataType::DataFrame => FlData::DataFrame(Arc::new(dataframe_from_bytes(buffer)?)),
         DataType::Tensor2D => FlData::Tensor(Arc::new(tensor2d_from_bytes(buffer)?)),
     })

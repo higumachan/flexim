@@ -1,10 +1,6 @@
 use crate::cache::{Poll, VisualizedImageCache};
 
-
-
-use egui::{
-    Id, Image, Pos2, Rect, Response, Sense, Ui, Vec2,
-};
+use egui::{Id, Image, Pos2, Rect, Response, Sense, Ui, Vec2};
 
 use flexim_data_type::{FlDataFrameRectangle, FlImage, FlTensor2D};
 use flexim_data_view::FlDataFrameView;
@@ -179,10 +175,10 @@ impl DataRender for FlDataFrameViewRender {
                     for rect in rectangles.unwrap() {
                         let path = PathBuilder::from_rect(
                             tiny_skia::Rect::from_ltrb(
-                                rect.x1 as f32,
-                                rect.y1 as f32,
-                                rect.x2 as f32,
-                                rect.y2 as f32,
+                                rect.x1.min(rect.x2) as f32,
+                                rect.y1.min(rect.y2) as f32,
+                                rect.x1.max(rect.x2) as f32,
+                                rect.y1.max(rect.y2) as f32,
                             )
                             .unwrap(),
                         );
@@ -218,7 +214,6 @@ impl FlDataFrameViewRender {
     pub fn id(&self, ui: &mut Ui) -> Id {
         let df_string = self.dataframe_view.table.computed_dataframe(ui).to_string();
 
-        dbg!(&df_string);
         ui.make_persistent_id((
             "fl_data_frame_view",
             self.dataframe_view.id,
@@ -293,7 +288,6 @@ pub fn stack_visualize(
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn it_works() {}
