@@ -1,6 +1,5 @@
 use egui::ahash::{HashMap, HashSet, HashSetExt};
 
-
 use egui::{Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::FlDataFrame;
@@ -34,7 +33,7 @@ impl FlTable {
             builder = builder.column(Column::auto().resizable(true));
         }
         builder
-            .header(32.0, |mut header| {
+            .header(64.0, |mut header| {
                 for col in columns {
                     header.col(|ui| {
                         ui.heading(col.to_string());

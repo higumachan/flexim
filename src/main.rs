@@ -7,11 +7,13 @@ use egui::emath::RectTransform;
 use egui::load::DefaultTextureLoader;
 use egui::scroll_area::ScrollBarVisibility;
 use egui::{
-    Align, Button, CollapsingHeader, DragValue, Grid, Id, InnerResponse, Layout, Pos2, ScrollArea,
-    Ui, Vec2, Widget,
+    Align, Button, CollapsingHeader, ComboBox, DragValue, Grid, Id, InnerResponse, Layout, Pos2,
+    Response, ScrollArea, Ui, Vec2, Widget,
 };
 use egui_extras::install_image_loaders;
-use egui_tiles::{Container, ContainerKind, SimplificationOptions, Tile, TileId, Tree, UiResponse};
+use egui_tiles::{
+    Container, ContainerKind, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse,
+};
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{FlData, FlDataFrame, FlDataFrameRectangle, FlImage, FlTensor2D};
@@ -19,7 +21,8 @@ use flexim_data_view::{DataViewCreatable, FlDataFrameView};
 use flexim_data_visualize::data_view::DataView;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_data_visualize::visualize::{
-    stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
+    stack_visualize, visualize, DataRender, FlDataFrameViewRender, FlImageRender, FlTensor2DRender,
+    VisualizeState,
 };
 use flexim_storage::{BagId, Storage, StorageQuery};
 use itertools::Itertools;
@@ -66,11 +69,12 @@ impl Debug for StackTab {
     }
 }
 
-struct TreeBehavior {
+struct TreeBehavior<'a> {
     stack_tabs: HashMap<TileId, StackTab>,
+    current_tile_id: &'a mut Option<TileId>,
 }
 
-impl egui_tiles::Behavior<Pane> for TreeBehavior {
+impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
     fn tab_title_for_pane(&mut self, pane: &Pane) -> egui::WidgetText {
         format!("{}", pane.name).into()
     }
@@ -143,12 +147,25 @@ impl egui_tiles::Behavior<Pane> for TreeBehavior {
         opt.all_panes_must_have_tabs = true;
         opt
     }
+
+    fn on_tab_button(
+        &mut self,
+        _tiles: &Tiles<Pane>,
+        tile_id: TileId,
+        button_response: Response,
+    ) -> Response {
+        if button_response.clicked() {
+            *self.current_tile_id = Some(tile_id);
+        }
+        button_response
+    }
 }
 
 struct App {
     pub tree: Tree<Pane>,
     pub storage: Arc<Storage>,
     pub current_bag_id: BagId,
+    pub current_tile_id: Option<TileId>,
     removing_tiles: Vec<TileId>,
     replace_bag_id: Option<BagId>,
     panel_context: HashMap<BagId, Tree<Pane>>,
@@ -220,16 +237,21 @@ fn main() -> Result<(), eframe::Error> {
         removing_tiles: vec![],
         replace_bag_id: None,
         panel_context: HashMap::new(),
+        current_tile_id: None,
     };
 
-    eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+    eframe::run_simple_native("Flexim", options, move |ctx, _frame| {
         install_image_loaders(ctx);
         egui::SidePanel::left("data viewer").show(ctx, |ui| {
             left_panel(&mut app, ui);
         });
+        egui::SidePanel::right("visualize viewer").show(ctx, |ui| {
+            right_panel(&mut app, ui);
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut behavior = TreeBehavior {
                 stack_tabs: collect_stack_tabs(ui, &app.tree),
+                current_tile_id: &mut app.current_tile_id,
             };
             app.tree.ui(&mut behavior, ui);
         });
@@ -240,6 +262,9 @@ fn main() -> Result<(), eframe::Error> {
 fn end_of_frame(app: &mut App) {
     for &tile_id in &app.removing_tiles {
         app.tree.tiles.remove(tile_id);
+        if app.current_tile_id == Some(tile_id) {
+            app.current_tile_id = None;
+        }
     }
     app.removing_tiles.clear();
     if let Some(bag_id) = app.replace_bag_id {
@@ -263,6 +288,21 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
     data_view_list_view(app, ui);
     ui.separator();
     visualize_list_view(app, ui);
+}
+
+fn right_panel(app: &mut App, ui: &mut Ui) {
+    if let Some(tile_id) = app.current_tile_id {
+        let tile = app.tree.tiles.get(tile_id).unwrap();
+        match tile {
+            Tile::Pane(Pane {
+                name,
+                content: PaneContent::Visualize(data),
+            }) => {
+                data.config_panel(ui);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn data_bag_list_view(app: &mut App, ui: &mut Ui) {

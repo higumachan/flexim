@@ -19,9 +19,9 @@ tonic-build = "0.10.2"
 tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = "1.0.78"
-egui = "0.24.1"
-egui_extras = { version = "0.24.2", features = ["image", "svg"] }
-egui_tiles = "0.4.0"
+egui = "0.25.0"
+egui_extras = { version = "0.25.0", features = ["image", "svg"] }
+egui_tiles = "0.6.0"
 image = "0.23.14"
 ndarray = { version = "0.15.6", features = ["serde"] }
 polars = { version = "0.35.4", features = ["serde", "dtype-struct", "dtype-categorical", "csv", "lazy_regex", "strings", "ipc" ] }
@@ -36,7 +36,7 @@ flexim-connect = { path = "crates/flexim-connect" }
 flexim-storage = { path = "crates/flexim-storage" }
 num-derive = "0.4.1"
 chrono = "0.4.31"
-eframe = "0.24.1"
+eframe = "0.25.0"
 env_logger = "0.10.1"
 scarlet = "1.2.0"
 unwrap-ord = "0.1.2"
@@ -45,6 +45,8 @@ rand = "0.8.5"
 num-traits = "0.2.17"
 tiny-skia = "0.11.3"
 log = "0.4.20"
+downcast-rs = "1.2.0"
+indexmap = "2.1.0"
 
 
 [dependencies]
@@ -68,3 +70,4 @@ serde_json.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 prost.workspace = true
+log.workspace = true

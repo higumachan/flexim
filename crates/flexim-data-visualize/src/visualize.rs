@@ -1,16 +1,23 @@
 use crate::cache::{Poll, VisualizedImageCache};
+use std::collections::BTreeSet;
+use std::hash::Hash;
 
-use egui::{Id, Image, Pos2, Rect, Response, Sense, Ui, Vec2};
+use egui::{
+    CollapsingHeader, ComboBox, Id, Image, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
+};
 
 use flexim_data_type::{FlDataFrameRectangle, FlImage, FlTensor2D};
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 
+use crate::pallet::pallet;
+use downcast_rs::{impl_downcast, Downcast};
+use egui::ahash::HashSet;
 use polars::prelude::*;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 use unwrap_ord::UnwrapOrd;
 
@@ -42,12 +49,15 @@ impl Default for VisualizeState {
     }
 }
 
-pub trait DataRender {
+pub trait DataRender: Downcast {
     fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>>;
+    fn config_panel(&self, ui: &mut Ui);
+    fn transparent(&self) -> f64;
 }
+impl_downcast!(DataRender);
 
 pub struct FlImageRender {
-    content: Arc<FlImage>,
+    pub content: Arc<FlImage>,
 }
 
 impl FlImageRender {
@@ -60,15 +70,37 @@ impl DataRender for FlImageRender {
     fn render(&self, _ui: &mut Ui) -> Option<Arc<FlImage>> {
         Some(self.content.clone())
     }
+
+    fn config_panel(&self, ui: &mut Ui) {
+        ui.label("FlImage");
+    }
+
+    fn transparent(&self) -> f64 {
+        0.5
+    }
 }
 
+#[derive(Debug)]
+pub struct FlTensor2DRenderContext {
+    pub transparency: f64,
+}
+
+impl Default for FlTensor2DRenderContext {
+    fn default() -> Self {
+        Self { transparency: 0.5 }
+    }
+}
 pub struct FlTensor2DRender {
     content: Arc<FlTensor2D<f64>>,
+    context: Arc<Mutex<FlTensor2DRenderContext>>,
 }
 
 impl FlTensor2DRender {
     pub fn new(content: Arc<FlTensor2D<f64>>) -> Self {
-        Self { content }
+        Self {
+            content,
+            context: Arc::new(Mutex::new(FlTensor2DRenderContext::default())),
+        }
     }
 
     fn id(&self, ui: &Ui) -> Id {
@@ -134,11 +166,42 @@ impl DataRender for FlTensor2DRender {
             }
         })
     }
+
+    fn config_panel(&self, ui: &mut Ui) {
+        ui.label("FlTensor2D");
+        CollapsingHeader::new("Config").show(ui, |ui| {
+            let mut render_context = self.context.lock().unwrap();
+            ui.horizontal(|ui| {
+                ui.label("Transparency");
+                Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
+            });
+        });
+    }
+
+    fn transparent(&self) -> f64 {
+        self.context.lock().unwrap().transparency
+    }
+}
+
+#[derive(Debug)]
+pub struct FlDataFrameViewRenderContext {
+    pub color_scatter_column: Option<String>,
+    pub transparency: f64,
+}
+
+impl Default for FlDataFrameViewRenderContext {
+    fn default() -> Self {
+        Self {
+            color_scatter_column: None,
+            transparency: 0.5,
+        }
+    }
 }
 
 pub struct FlDataFrameViewRender {
     pub dataframe_view: FlDataFrameView,
     pub column: String,
+    render_context: Arc<Mutex<FlDataFrameViewRenderContext>>,
 }
 
 impl DataRender for FlDataFrameViewRender {
@@ -155,24 +218,35 @@ impl DataRender for FlDataFrameViewRender {
             None => {
                 let ctx = ui.ctx().clone();
                 let id = self.id(ui);
-                let target_series = self
-                    .dataframe_view
-                    .table
-                    .computed_dataframe(ui)
+                let computed_dataframe = self.dataframe_view.table.computed_dataframe(ui);
+                let target_series = computed_dataframe
                     .column(self.column.as_str())
                     .unwrap()
                     .clone();
+                let color_series = self
+                    .render_context
+                    .lock()
+                    .unwrap()
+                    .color_scatter_column
+                    .as_ref()
+                    .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
 
                 let size = self.dataframe_view.size;
                 std::thread::spawn(move || {
                     let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
                         target_series.iter().map(TryFrom::try_from).collect();
+                    let colors = color_series
+                        .map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
 
                     let mut pixmap = Pixmap::new(size.x as u32, size.y as u32).unwrap();
                     let mut paint = Paint::default();
                     paint.set_color_rgba8(255, 0, 0, 255);
                     let stroke = Stroke::default();
-                    for rect in rectangles.unwrap() {
+                    for (i, rect) in rectangles.unwrap().iter().enumerate() {
+                        if let Some(colors) = &colors {
+                            let color = colors[i];
+                            paint.set_color_rgba8(color.r(), color.g(), color.b(), 255);
+                        }
                         let path = PathBuilder::from_rect(
                             tiny_skia::Rect::from_ltrb(
                                 rect.x1.min(rect.x2) as f32,
@@ -201,6 +275,47 @@ impl DataRender for FlDataFrameViewRender {
             }
         }
     }
+
+    fn config_panel(&self, ui: &mut Ui) {
+        ui.label("FlDataFrameView");
+        CollapsingHeader::new("Config").show(ui, |ui| {
+            let mut render_context = self.render_context.lock().unwrap();
+            ui.horizontal(|ui| {
+                ui.label("Color Scatter Column");
+                let mut columns = self.dataframe_view.table.dataframe.value.get_column_names();
+                let columns = columns
+                    .into_iter()
+                    .filter(|c| c != &self.column)
+                    .collect_vec();
+                ComboBox::from_label("")
+                    .selected_text(
+                        render_context
+                            .color_scatter_column
+                            .as_ref()
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                    )
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut render_context.color_scatter_column, None, "");
+                        for column in columns {
+                            ui.selectable_value(
+                                &mut render_context.color_scatter_column,
+                                Some(column.to_string()),
+                                column,
+                            );
+                        }
+                    });
+            });
+            ui.horizontal(|ui| {
+                ui.label("Transparency");
+                Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
+            });
+        });
+    }
+
+    fn transparent(&self) -> f64 {
+        self.render_context.lock().unwrap().transparency
+    }
 }
 
 impl FlDataFrameViewRender {
@@ -208,6 +323,7 @@ impl FlDataFrameViewRender {
         Self {
             dataframe_view,
             column,
+            render_context: Arc::new(Mutex::new(FlDataFrameViewRenderContext::default())),
         }
     }
 
@@ -219,6 +335,11 @@ impl FlDataFrameViewRender {
             self.dataframe_view.id,
             self.column.as_str(),
             df_string,
+            self.render_context
+                .lock()
+                .unwrap()
+                .color_scatter_column
+                .clone(),
         ))
     }
 }
@@ -251,11 +372,11 @@ pub fn stack_visualize(
     assert_ne!(stack.len(), 0);
     let stack = stack
         .iter()
-        .map(|s| s.render(ui).into_iter().map(move |i| i))
+        .map(|s| (s.render(ui).into_iter().map(move |i| (i, s.transparent()))))
         .flatten()
         .collect_vec();
 
-    let v = &stack[0];
+    let (v, _) = &stack[0];
     let image = egui::Image::from_bytes(format!("bytes://{}.png", v.id), v.value.clone());
     let image = image.uv(visualize_state.uv_rect());
     let image = image.sense(Sense::drag());
@@ -265,13 +386,17 @@ pub fn stack_visualize(
     let response = ui.add(image);
     let rect = response.rect;
     let mut last_image = None;
-    for (_i, image) in stack.iter().enumerate().skip(1) {
+    for (_i, (image, transparent)) in stack.iter().enumerate().skip(1) {
         if let Some(image) = last_image {
             ui.put(rect, image);
         }
         let image = Image::from_bytes(format!("bytes://{}.png", image.id), image.value.clone());
         let image = image.uv(visualize_state.uv_rect());
-        let image = image.tint(egui::Color32::from_rgba_premultiplied(255, 255, 255, 128));
+        let alpha = (255.0 * (1.0 - transparent)) as u8;
+        let image = image.bg_fill(egui::Color32::from_rgba_premultiplied(0, 0, 0, 0));
+        let image = image.tint(dbg!(egui::Color32::from_rgba_premultiplied(
+            alpha, alpha, alpha, alpha
+        )));
         let _texture = image
             .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
             .unwrap();

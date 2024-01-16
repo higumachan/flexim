@@ -20,3 +20,6 @@ anyhow.workspace = true
 rand.workspace = true
 polars.workspace = true
 tiny-skia.workspace = true
+downcast-rs.workspace = true
+log.workspace = true
+indexmap.workspace = true
