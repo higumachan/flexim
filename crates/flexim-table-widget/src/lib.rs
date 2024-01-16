@@ -24,7 +24,7 @@ impl FlTable {
     pub fn draw(&self, ui: &mut Ui) {
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
-        let dataframe = self.computed_dataframe(ui);
+        let dataframe = self.computed_dataframe();
         let state = self.state();
 
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
@@ -60,7 +60,7 @@ impl FlTable {
         self.state.clone()
     }
 
-    pub fn computed_dataframe(&self, _ui: &mut Ui) -> DataFrame {
+    pub fn computed_dataframe(&self) -> DataFrame {
         let state = self.state();
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();

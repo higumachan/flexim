@@ -1558,8 +1558,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "downcast-rs",
+ "eframe",
  "egui",
+ "egui_extras",
  "egui_tiles",
+ "env_logger",
  "flexim-data-type",
  "flexim-data-view",
  "image 0.23.14",
@@ -1571,7 +1574,6 @@ dependencies = [
  "polars",
  "rand",
  "scarlet",
- "tiny-skia",
  "unwrap-ord",
 ]
 

@@ -19,7 +19,11 @@ num-traits.workspace = true
 anyhow.workspace = true
 rand.workspace = true
 polars.workspace = true
-tiny-skia.workspace = true
 downcast-rs.workspace = true
 log.workspace = true
 indexmap.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true
+eframe.workspace = true
+egui_extras.workspace = true

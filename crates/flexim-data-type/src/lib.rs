@@ -2,7 +2,7 @@ use anyhow::{bail, Context};
 
 use ndarray::{Array2, Array3};
 
-use image::{load_from_memory_with_format, EncodableLayout};
+use image::{load_from_memory_with_format, EncodableLayout, ImageDecoder};
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use rand::random;
@@ -53,24 +53,31 @@ impl From<FlDataFrame> for FlData {
 pub struct FlImage {
     pub id: usize,
     pub value: Vec<u8>,
+    pub width: usize,
+    pub height: usize,
 }
 
 impl FlImage {
-    pub fn new(value: Vec<u8>) -> Self {
+    pub fn new(value: Vec<u8>, width: usize, height: usize) -> Self {
         Self {
             id: gen_id(),
             value,
+            width,
+            height,
         }
     }
 
     pub fn try_from_bytes(value: Vec<u8>) -> anyhow::Result<Self> {
-        {
+        let (width, height) = {
             let v = value.as_bytes();
-            image::codecs::png::PngDecoder::new(v).context("png decoder error")?;
-        }
+            let decoder = image::codecs::png::PngDecoder::new(v).context("png decoder error")?;
+            decoder.dimensions()
+        };
         Ok(Self {
             id: gen_id(),
             value,
+            width: width as usize,
+            height: height as usize,
         })
     }
 }

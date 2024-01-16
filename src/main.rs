@@ -185,14 +185,19 @@ fn main() -> Result<(), eframe::Error> {
         .insert_data(
             bag_id,
             "logo".to_string(),
-            FlImage::new(include_bytes!("../assets/flexim-logo-1.png").to_vec()).into(),
+            FlImage::new(
+                include_bytes!("../assets/flexim-logo-1.png").to_vec(),
+                512,
+                512,
+            )
+            .into(),
         )
         .unwrap();
     storage
         .insert_data(
             bag_id,
             "tall".to_string(),
-            FlImage::new(include_bytes!("../assets/tall.png").to_vec()).into(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
         )
         .unwrap();
     storage
@@ -528,9 +533,13 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
     tabs.push({
         let image1 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
             include_bytes!("../assets/flexim-logo-1.png").to_vec(),
+            512,
+            512,
         ))));
         let image2 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
             include_bytes!("../assets/tall.png").to_vec(),
+            512,
+            512,
         ))));
         let tensor = Arc::new(FlTensor2DRender::new(Arc::new(FlTensor2D::new(
             Array2::from_shape_fn((512, 512), |(y, x)| {
