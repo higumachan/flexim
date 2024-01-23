@@ -2,6 +2,7 @@
 requires = ["maturin>=0.14,<0.15", "grpcio-tools>=1.40.0"]
 build-backend = "maturin"
 
+
 [project]
 name = "flexim_py"
 requires-python = ">=3.7"
@@ -23,3 +24,7 @@ dependencies = [
     "grpcio>=1.40.0",
     "protobuf>=4",
 ]
+
+[tool.maturin]
+python-source = "flexim_sdk"
+module-name = "flexim_py._flexim_lib"

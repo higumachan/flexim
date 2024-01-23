@@ -6,8 +6,8 @@ import grpc
 from grpc import Channel
 from pydantic import BaseModel, ConfigDict
 
-from flexim.data_type import ImageData, DataFrameData, Tensor2DData
-from flexim.pb import connect_pb2, connect_pb2_grpc
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData
+from flexim_py.pb import connect_pb2, connect_pb2_grpc
 
 
 logger = logging.getLogger(__name__)

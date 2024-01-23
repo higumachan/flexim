@@ -29,12 +29,16 @@ impl FlTable {
 
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
+        builder = builder.column(Column::auto().resizable(true));
         for _col in &columns {
             builder = builder.column(Column::auto().resizable(true));
         }
         builder
             .header(64.0, |mut header| {
-                for col in columns {
+                header.col(|ui| {
+                    ui.heading("High light");
+                });
+                for col in &columns {
                     header.col(|ui| {
                         ui.heading(col.to_string());
                         state.filters.get(&col.to_string()).unwrap().draw(ui);
@@ -44,11 +48,33 @@ impl FlTable {
             .body(|mut body| {
                 for row_idx in 0..dataframe.height() {
                     body.row(32.0, |mut row| {
-                        let draw = dataframe.get_row(row_idx).unwrap();
-
-                        for c in draw.0 {
+                        row.col(|ui| {
+                            // let d = draw.0.last().unwrap().extract::<u32>().unwrap() as u64;
+                            let d = dataframe
+                                .column("__FleximRowId")
+                                .unwrap()
+                                .get(row_idx)
+                                .unwrap()
+                                .extract::<u32>()
+                                .unwrap() as u64;
+                            let mut highlight = state.highlight.lock().unwrap();
+                            let mut h = highlight.contains(&d);
+                            ui.checkbox(&mut h, "");
+                            if h {
+                                highlight.insert(d);
+                            } else {
+                                highlight.remove(&d);
+                            }
+                        });
+                        for c in &columns {
                             row.col(|ui| {
-                                ui.label(c.to_string());
+                                let c = dataframe
+                                    .column(&c)
+                                    .unwrap()
+                                    .get(row_idx)
+                                    .unwrap()
+                                    .to_string();
+                                ui.label(c);
                             });
                         }
                     });
@@ -56,7 +82,7 @@ impl FlTable {
             });
     }
 
-    fn state(&self) -> Arc<FlTableState> {
+    pub fn state(&self) -> Arc<FlTableState> {
         self.state.clone()
     }
 
@@ -64,6 +90,7 @@ impl FlTable {
         let state = self.state();
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
+        let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
         let mut col_filter_mask = std::iter::repeat(true)
             .take(dataframe.height() as usize)
             .collect::<BooleanChunked>();
@@ -86,6 +113,7 @@ type ColumnName = String;
 #[derive(Debug, Clone)]
 pub struct FlTableState {
     pub filters: HashMap<ColumnName, ColumnFilter>,
+    pub highlight: Arc<Mutex<HashSet<u64>>>,
 }
 
 impl FlTableState {
@@ -100,6 +128,7 @@ impl FlTableState {
                     )
                 })
                 .collect(),
+            highlight: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 }

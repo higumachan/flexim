@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
-from flexim.client import create_bag, append_data
-from flexim.data_type import ImageData, DataFrameData, Tensor2DData
+from flexim_py.client import create_bag, append_data
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData
 
 
 class Bag(BaseModel):

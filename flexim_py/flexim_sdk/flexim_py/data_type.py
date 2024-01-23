@@ -20,6 +20,7 @@ class Rectangle(BaseModel):
     x2: float
     y2: float
 
+
 class ImageData(BaseModel):
     type: Literal["Image"] = "Image"
     image: npt.NDArray[np.uint8]

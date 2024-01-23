@@ -52,6 +52,8 @@ impl Default for VisualizeState {
 }
 
 pub trait DataRender: Downcast {
+    fn id(&self) -> Id;
+
     fn render(
         &self,
         painter: &mut Painter,
@@ -75,6 +77,10 @@ impl FlImageRender {
 }
 
 impl DataRender for FlImageRender {
+    fn id(&self) -> Id {
+        Id::new("fl_image").with(self.content.id)
+    }
+
     fn render(
         &self,
         painter: &mut Painter,
@@ -123,6 +129,10 @@ impl FlTensor2DRender {
 }
 
 impl DataRender for FlTensor2DRender {
+    fn id(&self) -> Id {
+        Id::new("fl_tensor2d").with(self.content.id)
+    }
+
     fn render(
         &self,
         painter: &mut Painter,
@@ -236,6 +246,8 @@ impl DataRender for FlTensor2DRender {
 pub struct FlDataFrameViewRenderContext {
     pub color_scatter_column: Option<String>,
     pub transparency: f64,
+    pub normal_thickness: f64,
+    pub highlight_thickness: f64,
 }
 
 impl Default for FlDataFrameViewRenderContext {
@@ -243,6 +255,8 @@ impl Default for FlDataFrameViewRenderContext {
         Self {
             color_scatter_column: None,
             transparency: 0.5,
+            normal_thickness: 1.0,
+            highlight_thickness: 3.0,
         }
     }
 }
@@ -254,76 +268,11 @@ pub struct FlDataFrameViewRender {
 }
 
 impl DataRender for FlDataFrameViewRender {
-    // fn render(&self, ui: &mut Ui) -> Option<Arc<FlImage>> {
-    //     let id = self.id(ui);
-    //     let result = ui.memory_mut(|mem| {
-    //         let cache = mem.caches.cache::<VisualizedImageCache>();
-    //         cache.get(id).clone()
-    //     });
-    //
-    //     match result {
-    //         Some(Poll::Ready(image)) => Some(image),
-    //         Some(Poll::Pending) => None,
-    //         None => {
-    //             let ctx = ui.ctx().clone();
-    //             let id = self.id(ui);
-    //             let computed_dataframe = self.dataframe_view.table.computed_dataframe(ui);
-    //             let target_series = computed_dataframe
-    //                 .column(self.column.as_str())
-    //                 .unwrap()
-    //                 .clone();
-    //             let color_series = self
-    //                 .render_context
-    //                 .lock()
-    //                 .unwrap()
-    //                 .color_scatter_column
-    //                 .as_ref()
-    //                 .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
-    //
-    //             let size = self.dataframe_view.size;
-    //             std::thread::spawn(move || {
-    //                 let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
-    //                     target_series.iter().map(TryFrom::try_from).collect();
-    //                 let colors = color_series
-    //                     .map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
-    //
-    //                 let mut pixmap = Pixmap::new(size.x as u32, size.y as u32).unwrap();
-    //                 let mut paint = Paint::default();
-    //                 paint.set_color_rgba8(255, 0, 0, 255);
-    //                 let stroke = Stroke::default();
-    //                 for (i, rect) in rectangles.unwrap().iter().enumerate() {
-    //                     if let Some(colors) = &colors {
-    //                         let color = colors[i];
-    //                         paint.set_color_rgba8(color.r(), color.g(), color.b(), 255);
-    //                     }
-    //                     let path = PathBuilder::from_rect(
-    //                         tiny_skia::Rect::from_ltrb(
-    //                             rect.x1.min(rect.x2) as f32,
-    //                             rect.y1.min(rect.y2) as f32,
-    //                             rect.x1.max(rect.x2) as f32,
-    //                             rect.y1.max(rect.y2) as f32,
-    //                         )
-    //                         .unwrap(),
-    //                     );
-    //                     pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-    //                 }
-    //
-    //                 let png_bytes = pixmap.encode_png().unwrap();
-    //                 let image = FlImage::new(png_bytes);
-    //
-    //                 ctx.memory_mut(move |mem| {
-    //                     let cache = mem.caches.cache::<VisualizedImageCache>();
-    //                     cache.insert(id, image);
-    //                 })
-    //             });
-    //             ui.memory_mut(|mem| {
-    //                 let cache = mem.caches.cache::<VisualizedImageCache>();
-    //                 cache.insert_pending(id);
-    //             });
-    //             None
-    //         }
-    //     }
-    // }
+    fn id(&self) -> Id {
+        Id::new("fl_data_frame_view")
+            .with(self.dataframe_view.id)
+            .with(self.column.as_str())
+    }
 
     fn render(
         &self,
@@ -346,6 +295,19 @@ impl DataRender for FlDataFrameViewRender {
             .color_scatter_column
             .as_ref()
             .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+        let highlight = {
+            let state = self.dataframe_view.table.state();
+            let highlight = state.highlight.lock().unwrap();
+            computed_dataframe
+                .column("__FleximRowId")
+                .unwrap()
+                .iter()
+                .map(|v| {
+                    let index = v.extract::<u32>().unwrap() as u64;
+                    highlight.contains(&index)
+                })
+                .collect_vec()
+        };
         let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
             target_series.iter().map(TryFrom::try_from).collect();
         let colors =
@@ -360,14 +322,21 @@ impl DataRender for FlDataFrameViewRender {
             painter.rect_stroke(
                 Rect::from_min_max(
                     painter.clip_rect().min
-                        + Vec2::new(rect.x1 as f32, rect.y1 as f32)
-                        + state.shift,
+                        + (Vec2::new(rect.x1 as f32, rect.y1 as f32) * state.scale as f32
+                            + state.shift),
                     painter.clip_rect().min
-                        + Vec2::new(rect.x2 as f32, rect.y2 as f32)
-                        + state.shift,
+                        + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
+                            + state.shift),
                 ),
                 0.0,
-                Stroke::new(1.0, color),
+                Stroke::new(
+                    if highlight[i] {
+                        self.render_context.lock().unwrap().highlight_thickness
+                    } else {
+                        self.render_context.lock().unwrap().normal_thickness
+                    } as f32,
+                    color,
+                ),
             );
         }
         Ok(())
@@ -406,6 +375,14 @@ impl DataRender for FlDataFrameViewRender {
             ui.horizontal(|ui| {
                 ui.label("Transparency");
                 Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Highlight Thickness");
+                Slider::new(&mut render_context.highlight_thickness, 0.0..=10.0).ui(ui);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Normal Thickness");
+                Slider::new(&mut render_context.normal_thickness, 0.0..=10.0).ui(ui);
             });
         });
     }
@@ -449,6 +426,7 @@ pub fn visualize(
 ) -> Response {
     ui.centered_and_justified(|ui| {
         let size = render.size();
+        let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         render.render(&mut painter, visualize_state, size).unwrap();
 
@@ -471,6 +449,7 @@ pub fn stack_visualize(
     ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
         let size = stack_top.size();
+        let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         stack_top
             .render(&mut painter, visualize_state, size)

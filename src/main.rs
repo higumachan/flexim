@@ -82,9 +82,12 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
     fn pane_ui(&mut self, ui: &mut Ui, tile_id: TileId, pane: &mut Pane) -> UiResponse {
         // スタックタブの場合はデータを重ねて可視化する
         let id = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
-            stack_tab.id
+            stack_tab
+                .contents
+                .iter()
+                .fold(Id::new("stack_tab"), |id, content| id.with(content.id()))
         } else {
-            tile_id.egui_id(ui.id())
+            Id::new("tab").with(tile_id)
         };
 
         match &pane.content {
@@ -280,6 +283,7 @@ fn end_of_frame(app: &mut App) {
                 .unwrap_or_else(|| Tree::empty(bag_id.into_inner().to_string())),
         );
         app.panel_context.insert(app.current_bag_id, panel);
+        app.current_tile_id = None;
         app.current_bag_id = bag_id;
         app.replace_bag_id = None;
     }
@@ -538,8 +542,8 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
         ))));
         let image2 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
             include_bytes!("../assets/tall.png").to_vec(),
-            512,
-            512,
+            1024,
+            1792,
         ))));
         let tensor = Arc::new(FlTensor2DRender::new(Arc::new(FlTensor2D::new(
             Array2::from_shape_fn((512, 512), |(y, x)| {
