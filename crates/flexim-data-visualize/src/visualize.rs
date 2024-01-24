@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use std::hash::Hash;
 
 use egui::{
-    Align2, CollapsingHeader, Color32, ComboBox, Context, FontId, Id, Image, Painter, Pos2, Rect,
-    Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
+    Align2, CollapsingHeader, Color32, ComboBox, Context, FontId, Id, Image, Painter, Pos2, Rangef,
+    Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{FlDataFrameRectangle, FlImage, FlTensor2D};
@@ -56,9 +56,9 @@ pub trait DataRender: Downcast {
 
     fn render(
         &self,
+        ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-
         size: Vec2,
     ) -> anyhow::Result<()>;
     fn config_panel(&self, ui: &mut Ui);
@@ -83,6 +83,7 @@ impl DataRender for FlImageRender {
 
     fn render(
         &self,
+        ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
         size: Vec2,
@@ -135,6 +136,7 @@ impl DataRender for FlTensor2DRender {
 
     fn render(
         &self,
+        ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
 
@@ -278,6 +280,7 @@ impl DataRender for FlDataFrameViewRender {
 
     fn render(
         &self,
+        ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
         size: Vec2,
@@ -352,18 +355,42 @@ impl DataRender for FlDataFrameViewRender {
                     + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
                         + state.shift),
             );
-            painter.rect_stroke(
-                rect,
-                0.0,
-                Stroke::new(
-                    if highlight[i] {
-                        self.render_context.lock().unwrap().highlight_thickness
-                    } else {
-                        self.render_context.lock().unwrap().normal_thickness
-                    } as f32,
-                    color,
+            let mut responses = vec![];
+            let thickness = if highlight[i] {
+                self.render_context.lock().unwrap().highlight_thickness
+            } else {
+                self.render_context.lock().unwrap().normal_thickness
+            } as f32;
+            painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
+            responses.push(ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    rect.x_range().expand(thickness),
+                    Rangef::point(rect.top()).expand(thickness),
                 ),
-            );
+                Sense::click(),
+            ));
+            responses.push(ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    rect.x_range().expand(thickness),
+                    Rangef::point(rect.bottom()).expand(thickness),
+                ),
+                Sense::click(),
+            ));
+            responses.push(ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    Rangef::point(rect.left()).expand(thickness),
+                    rect.y_range().expand(thickness),
+                ),
+                Sense::click(),
+            ));
+            responses.push(ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    Rangef::point(rect.right()).expand(thickness),
+                    rect.y_range().expand(thickness),
+                ),
+                Sense::click(),
+            ));
+
             if let Some(label) = label {
                 let text_rect = painter.text(
                     rect.left_top(),
@@ -380,6 +407,20 @@ impl DataRender for FlDataFrameViewRender {
                     FontId::default(),
                     Color32::BLACK,
                 );
+                responses.push(ui.allocate_rect(text_rect, Sense::click()));
+            }
+
+            for r in responses {
+                if r.clicked() {
+                    let mut state = self.dataframe_view.table.state();
+                    let mut highlight = state.highlight.lock().unwrap();
+                    let i = i as u64;
+                    if highlight.contains(&i) {
+                        highlight.remove(&i);
+                    } else {
+                        highlight.insert(i);
+                    }
+                }
             }
         }
         Ok(())
@@ -497,7 +538,9 @@ pub fn visualize(
         let size = render.size();
         let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
-        render.render(&mut painter, visualize_state, size).unwrap();
+        render
+            .render(ui, &mut painter, visualize_state, size)
+            .unwrap();
 
         if response.dragged() {
             visualize_state.shift += response.drag_delta();
@@ -521,10 +564,12 @@ pub fn stack_visualize(
         let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         stack_top
-            .render(&mut painter, visualize_state, size)
+            .render(ui, &mut painter, visualize_state, size)
             .unwrap();
         for (i, render) in stack.iter().enumerate().skip(1) {
-            render.render(&mut painter, visualize_state, size).unwrap();
+            render
+                .render(ui, &mut painter, visualize_state, size)
+                .unwrap();
         }
 
         if response.dragged() {
@@ -535,47 +580,6 @@ pub fn stack_visualize(
         response
     })
     .response
-
-    // let stack = stack
-    //     .iter()
-    //     .map(|s| (s.render(ui).into_iter().map(move |i| (i, s.transparent()))))
-    //     .flatten()
-    //     .collect_vec();
-    //
-    // let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click());
-    // let (v, _) = &stack[0];
-    // let image = egui::Image::from_bytes(format!("bytes://{}.png", v.id), v.value.clone());
-    // let image = image.uv(visualize_state.uv_rect());
-    // let image = image.sense(Sense::drag());
-    // image
-    //     .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
-    //     .unwrap();
-    // let response = ui.add(image);
-    // let rect = response.rect;
-    // let mut last_image = None;
-    // for (_i, (image, transparent)) in stack.iter().enumerate().skip(1) {
-    //     if let Some(image) = last_image {
-    //         ui.put(rect, image);
-    //     }
-    //     let image = Image::from_bytes(format!("bytes://{}.png", image.id), image.value.clone());
-    //     let image = image.uv(visualize_state.uv_rect());
-    //     let alpha = (255.0 * (1.0 - transparent)) as u8;
-    //     let image = image.bg_fill(egui::Color32::from_rgba_premultiplied(0, 0, 0, 0));
-    //     let image = image.tint(dbg!(egui::Color32::from_rgba_premultiplied(
-    //         alpha, alpha, alpha, alpha
-    //     )));
-    //     let _texture = image
-    //         .load_for_size(ui.ctx(), Vec2::new(512.0, 512.0))
-    //         .unwrap();
-    //
-    //     last_image = Some(image);
-    // }
-    // if let Some(image) = last_image {
-    //     let image = image.sense(Sense::drag());
-    //     ui.put(rect, image)
-    // } else {
-    //     response
-    // }
 }
 
 fn draw_image(
