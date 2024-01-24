@@ -1598,6 +1598,7 @@ dependencies = [
  "env_logger",
  "flexim-data-type",
  "itertools 0.12.0",
+ "log",
  "polars",
  "serde",
  "serde_json",

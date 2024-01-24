@@ -1,6 +1,6 @@
 use egui::ahash::{HashMap, HashSet, HashSetExt};
 
-use egui::{Slider, Ui};
+use egui::{Align, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::FlDataFrame;
 use polars::prelude::*;
@@ -25,19 +25,24 @@ impl FlTable {
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
         let dataframe = self.computed_dataframe();
-        let state = self.state();
 
         let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
-        builder = builder.column(Column::auto().resizable(true));
+        builder = builder.column(Column::auto().clip(true).resizable(true));
         for _col in &columns {
-            builder = builder.column(Column::auto().resizable(true));
+            builder = builder.column(Column::auto().clip(true).resizable(true));
         }
+        let state = self.state();
+        let mut selected = *state.selected.lock().unwrap();
+        let builder = if let Some(selected) = selected {
+            log::info!("selected: {}", selected);
+            builder.scroll_to_row(selected as usize, Some(Align::Center))
+        } else {
+            builder
+        };
+        let builder = builder.sense(Sense::click());
         builder
-            .header(64.0, |mut header| {
-                header.col(|ui| {
-                    ui.heading("High light");
-                });
+            .header(80.0, |mut header| {
                 for col in &columns {
                     header.col(|ui| {
                         ui.heading(col.to_string());
@@ -48,26 +53,27 @@ impl FlTable {
             .body(|mut body| {
                 for row_idx in 0..dataframe.height() {
                     body.row(32.0, |mut row| {
-                        row.col(|ui| {
-                            // let d = draw.0.last().unwrap().extract::<u32>().unwrap() as u64;
-                            let d = dataframe
-                                .column("__FleximRowId")
-                                .unwrap()
-                                .get(row_idx)
-                                .unwrap()
-                                .extract::<u32>()
-                                .unwrap() as u64;
-                            let mut highlight = state.highlight.lock().unwrap();
-                            let mut h = highlight.contains(&d);
-                            ui.checkbox(&mut h, "");
-                            if h {
-                                highlight.insert(d);
-                            } else {
-                                highlight.remove(&d);
+                        // クリックしたらハイライトに追加する
+                        let d = dataframe
+                            .column("__FleximRowId")
+                            .unwrap()
+                            .get(row_idx)
+                            .unwrap()
+                            .extract::<u32>()
+                            .unwrap() as u64;
+                        let mut highlight = state.highlight.lock().unwrap();
+                        let selected = state.selected.lock().unwrap();
+
+                        if highlight.contains(&d) {
+                            row.set_selected(true);
+                        }
+                        if let Some(selected) = *selected {
+                            if selected == d {
+                                row.set_selected(true);
                             }
-                        });
+                        }
                         for c in &columns {
-                            row.col(|ui| {
+                            let (_, r) = row.col(|ui| {
                                 let c = dataframe
                                     .column(&c)
                                     .unwrap()
@@ -76,6 +82,13 @@ impl FlTable {
                                     .to_string();
                                 ui.label(c);
                             });
+                        }
+                        if row.response().clicked() {
+                            if highlight.contains(&d) {
+                                highlight.remove(&d);
+                            } else {
+                                highlight.insert(d);
+                            }
                         }
                     });
                 }
@@ -114,6 +127,7 @@ type ColumnName = String;
 pub struct FlTableState {
     pub filters: HashMap<ColumnName, ColumnFilter>,
     pub highlight: Arc<Mutex<HashSet<u64>>>,
+    pub selected: Arc<Mutex<Option<u64>>>,
 }
 
 impl FlTableState {
@@ -129,6 +143,7 @@ impl FlTableState {
                 })
                 .collect(),
             highlight: Arc::new(Mutex::new(HashSet::new())),
+            selected: Arc::new(Mutex::new(None)),
         }
     }
 }

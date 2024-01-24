@@ -333,6 +333,7 @@ impl DataRender for FlDataFrameViewRender {
         let labels = label_series
             .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
+        let mut hovered_index = None;
         for (i, rect) in rectangles.unwrap().iter().enumerate() {
             let color = if let Some(colors) = &colors {
                 colors[i]
@@ -416,9 +417,13 @@ impl DataRender for FlDataFrameViewRender {
                 responses.push(ui.allocate_rect(text_rect, Sense::click()));
             }
 
+            let mut state = self.dataframe_view.table.state();
+            let mut any_hovered = false;
             for r in responses {
+                if r.hovered() {
+                    any_hovered = true;
+                }
                 if r.clicked() {
-                    let mut state = self.dataframe_view.table.state();
                     let mut highlight = state.highlight.lock().unwrap();
                     let index = indices[i];
                     if highlight.contains(&index) {
@@ -428,6 +433,15 @@ impl DataRender for FlDataFrameViewRender {
                     }
                 }
             }
+            if any_hovered {
+                hovered_index = Some(indices[i]);
+            }
+        }
+        let state = self.dataframe_view.table.state();
+        if let Some(hi) = hovered_index {
+            state.selected.lock().unwrap().replace(hi);
+        } else {
+            state.selected.lock().unwrap().take();
         }
         Ok(())
     }

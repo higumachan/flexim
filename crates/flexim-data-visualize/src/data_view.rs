@@ -20,6 +20,9 @@ impl DataView for FlDataFrameView {
     fn draw(&self, ui: &mut Ui) {
         ScrollArea::horizontal()
             .enable_scrolling(true)
+            .max_width(ui.available_width())
+            .min_scrolled_width(ui.available_width())
+            .drag_to_scroll(true)
             .show(ui, |ui| {
                 self.table.draw(ui);
             });
