@@ -300,6 +300,12 @@ impl DataRender for FlDataFrameViewRender {
             .color_scatter_column
             .as_ref()
             .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+        let indices = computed_dataframe
+            .column("__FleximRowId")
+            .unwrap()
+            .iter()
+            .map(|v| v.extract::<u32>().unwrap() as u64)
+            .collect_vec();
         let highlight = {
             let state = self.dataframe_view.table.state();
             let highlight = state.highlight.lock().unwrap();
@@ -414,11 +420,11 @@ impl DataRender for FlDataFrameViewRender {
                 if r.clicked() {
                     let mut state = self.dataframe_view.table.state();
                     let mut highlight = state.highlight.lock().unwrap();
-                    let i = i as u64;
-                    if highlight.contains(&i) {
-                        highlight.remove(&i);
+                    let index = indices[i];
+                    if highlight.contains(&index) {
+                        highlight.remove(&index);
                     } else {
-                        highlight.insert(i);
+                        highlight.insert(index);
                     }
                 }
             }
