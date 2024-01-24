@@ -319,6 +319,19 @@ impl DataRender for FlDataFrameViewRender {
             } else {
                 Color32::RED
             };
+            let transparent = self.render_context.lock().unwrap().transparency;
+            let alpha = 1.0 - transparent;
+            let color_array = color
+                .to_normalized_gamma_f32()
+                .into_iter()
+                .map(|c| ((c as f64 * alpha) * 255.0) as u8)
+                .collect_vec();
+            let color = Color32::from_rgba_premultiplied(
+                color_array[0],
+                color_array[1],
+                color_array[2],
+                color_array[3],
+            );
             painter.rect_stroke(
                 Rect::from_min_max(
                     painter.clip_rect().min

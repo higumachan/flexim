@@ -7,21 +7,15 @@ use std::hash::{Hash, Hasher};
 pub fn pallet(id: impl Hash) -> Color32 {
     static COLORS: &'static [MaterialPrimary] = &[
         MaterialPrimary::Red(MaterialTone::Accent(AccentTone::A400)),
-        MaterialPrimary::Pink(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Purple(MaterialTone::Accent(AccentTone::A400)),
-        MaterialPrimary::DeepPurple(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Indigo(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Blue(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::LightBlue(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Cyan(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Teal(MaterialTone::Accent(AccentTone::A400)),
-        MaterialPrimary::Green(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::LightGreen(MaterialTone::Accent(AccentTone::A400)),
-        MaterialPrimary::Lime(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Yellow(MaterialTone::Accent(AccentTone::A400)),
-        MaterialPrimary::Amber(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Orange(MaterialTone::Accent(AccentTone::A400)),
-        MaterialPrimary::DeepOrange(MaterialTone::Accent(AccentTone::A400)),
     ];
 
     let mut hasher = AHasher::default();
