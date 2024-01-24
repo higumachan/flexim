@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use std::hash::Hash;
 
 use egui::{
-    CollapsingHeader, Color32, ComboBox, Context, Id, Image, Painter, Pos2, Rect, Response, Sense,
-    Slider, Stroke, Ui, Vec2, Widget,
+    Align2, CollapsingHeader, Color32, ComboBox, Context, FontId, Id, Image, Painter, Pos2, Rect,
+    Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{FlDataFrameRectangle, FlImage, FlTensor2D};
@@ -245,6 +245,7 @@ impl DataRender for FlTensor2DRender {
 #[derive(Debug)]
 pub struct FlDataFrameViewRenderContext {
     pub color_scatter_column: Option<String>,
+    pub label_column: Option<String>,
     pub transparency: f64,
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
@@ -254,6 +255,7 @@ impl Default for FlDataFrameViewRenderContext {
     fn default() -> Self {
         Self {
             color_scatter_column: None,
+            label_column: None,
             transparency: 0.5,
             normal_thickness: 1.0,
             highlight_thickness: 3.0,
@@ -312,6 +314,15 @@ impl DataRender for FlDataFrameViewRender {
             target_series.iter().map(TryFrom::try_from).collect();
         let colors =
             color_series.map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
+        let label_series = self
+            .render_context
+            .lock()
+            .unwrap()
+            .label_column
+            .as_ref()
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+        let labels = label_series
+            .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
         for (i, rect) in rectangles.unwrap().iter().enumerate() {
             let color = if let Some(colors) = &colors {
@@ -319,6 +330,7 @@ impl DataRender for FlDataFrameViewRender {
             } else {
                 Color32::RED
             };
+            let label = labels.as_ref().map(|labels| labels[i].as_str());
             let transparent = self.render_context.lock().unwrap().transparency;
             let alpha = 1.0 - transparent;
             let color_array = color
@@ -332,15 +344,16 @@ impl DataRender for FlDataFrameViewRender {
                 color_array[2],
                 color_array[3],
             );
+            let rect = Rect::from_min_max(
+                painter.clip_rect().min
+                    + (Vec2::new(rect.x1 as f32, rect.y1 as f32) * state.scale as f32
+                        + state.shift),
+                painter.clip_rect().min
+                    + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
+                        + state.shift),
+            );
             painter.rect_stroke(
-                Rect::from_min_max(
-                    painter.clip_rect().min
-                        + (Vec2::new(rect.x1 as f32, rect.y1 as f32) * state.scale as f32
-                            + state.shift),
-                    painter.clip_rect().min
-                        + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
-                            + state.shift),
-                ),
+                rect,
                 0.0,
                 Stroke::new(
                     if highlight[i] {
@@ -351,6 +364,23 @@ impl DataRender for FlDataFrameViewRender {
                     color,
                 ),
             );
+            if let Some(label) = label {
+                let text_rect = painter.text(
+                    rect.left_top(),
+                    Align2::LEFT_BOTTOM,
+                    label.clone(),
+                    FontId::default(),
+                    Color32::BLACK,
+                );
+                painter.rect_filled(text_rect, 0.0, color);
+                let text_rect = painter.text(
+                    rect.left_top(),
+                    Align2::LEFT_BOTTOM,
+                    label,
+                    FontId::default(),
+                    Color32::BLACK,
+                );
+            }
         }
         Ok(())
     }
@@ -366,7 +396,7 @@ impl DataRender for FlDataFrameViewRender {
                     .into_iter()
                     .filter(|c| c != &self.column)
                     .collect_vec();
-                ComboBox::from_label("")
+                ComboBox::from_id_source("Color Scatter Column")
                     .selected_text(
                         render_context
                             .color_scatter_column
@@ -379,6 +409,32 @@ impl DataRender for FlDataFrameViewRender {
                         for column in columns {
                             ui.selectable_value(
                                 &mut render_context.color_scatter_column,
+                                Some(column.to_string()),
+                                column,
+                            );
+                        }
+                    });
+            });
+            ui.horizontal(|ui| {
+                ui.label("Label Column");
+                let mut columns = self.dataframe_view.table.dataframe.value.get_column_names();
+                let columns = columns
+                    .into_iter()
+                    .filter(|c| c != &self.column)
+                    .collect_vec();
+                ComboBox::from_id_source("Label Column")
+                    .selected_text(
+                        render_context
+                            .label_column
+                            .as_ref()
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                    )
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut render_context.label_column, None, "");
+                        for column in columns {
+                            ui.selectable_value(
+                                &mut render_context.label_column,
                                 Some(column.to_string()),
                                 column,
                             );
