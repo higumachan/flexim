@@ -1,8 +1,9 @@
 use egui::ahash::{HashMap, HashSet, HashSetExt};
 
-use egui::{Align, Sense, Slider, Ui};
+use egui::{Align, ComboBox, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::FlDataFrame;
+use itertools::Itertools;
 use polars::prelude::*;
 use std::ops::{BitAnd, DerefMut};
 use std::sync::Mutex;
@@ -185,6 +186,27 @@ impl ColumnFilter {
             Some(Filter::SearchFilter(search)) => {
                 ui.text_edit_singleline(search);
             }
+            Some(Filter::CategoricalFilter(categories)) => {
+                let cat = categories
+                    .as_ref()
+                    .and_then(|t| t.iter().next().cloned())
+                    .unwrap_or("".to_string());
+                ComboBox::from_id_source(&self.aggregated.unique.as_ref().unwrap())
+                    .selected_text(cat)
+                    .show_ui(ui, |ui| {
+                        let mut selected = None;
+                        for cat in self.aggregated.unique.as_ref().unwrap() {
+                            ui.selectable_value(&mut selected, Some(cat.clone()), cat);
+                        }
+                        if let Some(selected) = selected {
+                            let mut current_categories = HashSet::new();
+                            current_categories.insert(selected);
+                            *categories = Some(current_categories);
+                        } else {
+                            *categories = None;
+                        }
+                    });
+            }
             _ => {}
         }
     }
@@ -210,6 +232,11 @@ impl ColumnFilter {
                 aggregated,
                 filter: Arc::new(Mutex::new(Some(Filter::RangeFilter { min, max }))),
             }
+        } else if dtype == &DataType::Boolean {
+            Self {
+                aggregated,
+                filter: Arc::new(Mutex::new(Some(Filter::CategoricalFilter(None)))),
+            }
         } else if dtype == &DataType::Utf8 {
             Self {
                 aggregated,
@@ -218,7 +245,7 @@ impl ColumnFilter {
         } else if let DataType::Categorical(_d) = dtype {
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(Some(Filter::CategoricalFilter(HashSet::new())))),
+                filter: Arc::new(Mutex::new(Some(Filter::CategoricalFilter(None)))),
             }
         } else {
             Self {
@@ -233,7 +260,7 @@ impl ColumnFilter {
 enum Filter {
     SearchFilter(String),
     RangeFilter { min: f64, max: f64 },
-    CategoricalFilter(HashSet<String>),
+    CategoricalFilter(Option<HashSet<String>>),
 }
 
 impl Filter {
@@ -245,7 +272,7 @@ impl Filter {
                 let series = series.f64().ok()?;
                 Some(series.gt_eq(*min).bitand(series.lt_eq(*max)))
             }
-            Filter::CategoricalFilter(categories) => {
+            Filter::CategoricalFilter(Some(categories)) => {
                 let series = series.cast(&DataType::Utf8).unwrap();
                 let series = series.utf8().unwrap();
                 Some(
@@ -261,6 +288,7 @@ impl Filter {
                         .collect(),
                 )
             }
+            Filter::CategoricalFilter(None) => None,
         }
     }
 }
@@ -274,6 +302,7 @@ fn unique_series(series: &Series) -> Option<Vec<String>> {
             .ok()?
             .into_iter()
             .filter_map(|t| t.map(|s| s.to_string()))
+            .unique()
             .collect(),
     )
 }
