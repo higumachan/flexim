@@ -1,5 +1,4 @@
 import logging
-from itertools import batched
 from typing import Any
 
 import grpc
@@ -8,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
-
+from flexim_py.utility import batched
 
 logger = logging.getLogger(__name__)
 
