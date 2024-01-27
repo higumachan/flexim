@@ -584,6 +584,7 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
                 let child_tiles = tabs
                     .children
                     .iter()
+                    .filter(|&&c| tree.is_visible(c))
                     .map(|&c| (c, tree.tiles.get(c)))
                     .collect_vec();
                 if child_tiles.len() >= 2
