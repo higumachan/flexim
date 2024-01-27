@@ -1,0 +1,16 @@
+[package]
+name = "polars"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+polars-core = { version = "0.35.4", default-features = false, features = [ "dtype-struct", "dtype-categorical", "strings", "regex", ] }
+polars-io = { version = "0.35.4", optional = true, default-features = false, features = ["serde", "dtype-categorical", "dtype-struct"] }
+polars-ops = { version = "0.35.4", default-features = false, features = [ "dtype-struct", "dtype-categorical", "strings", ] }
+
+[features]
+io = ["polars-io"]
+ipc = ["polars-io/ipc"]
+csv = ["polars-io/csv"]

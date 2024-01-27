@@ -24,10 +24,11 @@ egui_extras = { version = "0.25.0", features = ["image", "svg"] }
 egui_tiles = "0.6.0"
 image = "0.23.14"
 ndarray = { version = "0.15.6", features = ["serde"] }
-polars = { version = "0.35.4", features = ["serde", "dtype-struct", "dtype-categorical", "csv", "lazy_regex", "strings", "ipc" ] }
+#polars = { version = "0.35.4", default-features = false, features = ["serde", "dtype-struct", "dtype-categorical", "lazy_regex", "strings", "ipc" ] }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.108"
 bincode = "1.3.3"
+polars = { path = "crates/flexim-polars" }
 flexim-data-type = { path = "crates/flexim-data-type" }
 flexim-data-view = { path = "crates/flexim-data-view" }
 flexim-data-visualize = { path = "crates/flexim-data-visualize" }
@@ -65,7 +66,7 @@ ndarray.workspace = true
 itertools.workspace = true
 serde.workspace = true
 rand.workspace = true
-polars.workspace = true
+polars = { workspace = true, features = ["io", "csv"] }
 serde_json.workspace = true
 tokio.workspace = true
 tonic.workspace = true

@@ -18,7 +18,7 @@ itertools.workspace = true
 num-traits.workspace = true
 anyhow.workspace = true
 rand.workspace = true
-polars.workspace = true
+polars = { workspace = true }
 downcast-rs.workspace = true
 log.workspace = true
 indexmap.workspace = true

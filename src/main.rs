@@ -2,13 +2,14 @@ mod pane;
 
 use crate::pane::{into_pane_content, Pane, PaneContent};
 use eframe::emath::Rect;
+use eframe::Theme;
 use egui::ahash::{HashMap, HashMapExt, HashSet};
 use egui::emath::RectTransform;
 use egui::load::DefaultTextureLoader;
 use egui::scroll_area::ScrollBarVisibility;
 use egui::{
     Align, Button, CollapsingHeader, ComboBox, DragValue, Grid, Id, InnerResponse, Layout, Pos2,
-    Response, ScrollArea, Ui, Vec2, Widget,
+    Response, ScrollArea, SystemTheme, Ui, Vec2, ViewportCommand, Widget,
 };
 use egui_extras::install_image_loaders;
 use egui_tiles::{
@@ -187,7 +188,7 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
+        viewport: egui::ViewportBuilder::default(),
         ..Default::default()
     };
 
@@ -258,6 +259,7 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     eframe::run_simple_native("Flexim", options, move |ctx, _frame| {
+        ctx.send_viewport_cmd(ViewportCommand::SetTheme(SystemTheme::Dark));
         setup_custom_fonts(ctx);
         install_image_loaders(ctx);
         egui::SidePanel::left("data viewer").show(ctx, |ui| {
