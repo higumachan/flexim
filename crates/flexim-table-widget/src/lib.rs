@@ -37,6 +37,7 @@ impl FlTable {
     }
 
     pub fn draw(&self, ui: &mut Ui) {
+        puffin::profile_function!();
         if self.previous_state.is_none()
             || self.previous_state.as_ref().unwrap() != self.state.lock().unwrap().deref()
         {
@@ -91,47 +92,48 @@ impl FlTable {
                     }
                 })
                 .body(|mut body| {
-                    for row_idx in 0..dataframe.height() {
-                        body.row(32.0, |mut row| {
-                            // クリックしたらハイライトに追加する
-                            let d = dataframe
-                                .column("__FleximRowId")
-                                .unwrap()
-                                .get(row_idx)
-                                .unwrap()
-                                .extract::<u32>()
-                                .unwrap() as u64;
-                            let selected = state.selected;
-                            let mut highlight = &mut state.deref_mut().highlight;
+                    body.rows(32.0, dataframe.height(), |mut row| {
+                        let row_idx = row.index();
 
-                            if highlight.contains(&d) {
+                        // クリックしたらハイライトに追加する
+                        puffin::profile_scope!("row");
+                        let d = dataframe
+                            .column("__FleximRowId")
+                            .unwrap()
+                            .get(row_idx)
+                            .unwrap()
+                            .extract::<u32>()
+                            .unwrap() as u64;
+                        let selected = state.selected;
+                        let mut highlight = &mut state.deref_mut().highlight;
+
+                        if highlight.contains(&d) {
+                            row.set_selected(true);
+                        }
+                        if let Some(selected) = selected {
+                            if selected == d {
                                 row.set_selected(true);
                             }
-                            if let Some(selected) = selected {
-                                if selected == d {
-                                    row.set_selected(true);
-                                }
+                        }
+                        for c in &columns {
+                            let (_, r) = row.col(|ui| {
+                                let c = dataframe
+                                    .column(&c)
+                                    .unwrap()
+                                    .get(row_idx)
+                                    .unwrap()
+                                    .to_string();
+                                ui.label(c);
+                            });
+                        }
+                        if row.response().clicked() {
+                            if highlight.contains(&d) {
+                                highlight.remove(&d);
+                            } else {
+                                highlight.insert(d);
                             }
-                            for c in &columns {
-                                let (_, r) = row.col(|ui| {
-                                    let c = dataframe
-                                        .column(&c)
-                                        .unwrap()
-                                        .get(row_idx)
-                                        .unwrap()
-                                        .to_string();
-                                    ui.label(c);
-                                });
-                            }
-                            if row.response().clicked() {
-                                if highlight.contains(&d) {
-                                    highlight.remove(&d);
-                                } else {
-                                    highlight.insert(d);
-                                }
-                            }
-                        });
-                    }
+                        }
+                    });
                 });
         } else {
             ui.label("Loading...");
