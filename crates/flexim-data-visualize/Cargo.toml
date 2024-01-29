@@ -22,6 +22,7 @@ polars = { workspace = true }
 downcast-rs.workspace = true
 log.workspace = true
 indexmap.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true

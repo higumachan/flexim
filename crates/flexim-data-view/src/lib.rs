@@ -3,11 +3,14 @@ use flexim_data_type::{FlData, FlDataFrame, FlDataTrait};
 use flexim_table_widget::FlTable;
 
 use rand::random;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+pub type Id = u64;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameView {
-    pub id: usize,
+    pub id: Id,
     pub size: Vec2,
     pub table: FlTable,
 }
@@ -35,7 +38,7 @@ impl DataViewCreatable for FlData {
     }
 }
 
-fn gen_id() -> usize {
+fn gen_id() -> Id {
     random()
 }
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use egui_extras::install_image_loaders;
 use flexim_data_type::{FlImage, FlTensor2D};
 use flexim_data_visualize::visualize::{
-    stack_visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
+    stack_visualize, DataRenderable, FlImageRender, FlTensor2DRender, VisualizeState,
 };
 use ndarray::Array2;
 use std::sync::Arc;
@@ -15,7 +15,7 @@ fn main() -> eframe::Result<()> {
     };
 
     let mut state = VisualizeState::default();
-    let stack: Vec<Arc<dyn DataRender>> = vec![
+    let stack: Vec<Arc<dyn DataRenderable>> = vec![
         Arc::new(FlImageRender::new(Arc::new(
             FlImage::new(
                 include_bytes!("../../../assets/flexim-logo-1.png").to_vec(),

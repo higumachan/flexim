@@ -10,8 +10,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+type Id = u64;
+
 pub trait FlDataTrait {
-    fn id(&self) -> usize;
+    fn id(&self) -> Id;
 }
 
 #[derive(Debug, Clone)]
@@ -22,7 +24,7 @@ pub enum FlData {
 }
 
 impl FlData {
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> Id {
         match self {
             Self::Image(v) => v.id(),
             Self::Tensor(v) => v.id(),
@@ -49,9 +51,9 @@ impl From<FlDataFrame> for FlData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlImage {
-    pub id: usize,
+    pub id: Id,
     pub value: Vec<u8>,
     pub width: usize,
     pub height: usize,
@@ -83,14 +85,14 @@ impl FlImage {
 }
 
 impl FlDataTrait for FlImage {
-    fn id(&self) -> usize {
+    fn id(&self) -> Id {
         self.id
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTensor2D<A> {
-    pub id: usize,
+    pub id: Id,
     pub value: Array2<A>,
 }
 
@@ -104,14 +106,14 @@ impl<A> FlTensor2D<A> {
 }
 
 impl FlDataTrait for FlTensor2D<f64> {
-    fn id(&self) -> usize {
+    fn id(&self) -> Id {
         self.id
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct FlTensor3D<A> {
-    pub id: usize,
+    pub id: Id,
     pub value: Array3<A>,
 }
 
@@ -124,9 +126,9 @@ impl<A> FlTensor3D<A> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrame {
-    pub id: usize,
+    pub id: Id,
     pub value: DataFrame,
 }
 
@@ -140,7 +142,7 @@ impl FlDataFrame {
 }
 
 impl FlDataTrait for FlDataFrame {
-    fn id(&self) -> usize {
+    fn id(&self) -> Id {
         self.id
     }
 }
@@ -215,7 +217,7 @@ impl FlDataFrameRectangle {
     }
 }
 
-fn gen_id() -> usize {
+fn gen_id() -> Id {
     random()
 }
 

@@ -1,19 +1,19 @@
-use crate::visualize::{DataRender, FlDataFrameViewRender};
+use crate::visualize::{DataRender, DataRenderable, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
 use flexim_data_type::FlDataFrameRectangle;
-use flexim_data_view::FlDataFrameView;
+use flexim_data_view::{FlDataFrameView, Id};
 use polars::datatypes::DataType;
 use std::sync::Arc;
 
 pub trait DataView {
-    fn id(&self) -> usize;
+    fn id(&self) -> Id;
     fn draw(&self, ui: &mut Ui);
     fn visualizeable_attributes(&self) -> Vec<String>;
-    fn create_visualize(&self, attribute: String) -> Arc<dyn DataRender>;
+    fn create_visualize(&self, attribute: String) -> Arc<DataRender>;
 }
 
 impl DataView for FlDataFrameView {
-    fn id(&self) -> usize {
+    fn id(&self) -> Id {
         self.id
     }
 
@@ -46,7 +46,7 @@ impl DataView for FlDataFrameView {
             .collect()
     }
 
-    fn create_visualize(&self, attribute: String) -> Arc<dyn DataRender> {
-        Arc::new(FlDataFrameViewRender::new(self.clone(), attribute))
+    fn create_visualize(&self, attribute: String) -> Arc<DataRender> {
+        Arc::new(FlDataFrameViewRender::new(self.clone(), attribute).into())
     }
 }

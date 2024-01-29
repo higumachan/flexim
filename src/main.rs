@@ -22,9 +22,10 @@ use flexim_data_view::{DataViewCreatable, FlDataFrameView};
 use flexim_data_visualize::data_view::DataView;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_data_visualize::visualize::{
-    stack_visualize, visualize, DataRender, FlDataFrameViewRender, FlImageRender, FlTensor2DRender,
-    VisualizeState,
+    stack_visualize, visualize, DataRender, DataRenderable, FlDataFrameViewRender, FlImageRender,
+    FlTensor2DRender, VisualizeState,
 };
+use flexim_font::setup_custom_fonts;
 use flexim_storage::{BagId, Storage, StorageQuery};
 use itertools::Itertools;
 use ndarray::Array2;
@@ -61,7 +62,7 @@ impl<D> Managed<D> {
 #[derive(Clone)]
 struct StackTab {
     id: Id,
-    contents: Vec<Arc<dyn DataRender>>,
+    contents: Vec<Arc<DataRender>>,
 }
 
 impl Debug for StackTab {
@@ -118,6 +119,26 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                                 let b = ui.button("+");
                                 if b.clicked() {
                                     state.scale += 0.1;
+                                }
+
+                                let b = ui.button("💾");
+                                if b.clicked() {
+                                    let mut file = std::fs::File::create("content.bin").unwrap();
+                                    let mut buf_writer = std::io::BufWriter::new(&mut file);
+
+                                    if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+                                        bincode::serialize_into(
+                                            &mut buf_writer,
+                                            &stack_tab.contents.clone(),
+                                        )
+                                        .unwrap();
+                                    } else {
+                                        bincode::serialize_into(
+                                            &mut buf_writer,
+                                            &vec![content.clone()],
+                                        )
+                                        .unwrap();
+                                    };
                                 }
                             },
                         );
@@ -534,7 +555,7 @@ fn left_and_right_layout_dummy<R>(
 
 fn create_tree() -> egui_tiles::Tree<Pane> {
     let mut next_view_nr = 0;
-    let mut gen_pane = |name: String, image: Arc<dyn DataRender>| {
+    let mut gen_pane = |name: String, image: Arc<DataRender>| {
         let pane = Pane {
             name,
             content: PaneContent::Visualize(image),
@@ -547,16 +568,22 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
 
     let mut tabs = vec![];
     tabs.push({
-        let image1 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
-            include_bytes!("../assets/flexim-logo-1.png").to_vec(),
-            512,
-            512,
-        ))));
-        let image2 = Arc::new(FlImageRender::new(Arc::new(FlImage::new(
-            include_bytes!("../assets/tall.png").to_vec(),
-            1024,
-            1792,
-        ))));
+        let image1 = Arc::<DataRender>::new(
+            FlImageRender::new(Arc::new(FlImage::new(
+                include_bytes!("../assets/flexim-logo-1.png").to_vec(),
+                512,
+                512,
+            )))
+            .into(),
+        );
+        let image2 = Arc::<DataRender>::new(
+            FlImageRender::new(Arc::new(FlImage::new(
+                include_bytes!("../assets/tall.png").to_vec(),
+                1024,
+                1792,
+            )))
+            .into(),
+        );
         let tensor = Arc::new(FlTensor2DRender::new(Arc::new(FlTensor2D::new(
             Array2::from_shape_fn((512, 512), |(y, x)| {
                 // center peak gauss
@@ -612,7 +639,7 @@ fn collect_stack_tabs(ui: &mut Ui, tree: &Tree<Pane>) -> HashMap<TileId, StackTa
                                 })) => {
                                     stack_tabs
                                         .entry(*id)
-                                        .and_modify(|m: &mut Vec<Arc<dyn DataRender>>| {
+                                        .and_modify(|m: &mut Vec<Arc<DataRender>>| {
                                             m.push(content.clone())
                                         })
                                         .or_insert(vec![content.clone()]);
@@ -701,26 +728,4 @@ fn read_rectangle(s: &Series) -> Series {
     StructChunked::new("Face", &[x1, y1, x2, y2])
         .unwrap()
         .into_series()
-}
-
-fn setup_custom_fonts(ctx: &egui::Context) {
-    // Start with the default fonts (we will be adding to them rather than replacing them).
-    let mut fonts = egui::FontDefinitions::default();
-
-    // Install my own font (maybe supporting non-latin characters).
-    // .ttf and .otf files supported.
-    fonts.font_data.insert(
-        "NotoSans".to_owned(),
-        egui::FontData::from_static(include_bytes!("../fonts/NotoSansJP-Regular.ttf")),
-    );
-
-    // Put my font first (highest priority) for proportional text:
-    fonts
-        .families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .insert(0, "NotoSans".to_owned());
-
-    // Tell egui to use these fonts:
-    ctx.set_fonts(fonts);
 }

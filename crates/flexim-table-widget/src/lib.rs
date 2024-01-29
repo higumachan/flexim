@@ -5,10 +5,11 @@ use egui_extras::{Column, TableBuilder};
 use flexim_data_type::FlDataFrame;
 use itertools::Itertools;
 use polars::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, DerefMut};
 use std::sync::Mutex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTable {
     pub dataframe: Arc<FlDataFrame>,
     state: Arc<FlTableState>,
@@ -124,7 +125,7 @@ impl FlTable {
 
 type ColumnName = String;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTableState {
     pub filters: HashMap<ColumnName, ColumnFilter>,
     pub highlight: Arc<Mutex<HashSet<u64>>>,
@@ -149,14 +150,14 @@ impl FlTableState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Aggregated {
     min_max: Option<(f64, f64)>,
     unique: Option<Vec<String>>,
     dtype: DataType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColumnFilter {
     filter: Arc<Mutex<Option<Filter>>>,
     aggregated: Arc<Aggregated>,
@@ -256,7 +257,7 @@ impl ColumnFilter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum Filter {
     SearchFilter(String),
     RangeFilter { min: f64, max: f64 },

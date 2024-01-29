@@ -1,6 +1,7 @@
 use crate::cache::{Poll, VisualizedImageCache};
 use std::collections::BTreeSet;
 use std::hash::Hash;
+use std::io::Cursor;
 
 use egui::{
     Align2, CollapsingHeader, Color32, ComboBox, Context, FontId, Id, Image, Painter, Pos2, Rangef,
@@ -20,10 +21,11 @@ use egui::load::TexturePoll;
 use polars::prelude::*;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
     pub scale: f64,
     pub shift: Vec2,
@@ -51,7 +53,72 @@ impl Default for VisualizeState {
     }
 }
 
-pub trait DataRender: Downcast {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DataRender {
+    Image(FlImageRender),
+    Tensor2D(FlTensor2DRender),
+    DataFrameView(FlDataFrameViewRender),
+}
+
+impl From<FlImageRender> for DataRender {
+    fn from(render: FlImageRender) -> Self {
+        Self::Image(render)
+    }
+}
+
+impl From<FlTensor2DRender> for DataRender {
+    fn from(render: FlTensor2DRender) -> Self {
+        Self::Tensor2D(render)
+    }
+}
+
+impl From<FlDataFrameViewRender> for DataRender {
+    fn from(render: FlDataFrameViewRender) -> Self {
+        Self::DataFrameView(render)
+    }
+}
+
+impl DataRender {
+    pub fn id(&self) -> Id {
+        match self {
+            DataRender::Image(render) => render.id(),
+            DataRender::Tensor2D(render) => render.id(),
+            DataRender::DataFrameView(render) => render.id(),
+        }
+    }
+
+    pub fn render(
+        &self,
+        ui: &mut Ui,
+        painter: &mut Painter,
+        state: &VisualizeState,
+        size: Vec2,
+    ) -> anyhow::Result<()> {
+        match self {
+            DataRender::Image(render) => render.render(ui, painter, state, size),
+            DataRender::Tensor2D(render) => render.render(ui, painter, state, size),
+            DataRender::DataFrameView(render) => render.render(ui, painter, state, size),
+        }
+    }
+
+    pub fn config_panel(&self, ui: &mut Ui) {
+        match self {
+            DataRender::Image(render) => render.config_panel(ui),
+            DataRender::Tensor2D(render) => render.config_panel(ui),
+            DataRender::DataFrameView(render) => render.config_panel(ui),
+        }
+    }
+
+    pub fn size(&self) -> Vec2 {
+        match self {
+            DataRender::Image(render) => render.size(),
+            DataRender::Tensor2D(render) => render.size(),
+            DataRender::DataFrameView(render) => render.size(),
+        }
+    }
+}
+
+pub trait DataRenderable {
     fn id(&self) -> Id;
 
     fn render(
@@ -64,8 +131,8 @@ pub trait DataRender: Downcast {
     fn config_panel(&self, ui: &mut Ui);
     fn size(&self) -> Vec2;
 }
-impl_downcast!(DataRender);
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlImageRender {
     pub content: Arc<FlImage>,
 }
@@ -76,7 +143,7 @@ impl FlImageRender {
     }
 }
 
-impl DataRender for FlImageRender {
+impl DataRenderable for FlImageRender {
     fn id(&self) -> Id {
         Id::new("fl_image").with(self.content.id)
     }
@@ -105,7 +172,7 @@ impl DataRender for FlImageRender {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FlTensor2DRenderContext {
     pub transparency: f64,
 }
@@ -115,6 +182,8 @@ impl Default for FlTensor2DRenderContext {
         Self { transparency: 0.5 }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTensor2DRender {
     content: Arc<FlTensor2D<f64>>,
     context: Arc<Mutex<FlTensor2DRenderContext>>,
@@ -129,7 +198,7 @@ impl FlTensor2DRender {
     }
 }
 
-impl DataRender for FlTensor2DRender {
+impl DataRenderable for FlTensor2DRender {
     fn id(&self) -> Id {
         Id::new("fl_tensor2d").with(self.content.id)
     }
@@ -185,8 +254,9 @@ impl DataRender for FlTensor2DRender {
                     let image = DynamicImage::ImageRgb8(image_buffer);
 
                     let mut image_png_bytes = Vec::new();
+                    let mut cursor = Cursor::new(&mut image_png_bytes);
                     image
-                        .write_to(&mut image_png_bytes, image::ImageOutputFormat::Png)
+                        .write_to(&mut cursor, image::ImageOutputFormat::Png)
                         .unwrap();
                     ctx.memory_mut(|mem| {
                         let cache = mem.caches.cache::<VisualizedImageCache>();
@@ -244,7 +314,7 @@ impl DataRender for FlTensor2DRender {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameViewRenderContext {
     pub color_scatter_column: Option<String>,
     pub label_column: Option<String>,
@@ -265,13 +335,14 @@ impl Default for FlDataFrameViewRenderContext {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameViewRender {
     pub dataframe_view: FlDataFrameView,
     pub column: String,
     render_context: Arc<Mutex<FlDataFrameViewRenderContext>>,
 }
 
-impl DataRender for FlDataFrameViewRender {
+impl DataRenderable for FlDataFrameViewRender {
     fn id(&self) -> Id {
         Id::new("fl_data_frame_view")
             .with(self.dataframe_view.id)
@@ -552,7 +623,7 @@ pub fn visualize(
     ui: &mut Ui,
     visualize_state: &mut VisualizeState,
     _name: &str,
-    render: &dyn DataRender,
+    render: &DataRender,
 ) -> Response {
     ui.centered_and_justified(|ui| {
         let size = render.size();
@@ -575,7 +646,7 @@ pub fn visualize(
 pub fn stack_visualize(
     ui: &mut Ui,
     visualize_state: &mut VisualizeState,
-    stack: &Vec<Arc<dyn DataRender>>,
+    stack: &Vec<Arc<DataRender>>,
 ) -> Response {
     assert_ne!(stack.len(), 0);
     ui.centered_and_justified(|ui| {
