@@ -15,7 +15,6 @@ serde.workspace = true
 serde_json.workspace = true
 log.workspace = true
 puffin.workspace = true
-notify_rw_lock.workspace = true
 rand.workspace = true
 
 [dev-dependencies]

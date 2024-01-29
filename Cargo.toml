@@ -36,7 +36,6 @@ flexim-table-widget = { path = "crates/flexim-table-widget" }
 flexim-connect = { path = "crates/flexim-connect" }
 flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
-notify_rw_lock = { path = "crates/notify_rw_lock" }
 num-derive = "0.4.1"
 chrono = "0.4.31"
 eframe = "0.25.0"
