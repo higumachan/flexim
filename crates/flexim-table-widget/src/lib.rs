@@ -1,135 +1,179 @@
+pub mod cache;
+
 use egui::ahash::{HashMap, HashSet, HashSetExt};
 
-use egui::{Align, ComboBox, Sense, Slider, Ui};
+use crate::cache::{DataFramePoll, FilteredDataFrameCache};
+use egui::util::cache::ComputerMut;
+use egui::{Align, ComboBox, Id, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
-use flexim_data_type::FlDataFrame;
+use flexim_data_type::{FlDataFrame, FlDataTrait};
 use itertools::Itertools;
+use notify_rw_lock::NotifyRwLock;
 use polars::prelude::*;
+use rand::random;
 use serde::{Deserialize, Serialize};
-use std::ops::{BitAnd, DerefMut};
-use std::sync::Mutex;
+use std::ops::{BitAnd, Deref, DerefMut};
+use std::sync::mpsc::Sender;
+use std::sync::{Mutex, RwLock};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTable {
+    id: Id,
     pub dataframe: Arc<FlDataFrame>,
-    state: Arc<FlTableState>,
+    pub state: Arc<Mutex<FlTableState>>,
+    previous_state: Option<FlTableState>,
 }
 
 impl FlTable {
     pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
         Self {
+            id: Id::new("FlTable")
+                .with(dataframe.id())
+                .with(random::<u64>()),
             dataframe: dataframe.clone(),
-            state: Arc::new(FlTableState::new(&dataframe.value)),
+            state: Arc::new(Mutex::new(FlTableState::new(&dataframe.value))),
+            previous_state: None,
         }
     }
 
     pub fn draw(&self, ui: &mut Ui) {
+        if self.previous_state.is_none()
+            || self.previous_state.as_ref().unwrap() != self.state.lock().unwrap().deref()
+        {
+            let generation = ui.ctx().memory_mut(move |mem| {
+                let cache = mem.caches.cache::<FilteredDataFrameCache>();
+                cache.insert_calculating(self.id)
+            });
+            let dataframe = self.dataframe.clone();
+            let state = self.state.clone().lock().unwrap().clone();
+            let ctx = ui.ctx().clone();
+            let id = self.id;
+            std::thread::spawn(move || {
+                let dataframe = compute_dataframe(&dataframe.value, &state);
+                ctx.memory_mut(move |mem| {
+                    let cache = mem.caches.cache::<FilteredDataFrameCache>();
+                    cache.insert_computed(id, generation, dataframe);
+                });
+            });
+        }
+
         let dataframe = &self.dataframe.value;
         let columns = dataframe.get_column_names();
-        let dataframe = self.computed_dataframe();
+        let dataframe = ui.ctx().memory_mut(|mem| {
+            let cache = mem.caches.cache::<FilteredDataFrameCache>();
+            cache.get(self.id).unwrap()
+        });
 
-        let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
+        if let DataFramePoll::Ready(dataframe) = dataframe {
+            let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
-        builder = builder.column(Column::auto().clip(true).resizable(true));
-        for _col in &columns {
             builder = builder.column(Column::auto().clip(true).resizable(true));
-        }
-        let state = self.state();
-        let mut selected = *state.selected.lock().unwrap();
-        let builder = if let Some(selected) = selected {
-            log::info!("selected: {}", selected);
-            builder.scroll_to_row(selected as usize, Some(Align::Center))
-        } else {
+            for _col in &columns {
+                builder = builder.column(Column::auto().clip(true).resizable(true));
+            }
+            let mut state = self.state.lock().unwrap();
+            let mut selected = &mut state.selected;
+            let builder = if let Some(selected) = selected {
+                log::info!("selected: {}", *selected);
+                builder.scroll_to_row(*selected as usize, Some(Align::Center))
+            } else {
+                builder
+            };
+            let builder = builder.sense(Sense::click());
             builder
-        };
-        let builder = builder.sense(Sense::click());
-        builder
-            .header(80.0, |mut header| {
-                for col in &columns {
-                    header.col(|ui| {
-                        ui.heading(col.to_string());
-                        state.filters.get(&col.to_string()).unwrap().draw(ui);
-                    });
-                }
-            })
-            .body(|mut body| {
-                for row_idx in 0..dataframe.height() {
-                    body.row(32.0, |mut row| {
-                        // クリックしたらハイライトに追加する
-                        let d = dataframe
-                            .column("__FleximRowId")
-                            .unwrap()
-                            .get(row_idx)
-                            .unwrap()
-                            .extract::<u32>()
-                            .unwrap() as u64;
-                        let mut highlight = state.highlight.lock().unwrap();
-                        let selected = state.selected.lock().unwrap();
+                .header(80.0, |mut header| {
+                    for col in &columns {
+                        header.col(|ui| {
+                            ui.heading(col.to_string());
+                            let filter = state.filters.get_mut(&col.to_string()).unwrap();
+                            filter.draw(ui);
+                        });
+                    }
+                })
+                .body(|mut body| {
+                    for row_idx in 0..dataframe.height() {
+                        body.row(32.0, |mut row| {
+                            // クリックしたらハイライトに追加する
+                            let d = dataframe
+                                .column("__FleximRowId")
+                                .unwrap()
+                                .get(row_idx)
+                                .unwrap()
+                                .extract::<u32>()
+                                .unwrap() as u64;
+                            let selected = state.selected;
+                            let mut highlight = &mut state.deref_mut().highlight;
 
-                        if highlight.contains(&d) {
-                            row.set_selected(true);
-                        }
-                        if let Some(selected) = *selected {
-                            if selected == d {
+                            if highlight.contains(&d) {
                                 row.set_selected(true);
                             }
-                        }
-                        for c in &columns {
-                            let (_, r) = row.col(|ui| {
-                                let c = dataframe
-                                    .column(&c)
-                                    .unwrap()
-                                    .get(row_idx)
-                                    .unwrap()
-                                    .to_string();
-                                ui.label(c);
-                            });
-                        }
-                        if row.response().clicked() {
-                            if highlight.contains(&d) {
-                                highlight.remove(&d);
-                            } else {
-                                highlight.insert(d);
+                            if let Some(selected) = selected {
+                                if selected == d {
+                                    row.set_selected(true);
+                                }
                             }
-                        }
-                    });
-                }
-            });
+                            for c in &columns {
+                                let (_, r) = row.col(|ui| {
+                                    let c = dataframe
+                                        .column(&c)
+                                        .unwrap()
+                                        .get(row_idx)
+                                        .unwrap()
+                                        .to_string();
+                                    ui.label(c);
+                                });
+                            }
+                            if row.response().clicked() {
+                                if highlight.contains(&d) {
+                                    highlight.remove(&d);
+                                } else {
+                                    highlight.insert(d);
+                                }
+                            }
+                        });
+                    }
+                });
+        } else {
+            ui.label("Loading...");
+        }
     }
 
-    pub fn state(&self) -> Arc<FlTableState> {
-        self.state.clone()
+    pub fn computed_dataframe(&self, ui: &mut Ui) -> DataFramePoll<DataFrame> {
+        let dataframe = ui.ctx().memory_mut(|mem| {
+            let cache = mem.caches.cache::<FilteredDataFrameCache>();
+            cache.get(self.id).unwrap()
+        });
+
+        dataframe
     }
+}
 
-    pub fn computed_dataframe(&self) -> DataFrame {
-        let state = self.state();
-        let dataframe = &self.dataframe.value;
-        let columns = dataframe.get_column_names();
-        let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
-        let mut col_filter_mask = std::iter::repeat(true)
-            .take(dataframe.height() as usize)
-            .collect::<BooleanChunked>();
+fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
+    let columns = dataframe.get_column_names();
+    let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
+    let mut col_filter_mask = std::iter::repeat(true)
+        .take(dataframe.height() as usize)
+        .collect::<BooleanChunked>();
 
-        for col in &columns {
-            let filter = state.filters.get(*col).unwrap().filter.lock().unwrap();
-            let series = dataframe.column(col).unwrap();
-            if let Some(filter) = filter.as_ref() {
-                if let Some(m) = filter.apply(series) {
-                    col_filter_mask = col_filter_mask.bitand(m);
-                }
+    for col in &columns {
+        let filter = state.filters.get(*col).unwrap().filter.as_ref();
+        let series = dataframe.column(col).unwrap();
+        if let Some(filter) = filter.as_ref() {
+            if let Some(m) = filter.apply(series) {
+                col_filter_mask = col_filter_mask.bitand(m);
             }
         }
-        dataframe.filter(&col_filter_mask).unwrap()
     }
+    dataframe.filter(&col_filter_mask).unwrap()
 }
 
 type ColumnName = String;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FlTableState {
     pub filters: HashMap<ColumnName, ColumnFilter>,
-    pub highlight: Arc<Mutex<HashSet<u64>>>,
-    pub selected: Arc<Mutex<Option<u64>>>,
+    pub highlight: HashSet<u64>,
+    pub selected: Option<u64>,
 }
 
 impl FlTableState {
@@ -144,28 +188,28 @@ impl FlTableState {
                     )
                 })
                 .collect(),
-            highlight: Arc::new(Mutex::new(HashSet::new())),
-            selected: Arc::new(Mutex::new(None)),
+            highlight: HashSet::new(),
+            selected: None,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct Aggregated {
     min_max: Option<(f64, f64)>,
     unique: Option<Vec<String>>,
     dtype: DataType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ColumnFilter {
-    filter: Arc<Mutex<Option<Filter>>>,
+    filter: Option<Filter>,
     aggregated: Arc<Aggregated>,
 }
 
 impl ColumnFilter {
-    pub fn draw(&self, ui: &mut Ui) {
-        match self.filter.lock().unwrap().deref_mut() {
+    pub fn draw(&mut self, ui: &mut Ui) {
+        match &mut self.filter {
             Some(Filter::RangeFilter { min, max }) => {
                 let range = self.aggregated.min_max.map(|(min, max)| min..=max).unwrap();
 
@@ -231,33 +275,33 @@ impl ColumnFilter {
             let (min, max) = aggregated.min_max.unwrap();
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(Some(Filter::RangeFilter { min, max }))),
+                filter: Some(Filter::RangeFilter { min, max }),
             }
         } else if dtype == &DataType::Boolean {
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(Some(Filter::CategoricalFilter(None)))),
+                filter: Some(Filter::CategoricalFilter(None)),
             }
         } else if dtype == &DataType::Utf8 {
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(Some(Filter::SearchFilter(String::new())))),
+                filter: Some(Filter::SearchFilter(String::new())),
             }
         } else if let DataType::Categorical(_d) = dtype {
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(Some(Filter::CategoricalFilter(None)))),
+                filter: Some(Filter::CategoricalFilter(None)),
             }
         } else {
             Self {
                 aggregated,
-                filter: Arc::new(Mutex::new(None)),
+                filter: None,
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Filter {
     SearchFilter(String),
     RangeFilter { min: f64, max: f64 },

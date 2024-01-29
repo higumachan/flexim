@@ -18,7 +18,9 @@ use anyhow::Context as _;
 use downcast_rs::{impl_downcast, Downcast};
 use egui::ahash::HashSet;
 use egui::load::TexturePoll;
+use flexim_table_widget::cache::DataFramePoll;
 use polars::prelude::*;
+use rand::random;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
@@ -94,6 +96,7 @@ impl DataRender {
         state: &VisualizeState,
         size: Vec2,
     ) -> anyhow::Result<()> {
+        puffin::profile_function!();
         match self {
             DataRender::Image(render) => render.render(ui, painter, state, size),
             DataRender::Tensor2D(render) => render.render(ui, painter, state, size),
@@ -155,6 +158,7 @@ impl DataRenderable for FlImageRender {
         state: &VisualizeState,
         size: Vec2,
     ) -> anyhow::Result<()> {
+        puffin::profile_function!();
         let image = Image::from_bytes(
             format!("bytes://{}.png", self.content.id),
             self.content.value.clone(),
@@ -211,6 +215,7 @@ impl DataRenderable for FlTensor2DRender {
 
         size: Vec2,
     ) -> anyhow::Result<()> {
+        puffin::profile_function!();
         let id = Id::new(self.content.id);
         let image = painter.ctx().memory_mut(|mem| {
             let cache = mem.caches.cache::<VisualizedImageCache>();
@@ -337,6 +342,7 @@ impl Default for FlDataFrameViewRenderContext {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameViewRender {
+    pub id: Id,
     pub dataframe_view: FlDataFrameView,
     pub column: String,
     render_context: Arc<Mutex<FlDataFrameViewRenderContext>>,
@@ -344,9 +350,7 @@ pub struct FlDataFrameViewRender {
 
 impl DataRenderable for FlDataFrameViewRender {
     fn id(&self) -> Id {
-        Id::new("fl_data_frame_view")
-            .with(self.dataframe_view.id)
-            .with(self.column.as_str())
+        self.id
     }
 
     fn render(
@@ -356,165 +360,169 @@ impl DataRenderable for FlDataFrameViewRender {
         state: &VisualizeState,
         size: Vec2,
     ) -> anyhow::Result<()> {
-        let computed_dataframe = self.dataframe_view.table.computed_dataframe();
-        let target_series = self
-            .dataframe_view
-            .table
-            .computed_dataframe()
-            .column(self.column.as_str())
-            .unwrap()
-            .clone();
-        let color_series = self
-            .render_context
-            .lock()
-            .unwrap()
-            .color_scatter_column
-            .as_ref()
-            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
-        let indices = computed_dataframe
-            .column("__FleximRowId")
-            .unwrap()
-            .iter()
-            .map(|v| v.extract::<u32>().unwrap() as u64)
-            .collect_vec();
-        let highlight = {
-            let state = self.dataframe_view.table.state();
-            let highlight = state.highlight.lock().unwrap();
-            computed_dataframe
+        puffin::profile_function!();
+        if let DataFramePoll::Ready(computed_dataframe) =
+            self.dataframe_view.table.computed_dataframe(ui)
+        {
+            let target_series = computed_dataframe
+                .column(self.column.as_str())
+                .unwrap()
+                .clone();
+            let color_series = self
+                .render_context
+                .lock()
+                .unwrap()
+                .color_scatter_column
+                .as_ref()
+                .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+            let indices = computed_dataframe
                 .column("__FleximRowId")
                 .unwrap()
                 .iter()
-                .map(|v| {
-                    let index = v.extract::<u32>().unwrap() as u64;
-                    highlight.contains(&index)
-                })
-                .collect_vec()
-        };
-        let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
-            target_series.iter().map(TryFrom::try_from).collect();
-        let colors =
-            color_series.map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
-        let label_series = self
-            .render_context
-            .lock()
-            .unwrap()
-            .label_column
-            .as_ref()
-            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
-        let labels = label_series
-            .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
-
-        let mut hovered_index = None;
-        for (i, rect) in rectangles.unwrap().iter().enumerate() {
-            let color = if let Some(colors) = &colors {
-                colors[i]
-            } else {
-                Color32::RED
-            };
-            let label = labels.as_ref().map(|labels| labels[i].as_str());
-            let transparent = self.render_context.lock().unwrap().transparency;
-            let alpha = 1.0 - transparent;
-            let color_array = color
-                .to_normalized_gamma_f32()
-                .into_iter()
-                .map(|c| ((c as f64 * alpha) * 255.0) as u8)
+                .map(|v| v.extract::<u32>().unwrap() as u64)
                 .collect_vec();
-            let color = Color32::from_rgba_premultiplied(
-                color_array[0],
-                color_array[1],
-                color_array[2],
-                color_array[3],
-            );
-            let rect = Rect::from_min_max(
-                painter.clip_rect().min
-                    + (Vec2::new(rect.x1 as f32, rect.y1 as f32) * state.scale as f32
-                        + state.shift),
-                painter.clip_rect().min
-                    + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
-                        + state.shift),
-            );
-            let mut responses = vec![];
-            let thickness = if highlight[i] {
-                self.render_context.lock().unwrap().highlight_thickness
-            } else {
-                self.render_context.lock().unwrap().normal_thickness
-            } as f32;
-            painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
-            responses.push(ui.allocate_rect(
-                Rect::from_x_y_ranges(
-                    rect.x_range().expand(thickness),
-                    Rangef::point(rect.top()).expand(thickness),
-                ),
-                Sense::click(),
-            ));
-            responses.push(ui.allocate_rect(
-                Rect::from_x_y_ranges(
-                    rect.x_range().expand(thickness),
-                    Rangef::point(rect.bottom()).expand(thickness),
-                ),
-                Sense::click(),
-            ));
-            responses.push(ui.allocate_rect(
-                Rect::from_x_y_ranges(
-                    Rangef::point(rect.left()).expand(thickness),
-                    rect.y_range().expand(thickness),
-                ),
-                Sense::click(),
-            ));
-            responses.push(ui.allocate_rect(
-                Rect::from_x_y_ranges(
-                    Rangef::point(rect.right()).expand(thickness),
-                    rect.y_range().expand(thickness),
-                ),
-                Sense::click(),
-            ));
+            let highlight = {
+                let state = self.dataframe_view.table.state.lock().unwrap();
+                let highlight = &state.highlight;
+                computed_dataframe
+                    .column("__FleximRowId")
+                    .unwrap()
+                    .iter()
+                    .map(|v| {
+                        let index = v.extract::<u32>().unwrap() as u64;
+                        highlight.contains(&index)
+                    })
+                    .collect_vec()
+            };
+            let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
+                target_series.iter().map(TryFrom::try_from).collect();
+            let colors = color_series
+                .map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
+            let label_series = self
+                .render_context
+                .lock()
+                .unwrap()
+                .label_column
+                .as_ref()
+                .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+            let labels = label_series
+                .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
-            if let Some(label) = label {
-                let text_rect = painter.text(
-                    rect.left_top(),
-                    Align2::LEFT_BOTTOM,
-                    label.clone(),
-                    FontId::default(),
-                    Color32::BLACK,
+            let mut hovered_index = None;
+            for (i, rect) in rectangles.unwrap().iter().enumerate() {
+                let color = if let Some(colors) = &colors {
+                    colors[i]
+                } else {
+                    Color32::RED
+                };
+                let label = labels.as_ref().map(|labels| labels[i].as_str());
+                let transparent = self.render_context.lock().unwrap().transparency;
+                let alpha = 1.0 - transparent;
+                let color_array = color
+                    .to_normalized_gamma_f32()
+                    .into_iter()
+                    .map(|c| ((c as f64 * alpha) * 255.0) as u8)
+                    .collect_vec();
+                let color = Color32::from_rgba_premultiplied(
+                    color_array[0],
+                    color_array[1],
+                    color_array[2],
+                    color_array[3],
                 );
-                painter.rect_filled(text_rect, 0.0, color);
-                let text_rect = painter.text(
-                    rect.left_top(),
-                    Align2::LEFT_BOTTOM,
-                    label,
-                    FontId::default(),
-                    Color32::BLACK,
+                let rect = Rect::from_min_max(
+                    painter.clip_rect().min
+                        + (Vec2::new(rect.x1 as f32, rect.y1 as f32) * state.scale as f32
+                            + state.shift),
+                    painter.clip_rect().min
+                        + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
+                            + state.shift),
                 );
-                responses.push(ui.allocate_rect(text_rect, Sense::click()));
-            }
+                let mut responses = vec![];
+                let thickness = if highlight[i] {
+                    self.render_context.lock().unwrap().highlight_thickness
+                } else {
+                    self.render_context.lock().unwrap().normal_thickness
+                } as f32;
+                painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
+                responses.push(ui.allocate_rect(
+                    Rect::from_x_y_ranges(
+                        rect.x_range().expand(thickness),
+                        Rangef::point(rect.top()).expand(thickness),
+                    ),
+                    Sense::click(),
+                ));
+                responses.push(ui.allocate_rect(
+                    Rect::from_x_y_ranges(
+                        rect.x_range().expand(thickness),
+                        Rangef::point(rect.bottom()).expand(thickness),
+                    ),
+                    Sense::click(),
+                ));
+                responses.push(ui.allocate_rect(
+                    Rect::from_x_y_ranges(
+                        Rangef::point(rect.left()).expand(thickness),
+                        rect.y_range().expand(thickness),
+                    ),
+                    Sense::click(),
+                ));
+                responses.push(ui.allocate_rect(
+                    Rect::from_x_y_ranges(
+                        Rangef::point(rect.right()).expand(thickness),
+                        rect.y_range().expand(thickness),
+                    ),
+                    Sense::click(),
+                ));
 
-            let mut state = self.dataframe_view.table.state();
-            let mut any_hovered = false;
-            for r in responses {
-                if r.hovered() {
-                    any_hovered = true;
+                if let Some(label) = label {
+                    let text_rect = painter.text(
+                        rect.left_top(),
+                        Align2::LEFT_BOTTOM,
+                        label.clone(),
+                        FontId::default(),
+                        Color32::BLACK,
+                    );
+                    painter.rect_filled(text_rect, 0.0, color);
+                    let text_rect = painter.text(
+                        rect.left_top(),
+                        Align2::LEFT_BOTTOM,
+                        label,
+                        FontId::default(),
+                        Color32::BLACK,
+                    );
+                    responses.push(ui.allocate_rect(text_rect, Sense::click()));
                 }
-                if r.clicked() {
-                    let mut highlight = state.highlight.lock().unwrap();
-                    let index = indices[i];
-                    if highlight.contains(&index) {
-                        highlight.remove(&index);
-                    } else {
-                        highlight.insert(index);
+
+                let mut state = self.dataframe_view.table.state.lock().unwrap();
+                let mut any_hovered = false;
+                for r in responses {
+                    if r.hovered() {
+                        any_hovered = true;
+                    }
+                    if r.clicked() {
+                        let mut highlight = &mut state.highlight;
+                        let index = indices[i];
+                        if highlight.contains(&index) {
+                            highlight.remove(&index);
+                        } else {
+                            highlight.insert(index);
+                        }
                     }
                 }
+                if any_hovered {
+                    hovered_index = Some(indices[i]);
+                }
             }
-            if any_hovered {
-                hovered_index = Some(indices[i]);
+            let mut state = self.dataframe_view.table.state.lock().unwrap();
+            if let Some(hi) = hovered_index {
+                state.selected.replace(hi);
+            } else {
+                state.selected.take();
             }
-        }
-        let state = self.dataframe_view.table.state();
-        if let Some(hi) = hovered_index {
-            state.selected.lock().unwrap().replace(hi);
+            Ok(())
         } else {
-            state.selected.lock().unwrap().take();
+            ui.label("Loading...");
+            Ok(())
         }
-        Ok(())
     }
 
     fn config_panel(&self, ui: &mut Ui) {
@@ -596,26 +604,13 @@ impl DataRenderable for FlDataFrameViewRender {
 impl FlDataFrameViewRender {
     pub fn new(dataframe_view: FlDataFrameView, column: String) -> Self {
         Self {
+            id: Id::new("fl_data_frame_view_render")
+                .with(dataframe_view.id)
+                .with(column.as_str()),
             dataframe_view,
             column,
             render_context: Arc::new(Mutex::new(FlDataFrameViewRenderContext::default())),
         }
-    }
-
-    pub fn id(&self) -> Id {
-        let df_string = self.dataframe_view.table.computed_dataframe().to_string();
-
-        Id::new("fl_data_frame_view")
-            .with(self.dataframe_view.id)
-            .with(self.column.as_str())
-            .with(df_string)
-            .with(
-                self.render_context
-                    .lock()
-                    .unwrap()
-                    .color_scatter_column
-                    .clone(),
-            )
     }
 }
 

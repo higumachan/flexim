@@ -208,6 +208,11 @@ struct App {
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
+    let server_addr = format!("127.0.0.1:{}", puffin_http::DEFAULT_PORT);
+    let _puffin_server = puffin_http::Server::new(&server_addr).unwrap();
+    eprintln!("Run this to view profiling data:  puffin_viewer {server_addr}");
+    puffin::set_scopes_on(true);
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default(),
         ..Default::default()
@@ -280,6 +285,8 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     eframe::run_simple_native("Flexim", options, move |ctx, _frame| {
+        puffin::GlobalProfiler::lock().new_frame();
+        puffin::profile_scope!("frame");
         ctx.send_viewport_cmd(ViewportCommand::SetTheme(SystemTheme::Dark));
         setup_custom_fonts(ctx);
         install_image_loaders(ctx);
@@ -290,6 +297,7 @@ fn main() -> Result<(), eframe::Error> {
             right_panel(&mut app, ui);
         });
         egui::CentralPanel::default().show(ctx, |ui| {
+            puffin::profile_scope!("center panel");
             let mut behavior = TreeBehavior {
                 stack_tabs: collect_stack_tabs(ui, &app.tree),
                 current_tile_id: &mut app.current_tile_id,
@@ -323,6 +331,7 @@ fn end_of_frame(app: &mut App) {
 }
 
 fn left_panel(app: &mut App, ui: &mut Ui) {
+    puffin::profile_function!();
     data_bag_list_view(app, ui);
     ui.separator();
     data_list_view(app, ui);
@@ -333,6 +342,7 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
 }
 
 fn right_panel(app: &mut App, ui: &mut Ui) {
+    puffin::profile_function!();
     if let Some(tile_id) = app.current_tile_id {
         let tile = app.tree.tiles.get(tile_id).unwrap();
         match tile {

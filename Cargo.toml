@@ -36,6 +36,7 @@ flexim-table-widget = { path = "crates/flexim-table-widget" }
 flexim-connect = { path = "crates/flexim-connect" }
 flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
+notify_rw_lock = { path = "crates/notify_rw_lock" }
 num-derive = "0.4.1"
 chrono = "0.4.31"
 eframe = "0.25.0"
@@ -49,6 +50,8 @@ tiny-skia = "0.11.3"
 log = "0.4.20"
 downcast-rs = "1.2.0"
 indexmap = "2.1.0"
+puffin = "0.19.0"
+puffin_http = "0.16.0"
 
 
 [dependencies]
@@ -75,3 +78,5 @@ prost.workspace = true
 log.workspace = true
 bincode.workspace = true
 flexim-font.workspace = true
+puffin_http.workspace = true
+puffin.workspace = true

@@ -18,6 +18,7 @@ impl DataView for FlDataFrameView {
     }
 
     fn draw(&self, ui: &mut Ui) {
+        puffin::profile_function!();
         ScrollArea::horizontal()
             .enable_scrolling(true)
             .max_width(ui.available_width())
