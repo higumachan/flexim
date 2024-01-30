@@ -8,12 +8,15 @@ use egui::{
     Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
 };
 
-use flexim_data_type::{FlDataFrameRectangle, FlImage, FlTensor2D};
+use flexim_data_type::{
+    FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlImage, FlTensor2D,
+};
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb};
 use itertools::Itertools;
 
 use crate::pallet::pallet;
+use crate::special_columns_visualize::SpecialColumnShape;
 use anyhow::Context as _;
 use downcast_rs::{impl_downcast, Downcast};
 use egui::ahash::HashSet;
@@ -364,6 +367,13 @@ impl DataRenderable for FlDataFrameViewRender {
         if let DataFramePoll::Ready(computed_dataframe) =
             self.dataframe_view.table.computed_dataframe(ui)
         {
+            let special_column = self
+                .dataframe_view
+                .table
+                .dataframe
+                .special_columns
+                .get(&self.column)
+                .context("special column not found")?;
             let target_series = computed_dataframe
                 .column(self.column.as_str())
                 .unwrap()
@@ -394,8 +404,18 @@ impl DataRenderable for FlDataFrameViewRender {
                     })
                     .collect_vec()
             };
-            let rectangles: anyhow::Result<Vec<FlDataFrameRectangle>> =
-                target_series.iter().map(TryFrom::try_from).collect();
+            let shapes: anyhow::Result<Vec<Box<dyn SpecialColumnShape>>> = target_series
+                .iter()
+                .map(|x| match special_column {
+                    FlDataFrameSpecialColumn::Rectangle => {
+                        FlDataFrameRectangle::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
+                        .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                })
+                .collect();
+            let shapes = shapes?;
             let colors = color_series
                 .map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
             let label_series = self
@@ -409,7 +429,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
             let mut hovered_index = None;
-            for (i, rect) in rectangles.unwrap().iter().enumerate() {
+            for (i, shape) in shapes.iter().enumerate() {
                 let color = if let Some(colors) = &colors {
                     colors[i]
                 } else {
@@ -429,68 +449,12 @@ impl DataRenderable for FlDataFrameViewRender {
                     color_array[2],
                     color_array[3],
                 );
-                let rect = Rect::from_min_max(
-                    painter.clip_rect().min
-                        + (Vec2::new(rect.x1 as f32, rect.y1 as f32) * state.scale as f32
-                            + state.shift),
-                    painter.clip_rect().min
-                        + (Vec2::new(rect.x2 as f32, rect.y2 as f32) * state.scale as f32
-                            + state.shift),
-                );
-                let mut responses = vec![];
                 let thickness = if highlight[i] {
                     self.render_context.lock().unwrap().highlight_thickness
                 } else {
                     self.render_context.lock().unwrap().normal_thickness
                 } as f32;
-                painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
-                responses.push(ui.allocate_rect(
-                    Rect::from_x_y_ranges(
-                        rect.x_range().expand(thickness),
-                        Rangef::point(rect.top()).expand(thickness),
-                    ),
-                    Sense::click(),
-                ));
-                responses.push(ui.allocate_rect(
-                    Rect::from_x_y_ranges(
-                        rect.x_range().expand(thickness),
-                        Rangef::point(rect.bottom()).expand(thickness),
-                    ),
-                    Sense::click(),
-                ));
-                responses.push(ui.allocate_rect(
-                    Rect::from_x_y_ranges(
-                        Rangef::point(rect.left()).expand(thickness),
-                        rect.y_range().expand(thickness),
-                    ),
-                    Sense::click(),
-                ));
-                responses.push(ui.allocate_rect(
-                    Rect::from_x_y_ranges(
-                        Rangef::point(rect.right()).expand(thickness),
-                        rect.y_range().expand(thickness),
-                    ),
-                    Sense::click(),
-                ));
-
-                if let Some(label) = label {
-                    let text_rect = painter.text(
-                        rect.left_top(),
-                        Align2::LEFT_BOTTOM,
-                        label.clone(),
-                        FontId::default(),
-                        Color32::BLACK,
-                    );
-                    painter.rect_filled(text_rect, 0.0, color);
-                    let text_rect = painter.text(
-                        rect.left_top(),
-                        Align2::LEFT_BOTTOM,
-                        label,
-                        FontId::default(),
-                        Color32::BLACK,
-                    );
-                    responses.push(ui.allocate_rect(text_rect, Sense::click()));
-                }
+                let responses = shape.render(ui, painter, color, thickness, label, &state);
 
                 let mut state = self.dataframe_view.table.state.lock().unwrap();
                 let mut any_hovered = false;

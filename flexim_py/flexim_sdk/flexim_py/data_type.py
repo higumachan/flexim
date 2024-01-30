@@ -22,6 +22,12 @@ class Rectangle(BaseModel):
     y2: float
 
 
+class Segment(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
 class ImageData(BaseModel):
     type: Literal["Image"] = "Image"
     image: npt.NDArray[np.uint8]
