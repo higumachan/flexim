@@ -8,7 +8,6 @@ use egui::{Align, ComboBox, Id, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataTrait};
 use itertools::Itertools;
-use notify_rw_lock::NotifyRwLock;
 use polars::prelude::*;
 use rand::random;
 use serde::{Deserialize, Serialize};
@@ -87,7 +86,7 @@ impl FlTable {
                         header.col(|ui| {
                             ui.heading(col.to_string());
                             let filter = state.filters.get_mut(&col.to_string()).unwrap();
-                            filter.draw(ui);
+                            filter.draw(Id::new(self.id).with(col), ui);
                         });
                     }
                 })
@@ -210,7 +209,7 @@ pub struct ColumnFilter {
 }
 
 impl ColumnFilter {
-    pub fn draw(&mut self, ui: &mut Ui) {
+    pub fn draw(&mut self, id: Id, ui: &mut Ui) {
         match &mut self.filter {
             Some(Filter::RangeFilter { min, max }) => {
                 let range = self.aggregated.min_max.map(|(min, max)| min..=max).unwrap();
@@ -238,7 +237,7 @@ impl ColumnFilter {
                     .as_ref()
                     .and_then(|t| t.iter().next().cloned())
                     .unwrap_or("".to_string());
-                ComboBox::from_id_source(&self.aggregated.unique.as_ref().unwrap())
+                ComboBox::from_id_source(&id)
                     .selected_text(cat)
                     .show_ui(ui, |ui| {
                         let mut selected = None;

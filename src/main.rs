@@ -2,14 +2,14 @@ mod pane;
 
 use crate::pane::{into_pane_content, Pane, PaneContent};
 use eframe::emath::Rect;
-use eframe::Theme;
+use eframe::{run_native, Frame, Theme};
 use egui::ahash::{HashMap, HashMapExt, HashSet};
 use egui::emath::RectTransform;
 use egui::load::DefaultTextureLoader;
 use egui::scroll_area::ScrollBarVisibility;
 use egui::{
-    Align, Button, CollapsingHeader, ComboBox, DragValue, Grid, Id, InnerResponse, Layout, Pos2,
-    Response, ScrollArea, SystemTheme, Ui, Vec2, ViewportCommand, Widget,
+    Align, Button, CollapsingHeader, ComboBox, Context, DragValue, Grid, Id, InnerResponse, Layout,
+    Pos2, Response, ScrollArea, SystemTheme, Ui, Vec2, ViewportCommand, Widget,
 };
 use egui_extras::install_image_loaders;
 use egui_tiles::{
@@ -205,6 +205,28 @@ struct App {
     panel_context: HashMap<BagId, Tree<Pane>>,
 }
 
+impl eframe::App for App {
+    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
+        puffin::GlobalProfiler::lock().new_frame();
+        puffin::profile_scope!("frame");
+        egui::SidePanel::left("data viewer").show(ctx, |ui| {
+            left_panel(self, ui);
+        });
+        egui::SidePanel::right("visualize viewer").show(ctx, |ui| {
+            right_panel(self, ui);
+        });
+        egui::CentralPanel::default().show(ctx, |ui| {
+            puffin::profile_scope!("center panel");
+            let mut behavior = TreeBehavior {
+                stack_tabs: collect_stack_tabs(ui, &self.tree),
+                current_tile_id: &mut self.current_tile_id,
+            };
+            self.tree.ui(&mut behavior, ui);
+        });
+        end_of_frame(self);
+    }
+}
+
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
@@ -274,7 +296,7 @@ fn main() -> Result<(), eframe::Error> {
     }
 
     let mut tree = create_tree();
-    let mut app = App {
+    let app = App {
         tree,
         storage,
         current_bag_id: bag_id,
@@ -284,28 +306,15 @@ fn main() -> Result<(), eframe::Error> {
         current_tile_id: None,
     };
 
-    eframe::run_simple_native("Flexim", options, move |ctx, _frame| {
-        puffin::GlobalProfiler::lock().new_frame();
-        puffin::profile_scope!("frame");
-        ctx.send_viewport_cmd(ViewportCommand::SetTheme(SystemTheme::Dark));
-        setup_custom_fonts(ctx);
-        install_image_loaders(ctx);
-        egui::SidePanel::left("data viewer").show(ctx, |ui| {
-            left_panel(&mut app, ui);
-        });
-        egui::SidePanel::right("visualize viewer").show(ctx, |ui| {
-            right_panel(&mut app, ui);
-        });
-        egui::CentralPanel::default().show(ctx, |ui| {
-            puffin::profile_scope!("center panel");
-            let mut behavior = TreeBehavior {
-                stack_tabs: collect_stack_tabs(ui, &app.tree),
-                current_tile_id: &mut app.current_tile_id,
-            };
-            app.tree.ui(&mut behavior, ui);
-        });
-        end_of_frame(&mut app);
-    })
+    run_native(
+        "Flexim",
+        options,
+        Box::new(move |cc| {
+            setup_custom_fonts(&cc.egui_ctx);
+            install_image_loaders(&cc.egui_ctx);
+            Box::new(app)
+        }),
+    )
 }
 
 fn end_of_frame(app: &mut App) {
