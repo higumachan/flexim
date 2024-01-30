@@ -5,7 +5,7 @@ import grpc
 from grpc import Channel
 from pydantic import BaseModel, ConfigDict
 
-from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
 from flexim_py.utility import batched
 
@@ -76,3 +76,19 @@ def _data_type_to_proto(data: ImageData | DataFrameData | Tensor2DData) -> conne
         return connect_pb2.DataType.Tensor2D
     else:
         raise RuntimeError(f"Unknown data type {type(data)}")
+
+def _dataframe_special_columns(data: DataFrameData) -> dict[str, connect_pb2.SpecialColumn]:
+    return {
+        key: _special_column_to_proto(value)
+        for key, value in data.special_columns.items()
+    }
+
+
+def _special_column_to_proto(special_column: SpecialColumn) -> connect_pb2.SpecialColumn:
+    match special_column:
+        case SpecialColumn.Rectangle:
+            return connect_pb2.SpecialColumn.Rectangle
+        case SpecialColumn.Segment:
+            return connect_pb2.SpecialColumn.Segment
+        case _:
+            raise RuntimeError(f"Unknown special column {special_column}")

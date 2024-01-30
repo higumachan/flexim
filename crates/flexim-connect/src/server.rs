@@ -57,12 +57,8 @@ impl FleximConnect for FleximConnectServerImpl {
 
         if let Some(meta) = meta {
             let data_size = buffer.len() as u64;
-            let data = protobuf_data_type_to_fl_data(
-                DataType::try_from(meta.data_type)
-                    .map_err(|e| Status::invalid_argument(e.to_string()))?,
-                buffer,
-            )
-            .map_err(|e| Status::internal(e.to_string()))?;
+            let data = protobuf_data_type_to_fl_data(meta.clone(), buffer)
+                .map_err(|e| Status::internal(e.to_string()))?;
             let data_id = data.id();
 
             self.storage

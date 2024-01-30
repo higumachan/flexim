@@ -12,6 +12,7 @@ import pandas
 
 class SpecialColumn(str, Enum):
     Rectangle = "Rectangle"
+    Segment = "Segment"
 
 
 class Rectangle(BaseModel):

@@ -29,6 +29,16 @@ message AppendDataRequest {
     uint64 bag_id = 1;
     string name = 2;
     DataType data_type = 4;
+
+    enum SpecialColumn {
+      Rectangle = 0;
+      Segment = 1;
+      Color = 2;
+      Vector = 3;
+      Point = 4;
+    }
+
+    map<string, SpecialColumn> special_columns = 5;
   }
 }
 

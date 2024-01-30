@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import flexim_py.pb.connect_pb2 as connect__pb2
+import connect_pb2 as connect__pb2
 
 
 class FleximConnectStub(object):
