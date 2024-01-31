@@ -17,26 +17,23 @@ fn main() -> eframe::Result<()> {
     let mut state = VisualizeState::default();
     let stack: Vec<Arc<DataRender>> = vec![
         Arc::new(
-            FlImageRender::new(Arc::new(
-                FlImage::new(
-                    include_bytes!("../../../assets/flexim-logo-1.png").to_vec(),
-                    512,
-                    512,
-                )
-                .into(),
-            ))
+            FlImageRender::new(Arc::new(FlImage::new(
+                include_bytes!("../../../assets/flexim-logo-1.png").to_vec(),
+                512,
+                512,
+            )))
             .into(),
         ),
         Arc::new(
-            FlTensor2DRender::new(Arc::new(
-                FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
+            FlTensor2DRender::new(Arc::new(FlTensor2D::new(Array2::from_shape_fn(
+                (512, 512),
+                |(y, x)| {
                     // center peak gauss
                     let x = (x as f64 - 256.0) / 100.0;
                     let y = (y as f64 - 256.0) / 100.0;
                     (-(x * x + y * y) / 2.0).exp()
-                }))
-                .into(),
-            ))
+                },
+            ))))
             .into(),
         ),
     ];

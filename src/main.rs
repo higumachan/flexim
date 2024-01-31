@@ -463,6 +463,7 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
         });
 }
 
+#[allow(clippy::collapsible_if)]
 fn data_list_content_view(
     app: &mut App,
     ui: &mut Ui,
@@ -477,9 +478,11 @@ fn data_list_content_view(
             ui.label(display_label);
         },
         |app, ui| {
-            if data.is_visualizable() || data.data_view_creatable() && ui.button("+").clicked() {
-                let content = into_pane_content(&data).unwrap();
-                let _tile_id = insert_root_tile(&mut app.tree, title, content.clone());
+            if data.is_visualizable() || data.data_view_creatable() {
+                if ui.button("+").clicked() {
+                    let content = into_pane_content(&data).unwrap();
+                    let _tile_id = insert_root_tile(&mut app.tree, title, content.clone());
+                }
             }
         },
     )
@@ -759,8 +762,6 @@ fn load_sample_data() -> FlDataFrame {
     let data = Vec::from(include_bytes!("../assets/sample.csv"));
     let data = Cursor::new(data);
     let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
-
-    dbg!(&df);
 
     let mut df = df
         .apply("Face", |s| read_rectangle(s, "Face"))
