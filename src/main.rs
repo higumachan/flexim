@@ -267,6 +267,13 @@ fn main() -> Result<(), eframe::Error> {
     storage
         .insert_data(
             bag_id,
+            "tall".to_string(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
             "gauss".to_string(),
             FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
                 // center peak gauss
@@ -438,28 +445,55 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
             ui.label("Data");
             let bind = app.storage.get_bag(app.current_bag_id).unwrap();
             let bag = bind.read().unwrap();
-            for d in &bag.data_list {
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |_app, ui| {
-                        ui.label(&d.name);
-                    },
-                    |app, ui| {
-                        if d.data.is_visualizable() || d.data.data_view_creatable() {
-                            if ui.button("+").clicked() {
-                                let content = into_pane_content(&d.data).unwrap();
-                                let tile_id = insert_root_tile(
-                                    &mut app.tree,
-                                    d.name.as_str(),
-                                    content.clone(),
-                                );
-                            }
+            for (name, data_group) in &bag.data_groups() {
+                if data_group.len() > 1 {
+                    CollapsingHeader::new(name).show(ui, |ui| {
+                        for d in data_group {
+                            data_list_content_view(
+                                app,
+                                ui,
+                                format!("#{}", d.generation).as_str(),
+                                format!("{} #{}", &d.name, d.generation).as_str(),
+                                d.data.clone(),
+                            );
                         }
-                    },
-                )
+                    });
+                } else {
+                    let d = data_group.first().unwrap();
+                    data_list_content_view(
+                        app,
+                        ui,
+                        &d.name,
+                        format!("{} #{}", &d.name, d.generation).as_str(),
+                        d.data.clone(),
+                    );
+                }
             }
         });
+}
+
+fn data_list_content_view(
+    app: &mut App,
+    ui: &mut Ui,
+    display_label: &str,
+    title: &str,
+    data: FlData,
+) {
+    left_and_right_layout(
+        ui,
+        app,
+        |_app, ui| {
+            ui.label(display_label);
+        },
+        |app, ui| {
+            if data.is_visualizable() || data.data_view_creatable() {
+                if ui.button("+").clicked() {
+                    let content = into_pane_content(&data).unwrap();
+                    let tile_id = insert_root_tile(&mut app.tree, title, content.clone());
+                }
+            }
+        },
+    )
 }
 
 fn data_view_list_view(app: &mut App, ui: &mut Ui) {
