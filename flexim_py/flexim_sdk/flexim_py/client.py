@@ -5,7 +5,7 @@ import grpc
 from grpc import Channel
 from pydantic import BaseModel, ConfigDict
 
-from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
 from flexim_py.utility import batched
 
@@ -54,7 +54,8 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
             meta=connect_pb2.AppendDataRequest.DataMeta(
                 bag_id=bag_id,
                 name=name,
-                data_type=_data_type_to_proto(data)
+                data_type=_data_type_to_proto(data),
+                special_columns=_dataframe_special_columns(data) if data.type == "DataFrame" else {},
             ),
         )] + [connect_pb2.AppendDataRequest(
             data_bytes=bytes(list(chunked_data))
@@ -76,3 +77,19 @@ def _data_type_to_proto(data: ImageData | DataFrameData | Tensor2DData) -> conne
         return connect_pb2.DataType.Tensor2D
     else:
         raise RuntimeError(f"Unknown data type {type(data)}")
+
+def _dataframe_special_columns(data: DataFrameData) -> dict[str, connect_pb2.AppendDataRequest.DataMeta.SpecialColumn]:
+    return {
+        key: _special_column_to_proto(value)
+        for key, value in data.special_columns.items()
+    }
+
+
+def _special_column_to_proto(special_column: SpecialColumn) -> connect_pb2.AppendDataRequest.DataMeta.SpecialColumn:
+    match special_column:
+        case SpecialColumn.Rectangle:
+            return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Rectangle
+        case SpecialColumn.Segment:
+            return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Segment
+        case _:
+            raise RuntimeError(f"Unknown special column {special_column}")

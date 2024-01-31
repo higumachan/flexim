@@ -8,12 +8,12 @@ from PIL import Image
 
 from flexim_py.bag import Bag
 from flexim_py.client import init
-from flexim_py.data_type import ImageData, Rectangle, DataFrameData
+from flexim_py.data_type import ImageData, Rectangle, DataFrameData, Segment, SpecialColumn
 
 test_df = pandas.DataFrame([
-    {"a": 1, "b": 2, "c": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
-    {"a": 3, "b": 4, "c": Rectangle(x1=100.0, y1=50.0, x2=200.0, y2=300.0).model_dump()},
-    {"a": 5, "b": 6, "c": Rectangle(x1=400.0, y1=50.0, x2=100.0, y2=500.0).model_dump()},
+    {"a": 1, "b": 2, "c": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump(), "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
+    {"a": 3, "b": 4, "c": Rectangle(x1=100.0, y1=50.0, x2=200.0, y2=300.0).model_dump(), "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
+    {"a": 5, "b": 6, "c": Rectangle(x1=400.0, y1=50.0, x2=100.0, y2=500.0).model_dump(), "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
 ])
 
 
@@ -22,8 +22,11 @@ def test_simple_append_data():
     init(host="localhost", port=50051)
     with Bag(name="test_bag") as bag:
         # Append data
-        bag.append_data("python-image-data", ImageData.from_pil(Image.open("../assets/flexim-logo-1.png")))
-        bag.append_data("python-table-data", DataFrameData.from_pandas(test_df, {}))
+        bag.append_data("python-image-data", ImageData.from_pil(Image.open("../../assets/flexim-logo-1.png")))
+        bag.append_data("python-table-data", DataFrameData.from_pandas(test_df, {
+            "c": SpecialColumn.Rectangle,
+            "d": SpecialColumn.Segment,
+        }))
 
 
 def test_dataframe_encode_and_decode():

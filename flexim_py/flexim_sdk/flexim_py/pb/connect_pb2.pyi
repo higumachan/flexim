@@ -32,14 +32,35 @@ class CreateBagResponse(_message.Message):
 class AppendDataRequest(_message.Message):
     __slots__ = ("meta", "data_bytes")
     class DataMeta(_message.Message):
-        __slots__ = ("bag_id", "name", "data_type")
+        __slots__ = ("bag_id", "name", "data_type", "special_columns")
+        class SpecialColumn(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            Rectangle: _ClassVar[AppendDataRequest.DataMeta.SpecialColumn]
+            Segment: _ClassVar[AppendDataRequest.DataMeta.SpecialColumn]
+            Color: _ClassVar[AppendDataRequest.DataMeta.SpecialColumn]
+            Vector: _ClassVar[AppendDataRequest.DataMeta.SpecialColumn]
+            Point: _ClassVar[AppendDataRequest.DataMeta.SpecialColumn]
+        Rectangle: AppendDataRequest.DataMeta.SpecialColumn
+        Segment: AppendDataRequest.DataMeta.SpecialColumn
+        Color: AppendDataRequest.DataMeta.SpecialColumn
+        Vector: AppendDataRequest.DataMeta.SpecialColumn
+        Point: AppendDataRequest.DataMeta.SpecialColumn
+        class SpecialColumnsEntry(_message.Message):
+            __slots__ = ("key", "value")
+            KEY_FIELD_NUMBER: _ClassVar[int]
+            VALUE_FIELD_NUMBER: _ClassVar[int]
+            key: str
+            value: AppendDataRequest.DataMeta.SpecialColumn
+            def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[AppendDataRequest.DataMeta.SpecialColumn, str]] = ...) -> None: ...
         BAG_ID_FIELD_NUMBER: _ClassVar[int]
         NAME_FIELD_NUMBER: _ClassVar[int]
         DATA_TYPE_FIELD_NUMBER: _ClassVar[int]
+        SPECIAL_COLUMNS_FIELD_NUMBER: _ClassVar[int]
         bag_id: int
         name: str
         data_type: DataType
-        def __init__(self, bag_id: _Optional[int] = ..., name: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
+        special_columns: _containers.ScalarMap[str, AppendDataRequest.DataMeta.SpecialColumn]
+        def __init__(self, bag_id: _Optional[int] = ..., name: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., special_columns: _Optional[_Mapping[str, AppendDataRequest.DataMeta.SpecialColumn]] = ...) -> None: ...
     META_FIELD_NUMBER: _ClassVar[int]
     DATA_BYTES_FIELD_NUMBER: _ClassVar[int]
     meta: AppendDataRequest.DataMeta

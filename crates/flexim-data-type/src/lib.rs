@@ -130,13 +130,18 @@ impl<A> FlTensor3D<A> {
 pub struct FlDataFrame {
     pub id: Id,
     pub value: DataFrame,
+    pub special_columns: HashMap<String, FlDataFrameSpecialColumn>,
 }
 
 impl FlDataFrame {
-    pub fn new(value: DataFrame) -> Self {
+    pub fn new(
+        value: DataFrame,
+        special_columns: HashMap<String, FlDataFrameSpecialColumn>,
+    ) -> Self {
         Self {
             id: gen_id(),
             value,
+            special_columns,
         }
     }
 }
@@ -145,6 +150,12 @@ impl FlDataTrait for FlDataFrame {
     fn id(&self) -> Id {
         self.id
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FlDataFrameSpecialColumn {
+    Rectangle,
+    Segment,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -196,15 +207,67 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
 }
 
 impl FlDataFrameRectangle {
-    pub fn fields() -> Vec<Field> {
-        vec![
-            Field::new("x1", DataType::Float64),
-            Field::new("y1", DataType::Float64),
-            Field::new("x2", DataType::Float64),
-            Field::new("y2", DataType::Float64),
-        ]
+    pub fn validate_fields(fields: &[Field]) -> bool {
+        let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
+        ["x1", "y1", "x2", "y2"].into_iter().all(|key| {
+            if let Some(dt) = field_map.get(key) {
+                dt.is_float()
+            } else {
+                false
+            }
+        })
     }
+}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlDataFrameSegment {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
+}
+
+impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameSegment {
+    type Error = anyhow::Error;
+
+    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
+        let mut x1 = None;
+        let mut y1 = None;
+        let mut x2 = None;
+        let mut y2 = None;
+        let mut update_func = |field: &Field, value: AnyValue| {
+            if !field.dtype.is_float() {
+                bail!("Expected float field, found {:?}", field.dtype);
+            }
+            match field.name().as_str() {
+                "x1" => x1 = Some(value.try_extract().context("Expected float")?),
+                "y1" => y1 = Some(value.try_extract().context("Expected float")?),
+                "x2" => x2 = Some(value.try_extract().context("Expected float")?),
+                "y2" => y2 = Some(value.try_extract().context("Expected float")?),
+                _ => bail!("Unknown field {:?}", field.name()),
+            }
+            Ok(())
+        };
+
+        let value = value.into_static()?;
+        match value {
+            AnyValue::StructOwned(s) => {
+                for (field, value) in s.1.iter().zip(s.0) {
+                    update_func(field, value)?;
+                }
+            }
+            _ => bail!("Expected struct, found {:?}", value),
+        }
+        Ok(Self {
+            x1: x1.context("Missing field x1")?,
+            y1: y1.context("Missing field y1")?,
+            x2: x2.context("Missing field x2")?,
+            y2: y2.context("Missing field y2")?,
+        })
+    }
+}
+
+impl FlDataFrameSegment {
     pub fn validate_fields(fields: &[Field]) -> bool {
         let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
         ["x1", "y1", "x2", "y2"].into_iter().all(|key| {
