@@ -280,6 +280,13 @@ fn main() -> Result<(), eframe::Error> {
     storage
         .insert_data(bag_id, "tabledata".to_string(), load_sample_data().into())
         .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "long_tabledata".to_string(),
+            load_long_sample_data().into(),
+        )
+        .unwrap();
     let bag_id = storage.create_bag("test".to_string());
 
     {
@@ -357,13 +364,16 @@ fn left_panel(app: &mut App, ui: &mut Ui) {
 fn right_panel(app: &mut App, ui: &mut Ui) {
     puffin::profile_function!();
     if let Some(tile_id) = app.current_tile_id {
-        let tile = app.tree.tiles.get(tile_id).unwrap();
-        if let Tile::Pane(Pane {
-            content: PaneContent::Visualize(data),
-            ..
-        }) = tile
-        {
-            data.config_panel(ui);
+        if let Some(tile) = app.tree.tiles.get(tile_id) {
+            if let Tile::Pane(Pane {
+                content: PaneContent::Visualize(data),
+                ..
+            }) = tile
+            {
+                data.config_panel(ui);
+            }
+        } else {
+            log::warn!("tile not found");
         }
     }
 }
@@ -532,7 +542,7 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui) {
                                                 let render = m.data.create_visualize(attr.clone());
                                                 insert_root_tile(
                                                     &mut app.tree,
-                                                    format!("{} viz", m.name).as_str(),
+                                                    format!("{} {}", m.name, attr).as_str(),
                                                     PaneContent::Visualize(render),
                                                 );
                                             }
@@ -760,6 +770,32 @@ fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent
 
 fn load_sample_data() -> FlDataFrame {
     let data = Vec::from(include_bytes!("../assets/sample.csv"));
+    let data = Cursor::new(data);
+    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+
+    let mut df = df
+        .apply("Face", |s| read_rectangle(s, "Face"))
+        .unwrap()
+        .clone();
+
+    let df = df
+        .apply("Segment", |s| read_segment(s, "Segment"))
+        .unwrap()
+        .clone();
+
+    FlDataFrame::new(
+        df,
+        [
+            ("Face".to_string(), FlDataFrameSpecialColumn::Rectangle),
+            ("Segment".to_string(), FlDataFrameSpecialColumn::Segment),
+        ]
+        .into_iter()
+        .collect(),
+    )
+}
+
+fn load_long_sample_data() -> FlDataFrame {
+    let data = Vec::from(include_bytes!("../assets/long_sample.csv"));
     let data = Cursor::new(data);
     let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
 
