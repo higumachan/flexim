@@ -3,7 +3,7 @@ pub mod cache;
 use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
-use egui::util::cache::ComputerMut;
+
 use egui::{Align, ComboBox, Id, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataTrait};
@@ -12,8 +12,8 @@ use polars::prelude::*;
 use rand::random;
 use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, Deref, DerefMut};
-use std::sync::mpsc::Sender;
-use std::sync::{Mutex, RwLock};
+
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTable {
@@ -72,7 +72,7 @@ impl FlTable {
                 builder = builder.column(Column::auto().clip(true).resizable(true));
             }
             let mut state = self.state.lock().unwrap();
-            let mut selected = &mut state.selected;
+            let selected = &mut state.selected;
             let builder = if let Some(selected) = selected {
                 log::info!("selected: {}", *selected);
                 builder.scroll_to_row(*selected as usize, Some(Align::Center))
@@ -90,7 +90,7 @@ impl FlTable {
                         });
                     }
                 })
-                .body(|mut body| {
+                .body(|body| {
                     body.rows(32.0, dataframe.height(), |mut row| {
                         let row_idx = row.index();
 
@@ -104,7 +104,7 @@ impl FlTable {
                             .extract::<u32>()
                             .unwrap() as u64;
                         let selected = state.selected;
-                        let mut highlight = &mut state.deref_mut().highlight;
+                        let highlight = &mut state.deref_mut().highlight;
 
                         if highlight.contains(&d) {
                             row.set_selected(true);
@@ -115,9 +115,9 @@ impl FlTable {
                             }
                         }
                         for c in &columns {
-                            let (_, r) = row.col(|ui| {
+                            let (_, _r) = row.col(|ui| {
                                 let c = dataframe
-                                    .column(&c)
+                                    .column(c)
                                     .unwrap()
                                     .get(row_idx)
                                     .unwrap()
@@ -153,7 +153,7 @@ fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
     let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
     let mut col_filter_mask = std::iter::repeat(true)
-        .take(dataframe.height() as usize)
+        .take(dataframe.height())
         .collect::<BooleanChunked>();
 
     for col in &columns {
@@ -211,7 +211,7 @@ pub struct ColumnFilter {
 impl ColumnFilter {
     pub fn draw(&mut self, id: Id, ui: &mut Ui) {
         match &mut self.filter {
-            Some(Filter::RangeFilter { min, max }) => {
+            Some(Filter::Range { min, max }) => {
                 let range = self.aggregated.min_max.map(|(min, max)| min..=max).unwrap();
 
                 let slider = Slider::new(min, range.clone()).text("min");
@@ -229,15 +229,15 @@ impl ColumnFilter {
                 };
                 ui.add(slider);
             }
-            Some(Filter::SearchFilter(search)) => {
+            Some(Filter::Search(search)) => {
                 ui.text_edit_singleline(search);
             }
-            Some(Filter::CategoricalFilter(categories)) => {
+            Some(Filter::Categorical(categories)) => {
                 let cat = categories
                     .as_ref()
                     .and_then(|t| t.iter().next().cloned())
                     .unwrap_or("".to_string());
-                ComboBox::from_id_source(&id)
+                ComboBox::from_id_source(id)
                     .selected_text(cat)
                     .show_ui(ui, |ui| {
                         let mut selected = None;
@@ -276,22 +276,22 @@ impl ColumnFilter {
             let (min, max) = aggregated.min_max.unwrap();
             Self {
                 aggregated,
-                filter: Some(Filter::RangeFilter { min, max }),
+                filter: Some(Filter::Range { min, max }),
             }
         } else if dtype == &DataType::Boolean {
             Self {
                 aggregated,
-                filter: Some(Filter::CategoricalFilter(None)),
+                filter: Some(Filter::Categorical(None)),
             }
         } else if dtype == &DataType::Utf8 {
             Self {
                 aggregated,
-                filter: Some(Filter::SearchFilter(String::new())),
+                filter: Some(Filter::Search(String::new())),
             }
         } else if let DataType::Categorical(_d) = dtype {
             Self {
                 aggregated,
-                filter: Some(Filter::CategoricalFilter(None)),
+                filter: Some(Filter::Categorical(None)),
             }
         } else {
             Self {
@@ -304,21 +304,21 @@ impl ColumnFilter {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Filter {
-    SearchFilter(String),
-    RangeFilter { min: f64, max: f64 },
-    CategoricalFilter(Option<HashSet<String>>),
+    Search(String),
+    Range { min: f64, max: f64 },
+    Categorical(Option<HashSet<String>>),
 }
 
 impl Filter {
     fn apply(&self, series: &Series) -> Option<BooleanChunked> {
         match self {
-            Filter::SearchFilter(search) => Some(series.utf8().ok()?.contains(search, true).ok()?),
-            Filter::RangeFilter { min, max } => {
+            Filter::Search(search) => Some(series.utf8().ok()?.contains(search, true).ok()?),
+            Filter::Range { min, max } => {
                 let series = series.cast(&DataType::Float64).ok()?;
                 let series = series.f64().ok()?;
                 Some(series.gt_eq(*min).bitand(series.lt_eq(*max)))
             }
-            Filter::CategoricalFilter(Some(categories)) => {
+            Filter::Categorical(Some(categories)) => {
                 let series = series.cast(&DataType::Utf8).unwrap();
                 let series = series.utf8().unwrap();
                 Some(
@@ -334,7 +334,7 @@ impl Filter {
                         .collect(),
                 )
             }
-            Filter::CategoricalFilter(None) => None,
+            Filter::Categorical(None) => None,
         }
     }
 }

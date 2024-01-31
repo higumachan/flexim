@@ -26,7 +26,7 @@ impl VisualizedImageCache {
     }
 
     pub fn get(&self, id: Id) -> Option<Poll<Arc<FlImage>>> {
-        self.cached_images.get(&id).map(|t| t.clone())
+        self.cached_images.get(&id).cloned()
     }
 }
 

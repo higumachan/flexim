@@ -1,5 +1,5 @@
 use egui::Vec2;
-use flexim_data_type::{FlData, FlDataFrame, FlDataTrait};
+use flexim_data_type::{FlData, FlDataFrame};
 use flexim_table_widget::FlTable;
 
 use rand::random;
@@ -31,10 +31,7 @@ pub trait DataViewCreatable {
 
 impl DataViewCreatable for FlData {
     fn data_view_creatable(&self) -> bool {
-        match self {
-            FlData::DataFrame(_) => true,
-            _ => false,
-        }
+        matches!(self, FlData::DataFrame(_))
     }
 }
 

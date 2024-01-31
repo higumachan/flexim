@@ -1,9 +1,11 @@
+#![cfg(target_os = "wasm32")]
+
 use eframe::Frame;
 use egui_extras::install_image_loaders;
 use flexim_data_visualize::visualize::{stack_visualize, DataRender, VisualizeState};
 use flexim_font::setup_custom_fonts;
+use kasm_bindgen_futures::spawn_local;
 use std::sync::Arc;
-use wasm_bindgen_futures::spawn_local;
 
 static DATA: &[u8] = include_bytes!("../../assets/content.bin");
 const SCROLL_SPEED: f32 = 0.01;

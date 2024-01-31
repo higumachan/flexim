@@ -1,29 +1,26 @@
 use crate::cache::{Poll, VisualizedImageCache};
-use std::collections::BTreeSet;
-use std::hash::Hash;
+
 use std::io::Cursor;
 
 use egui::{
-    Align2, CollapsingHeader, Color32, ComboBox, Context, FontId, Id, Image, Painter, Pos2, Rangef,
-    Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
+    CollapsingHeader, Color32, ComboBox, Id, Image, Painter, Pos2, Rect, Response, Sense, Slider,
+    Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{
     FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlImage, FlTensor2D,
 };
 use flexim_data_view::FlDataFrameView;
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb};
+use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 
 use crate::pallet::pallet;
 use crate::special_columns_visualize::SpecialColumnShape;
 use anyhow::Context as _;
-use downcast_rs::{impl_downcast, Downcast};
-use egui::ahash::HashSet;
+
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
-use polars::prelude::*;
-use rand::random;
+
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
@@ -62,7 +59,7 @@ impl Default for VisualizeState {
 pub enum DataRender {
     Image(FlImageRender),
     Tensor2D(FlTensor2DRender),
-    DataFrameView(FlDataFrameViewRender),
+    DataFrameView(Box<FlDataFrameViewRender>),
 }
 
 impl From<FlImageRender> for DataRender {
@@ -79,7 +76,7 @@ impl From<FlTensor2DRender> for DataRender {
 
 impl From<FlDataFrameViewRender> for DataRender {
     fn from(render: FlDataFrameViewRender) -> Self {
-        Self::DataFrameView(render)
+        Self::DataFrameView(Box::new(render))
     }
 }
 
@@ -156,7 +153,7 @@ impl DataRenderable for FlImageRender {
 
     fn render(
         &self,
-        ui: &mut Ui,
+        _ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
         size: Vec2,
@@ -212,7 +209,7 @@ impl DataRenderable for FlTensor2DRender {
 
     fn render(
         &self,
-        ui: &mut Ui,
+        _ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
 
@@ -250,8 +247,7 @@ impl DataRenderable for FlTensor2DRender {
                         cm.transform(content.value.iter().map(|v| normalize(*v)));
                     let pixels: Vec<u8> = transformed
                         .into_iter()
-                        .map(|c| [c.int_r(), c.int_g(), c.int_b()])
-                        .flatten()
+                        .flat_map(|c| [c.int_r(), c.int_g(), c.int_b()])
                         .collect();
                     let image_buffer: ImageBuffer<Rgb<u8>, _> = ImageBuffer::from_vec(
                         content.value.shape()[1] as u32,
@@ -361,7 +357,7 @@ impl DataRenderable for FlDataFrameViewRender {
         ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
+        _size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
         if let DataFramePoll::Ready(computed_dataframe) =
@@ -416,8 +412,8 @@ impl DataRenderable for FlDataFrameViewRender {
                 })
                 .collect();
             let shapes = shapes?;
-            let colors = color_series
-                .map(|color_series| color_series.iter().map(|v| pallet(v)).collect_vec());
+            let colors =
+                color_series.map(|color_series| color_series.iter().map(pallet).collect_vec());
             let label_series = self
                 .render_context
                 .lock()
@@ -454,7 +450,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 } else {
                     self.render_context.lock().unwrap().normal_thickness
                 } as f32;
-                let responses = shape.render(ui, painter, color, thickness, label, &state);
+                let responses = shape.render(ui, painter, color, thickness, label, state);
 
                 let mut state = self.dataframe_view.table.state.lock().unwrap();
                 let mut any_hovered = false;
@@ -463,7 +459,7 @@ impl DataRenderable for FlDataFrameViewRender {
                         any_hovered = true;
                     }
                     if r.clicked() {
-                        let mut highlight = &mut state.highlight;
+                        let highlight = &mut state.highlight;
                         let index = indices[i];
                         if highlight.contains(&index) {
                             highlight.remove(&index);
@@ -495,19 +491,13 @@ impl DataRenderable for FlDataFrameViewRender {
             let mut render_context = self.render_context.lock().unwrap();
             ui.horizontal(|ui| {
                 ui.label("Color Scatter Column");
-                let mut columns = self.dataframe_view.table.dataframe.value.get_column_names();
+                let columns = self.dataframe_view.table.dataframe.value.get_column_names();
                 let columns = columns
                     .into_iter()
                     .filter(|c| c != &self.column)
                     .collect_vec();
                 ComboBox::from_id_source("Color Scatter Column")
-                    .selected_text(
-                        render_context
-                            .color_scatter_column
-                            .as_ref()
-                            .map(String::as_str)
-                            .unwrap_or(""),
-                    )
+                    .selected_text(render_context.color_scatter_column.as_deref().unwrap_or(""))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut render_context.color_scatter_column, None, "");
                         for column in columns {
@@ -521,19 +511,13 @@ impl DataRenderable for FlDataFrameViewRender {
             });
             ui.horizontal(|ui| {
                 ui.label("Label Column");
-                let mut columns = self.dataframe_view.table.dataframe.value.get_column_names();
+                let columns = self.dataframe_view.table.dataframe.value.get_column_names();
                 let columns = columns
                     .into_iter()
                     .filter(|c| c != &self.column)
                     .collect_vec();
                 ComboBox::from_id_source("Label Column")
-                    .selected_text(
-                        render_context
-                            .label_column
-                            .as_ref()
-                            .map(String::as_str)
-                            .unwrap_or(""),
-                    )
+                    .selected_text(render_context.label_column.as_deref().unwrap_or(""))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut render_context.label_column, None, "");
                         for column in columns {
@@ -616,7 +600,7 @@ pub fn stack_visualize(
         stack_top
             .render(ui, &mut painter, visualize_state, size)
             .unwrap();
-        for (i, render) in stack.iter().enumerate().skip(1) {
+        for (_i, render) in stack.iter().enumerate().skip(1) {
             render
                 .render(ui, &mut painter, visualize_state, size)
                 .unwrap();

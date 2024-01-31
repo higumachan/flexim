@@ -2,7 +2,7 @@ use anyhow::{bail, Context};
 
 use ndarray::{Array2, Array3};
 
-use image::{load_from_memory_with_format, EncodableLayout, ImageDecoder};
+use image::{EncodableLayout, ImageDecoder};
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use rand::random;

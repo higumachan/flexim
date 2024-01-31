@@ -1,11 +1,10 @@
-use crate::FlTableState;
 use egui::ahash::HashMap;
 use egui::util::cache::CacheTrait;
 use egui::Id;
 use polars::frame::DataFrame;
 
 #[derive(Debug, Clone)]
-struct Calculating {
+pub struct Calculating {
     generation: u64,
     previous: Option<DataFrame>,
     previous_generation: Option<u64>,
@@ -61,7 +60,6 @@ impl FilteredDataFrameCache {
                             });
                         }
                     }
-                    _ => {}
                 }
             })
             .or_insert_with({

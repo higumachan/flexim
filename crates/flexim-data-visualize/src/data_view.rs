@@ -1,4 +1,4 @@
-use crate::visualize::{DataRender, DataRenderable, FlDataFrameViewRender};
+use crate::visualize::{DataRender, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
 use flexim_data_type::FlDataFrameRectangle;
 use flexim_data_view::{FlDataFrameView, Id};
@@ -35,15 +35,11 @@ impl DataView for FlDataFrameView {
         dataframe
             .fields()
             .iter()
-            .filter_map(|field| {
-                (match &field.dtype {
-                    DataType::Struct(inner_field) => {
-                        FlDataFrameRectangle::validate_fields(inner_field)
-                    }
-                    _ => false,
-                })
-                .then(|| field.name.to_string())
+            .filter(|field| match &field.dtype {
+                DataType::Struct(inner_field) => FlDataFrameRectangle::validate_fields(inner_field),
+                _ => false,
             })
+            .map(|field| field.name().to_string())
             .collect()
     }
 

@@ -1570,25 +1570,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "flexim-wasm-report"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "eframe",
- "egui",
- "egui_extras",
- "flexim-data-visualize",
- "flexim-font",
- "image",
- "log",
- "polars",
- "serde",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
 name = "flexim_py"
 version = "0.1.0"
 dependencies = [
