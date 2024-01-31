@@ -1,6 +1,7 @@
 mod pane;
 
 use crate::pane::{into_pane_content, Pane, PaneContent};
+use chrono::Local;
 use eframe::emath::Rect;
 use eframe::{run_native, Frame, Theme};
 use egui::ahash::{HashMap, HashMapExt, HashSet};
@@ -266,6 +267,13 @@ fn main() -> Result<(), eframe::Error> {
     storage
         .insert_data(
             bag_id,
+            "tall".to_string(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
             "gauss".to_string(),
             FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
                 // center peak gauss
@@ -279,6 +287,7 @@ fn main() -> Result<(), eframe::Error> {
     storage
         .insert_data(bag_id, "tabledata".to_string(), load_sample_data().into())
         .unwrap();
+    let bag_id = storage.create_bag("test".to_string());
 
     {
         let storage = storage.clone();
@@ -379,21 +388,46 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
         .show(ui, |ui| {
             ui.set_width(width);
             ui.label("Data Bag");
-            let bags = app.storage.list_bags().unwrap();
-            for bag in bags {
-                let bag = bag.read().unwrap();
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |app, ui| {
-                        ui.label(&bag.name);
-                    },
-                    |app, ui| {
-                        if ui.button("+").clicked() {
-                            app.replace_bag_id = Some(bag.id);
+            let bag_groups = app.storage.bag_groups().unwrap();
+            for (bag_name, bag_group) in bag_groups {
+                if bag_group.len() > 1 {
+                    CollapsingHeader::new(&bag_name).show(ui, |ui| {
+                        for bag in bag_group {
+                            let bag = bag.read().unwrap();
+                            left_and_right_layout(
+                                ui,
+                                app,
+                                |app, ui| {
+                                    ui.label(
+                                        &bag.created_at
+                                            .with_timezone(&Local)
+                                            .format("%Y-%m-%d %H:%M:%S")
+                                            .to_string(),
+                                    );
+                                },
+                                |app, ui| {
+                                    if ui.button("+").clicked() {
+                                        app.replace_bag_id = Some(bag.id);
+                                    }
+                                },
+                            )
                         }
-                    },
-                )
+                    });
+                } else {
+                    let bag = bag_group.first().unwrap().read().unwrap();
+                    left_and_right_layout(
+                        ui,
+                        app,
+                        |app, ui| {
+                            ui.label(&bag.name);
+                        },
+                        |app, ui| {
+                            if ui.button("+").clicked() {
+                                app.replace_bag_id = Some(bag.id);
+                            }
+                        },
+                    )
+                }
             }
         });
 }
@@ -411,28 +445,55 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
             ui.label("Data");
             let bind = app.storage.get_bag(app.current_bag_id).unwrap();
             let bag = bind.read().unwrap();
-            for d in &bag.data_list {
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |_app, ui| {
-                        ui.label(&d.name);
-                    },
-                    |app, ui| {
-                        if d.data.is_visualizable() || d.data.data_view_creatable() {
-                            if ui.button("+").clicked() {
-                                let content = into_pane_content(&d.data).unwrap();
-                                let tile_id = insert_root_tile(
-                                    &mut app.tree,
-                                    d.name.as_str(),
-                                    content.clone(),
-                                );
-                            }
+            for (name, data_group) in &bag.data_groups() {
+                if data_group.len() > 1 {
+                    CollapsingHeader::new(name).show(ui, |ui| {
+                        for d in data_group {
+                            data_list_content_view(
+                                app,
+                                ui,
+                                format!("#{}", d.generation).as_str(),
+                                format!("{} #{}", &d.name, d.generation).as_str(),
+                                d.data.clone(),
+                            );
                         }
-                    },
-                )
+                    });
+                } else {
+                    let d = data_group.first().unwrap();
+                    data_list_content_view(
+                        app,
+                        ui,
+                        &d.name,
+                        format!("{} #{}", &d.name, d.generation).as_str(),
+                        d.data.clone(),
+                    );
+                }
             }
         });
+}
+
+fn data_list_content_view(
+    app: &mut App,
+    ui: &mut Ui,
+    display_label: &str,
+    title: &str,
+    data: FlData,
+) {
+    left_and_right_layout(
+        ui,
+        app,
+        |_app, ui| {
+            ui.label(display_label);
+        },
+        |app, ui| {
+            if data.is_visualizable() || data.data_view_creatable() {
+                if ui.button("+").clicked() {
+                    let content = into_pane_content(&data).unwrap();
+                    let tile_id = insert_root_tile(&mut app.tree, title, content.clone());
+                }
+            }
+        },
+    )
 }
 
 fn data_view_list_view(app: &mut App, ui: &mut Ui) {

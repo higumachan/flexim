@@ -1437,6 +1437,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "chrono",
  "eframe",
  "egui",
  "egui_extras",
