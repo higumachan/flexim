@@ -58,7 +58,7 @@ pub struct Storage {
     bags: RwLock<HashMap<BagId, Arc<RwLock<Bag>>>>,
 }
 
-type BagGroups = HashMap<String, Vec<Arc<RwLock<Bag>>>>;
+type BagGroups = BTreeMap<String, Vec<Arc<RwLock<Bag>>>>;
 
 impl Storage {
     pub fn create_bag(&self, name: String) -> BagId {
@@ -99,7 +99,7 @@ impl Storage {
 
     pub fn bag_groups(&self) -> anyhow::Result<BagGroups> {
         let bags = self.bags.read().unwrap();
-        let mut bag_groups = HashMap::new();
+        let mut bag_groups = BTreeMap::new();
 
         for bag in bags.values() {
             let bag_guard = bag.read().unwrap();
