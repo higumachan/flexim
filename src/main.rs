@@ -1,6 +1,7 @@
 mod pane;
 
 use crate::pane::{into_pane_content, Pane, PaneContent};
+use chrono::Local;
 use eframe::emath::Rect;
 use eframe::{run_native, Frame, Theme};
 use egui::ahash::{HashMap, HashMapExt, HashSet};
@@ -279,6 +280,7 @@ fn main() -> Result<(), eframe::Error> {
     storage
         .insert_data(bag_id, "tabledata".to_string(), load_sample_data().into())
         .unwrap();
+    let bag_id = storage.create_bag("test".to_string());
 
     {
         let storage = storage.clone();
@@ -379,21 +381,46 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
         .show(ui, |ui| {
             ui.set_width(width);
             ui.label("Data Bag");
-            let bags = app.storage.list_bags().unwrap();
-            for bag in bags {
-                let bag = bag.read().unwrap();
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |app, ui| {
-                        ui.label(&bag.name);
-                    },
-                    |app, ui| {
-                        if ui.button("+").clicked() {
-                            app.replace_bag_id = Some(bag.id);
+            let bag_groups = app.storage.bag_groups().unwrap();
+            for (bag_name, bag_group) in bag_groups {
+                if bag_group.len() > 1 {
+                    CollapsingHeader::new(&bag_name).show(ui, |ui| {
+                        for bag in bag_group {
+                            let bag = bag.read().unwrap();
+                            left_and_right_layout(
+                                ui,
+                                app,
+                                |app, ui| {
+                                    ui.label(
+                                        &bag.created_at
+                                            .with_timezone(&Local)
+                                            .format("%Y-%m-%d %H:%M:%S")
+                                            .to_string(),
+                                    );
+                                },
+                                |app, ui| {
+                                    if ui.button("+").clicked() {
+                                        app.replace_bag_id = Some(bag.id);
+                                    }
+                                },
+                            )
                         }
-                    },
-                )
+                    });
+                } else {
+                    let bag = bag_group.first().unwrap().read().unwrap();
+                    left_and_right_layout(
+                        ui,
+                        app,
+                        |app, ui| {
+                            ui.label(&bag.name);
+                        },
+                        |app, ui| {
+                            if ui.button("+").clicked() {
+                                app.replace_bag_id = Some(bag.id);
+                            }
+                        },
+                    )
+                }
             }
         });
 }

@@ -42,6 +42,8 @@ pub struct Storage {
     bags: RwLock<HashMap<BagId, Arc<RwLock<Bag>>>>,
 }
 
+type BagGroups = HashMap<String, Vec<Arc<RwLock<Bag>>>>;
+
 impl Storage {
     pub fn create_bag(&self, name: String) -> BagId {
         log::info!("create_bag: name={}", name);
@@ -69,6 +71,22 @@ impl Storage {
         let mut bag = bag.write().unwrap();
         bag.data_list.push(ManagedData { name, data });
         Ok(())
+    }
+
+    pub fn bag_groups(&self) -> anyhow::Result<BagGroups> {
+        let bags = self.bags.read().unwrap();
+        let mut bag_groups = HashMap::new();
+
+        for bag in bags.values() {
+            let bag_guard = bag.read().unwrap();
+            let bag_groups = bag_groups.entry(bag_guard.name.clone()).or_insert(vec![]);
+            bag_groups.push(bag.clone());
+        }
+        for bag_groups in bag_groups.values_mut() {
+            bag_groups.sort_by_key(|bag| bag.read().unwrap().created_at);
+        }
+
+        Ok(bag_groups)
     }
 }
 

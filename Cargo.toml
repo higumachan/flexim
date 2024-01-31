@@ -79,3 +79,4 @@ bincode.workspace = true
 flexim-font.workspace = true
 puffin_http.workspace = true
 puffin.workspace = true
+chrono.workspace = true
