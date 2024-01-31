@@ -1,7 +1,6 @@
 use crate::visualize::VisualizeState;
 use egui::{
-    Align2, CollapsingHeader, Color32, ComboBox, Context, FontId, Id, Image, Painter, Pos2, Rangef,
-    Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
+    Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2,
 };
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
 
@@ -35,42 +34,42 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         );
         painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
 
-        let mut responses = vec![];
-
-        responses.push(ui.allocate_rect(
-            Rect::from_x_y_ranges(
-                rect.x_range().expand(thickness),
-                Rangef::point(rect.top()).expand(thickness),
+        let mut responses = vec![
+            ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    rect.x_range().expand(thickness),
+                    Rangef::point(rect.top()).expand(thickness),
+                ),
+                Sense::click(),
             ),
-            Sense::click(),
-        ));
-        responses.push(ui.allocate_rect(
-            Rect::from_x_y_ranges(
-                rect.x_range().expand(thickness),
-                Rangef::point(rect.bottom()).expand(thickness),
+            ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    rect.x_range().expand(thickness),
+                    Rangef::point(rect.bottom()).expand(thickness),
+                ),
+                Sense::click(),
             ),
-            Sense::click(),
-        ));
-        responses.push(ui.allocate_rect(
-            Rect::from_x_y_ranges(
-                Rangef::point(rect.left()).expand(thickness),
-                rect.y_range().expand(thickness),
+            ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    Rangef::point(rect.left()).expand(thickness),
+                    rect.y_range().expand(thickness),
+                ),
+                Sense::click(),
             ),
-            Sense::click(),
-        ));
-        responses.push(ui.allocate_rect(
-            Rect::from_x_y_ranges(
-                Rangef::point(rect.right()).expand(thickness),
-                rect.y_range().expand(thickness),
+            ui.allocate_rect(
+                Rect::from_x_y_ranges(
+                    Rangef::point(rect.right()).expand(thickness),
+                    rect.y_range().expand(thickness),
+                ),
+                Sense::click(),
             ),
-            Sense::click(),
-        ));
+        ];
 
         if let Some(label) = label {
             let text_rect = painter.text(
                 rect.left_top(),
                 Align2::LEFT_BOTTOM,
-                label.clone(),
+                label,
                 FontId::default(),
                 Color32::BLACK,
             );
@@ -92,11 +91,11 @@ impl SpecialColumnShape for FlDataFrameRectangle {
 impl SpecialColumnShape for FlDataFrameSegment {
     fn render(
         &self,
-        ui: &mut Ui,
+        _ui: &mut Ui,
         painter: &mut Painter,
         color: Color32,
         thickness: f32,
-        label: Option<&str>,
+        _label: Option<&str>,
         state: &VisualizeState,
     ) -> Vec<Response> {
         let segmment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale as f32

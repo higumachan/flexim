@@ -3,9 +3,8 @@ use crate::grpc::list_bags_response::BagMeta;
 use crate::grpc::*;
 use crate::utility::protobuf_data_type_to_fl_data;
 use flexim_storage::{Storage, StorageQuery};
-use polars::export::num;
+
 use std::sync::Arc;
-use tonic::codegen::Body;
 use tonic::{Request, Response, Status, Streaming};
 
 #[derive(Default)]

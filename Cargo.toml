@@ -11,6 +11,9 @@ members = [
     "flexim_py"
 ]
 
+[lints.clippy]
+dbg_macro = "deny"
+
 [workspace.dependencies]
 tracing = { version = "0.1.40" }
 tracing-subscriber = { version = "0.3.18"}

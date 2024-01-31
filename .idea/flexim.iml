@@ -25,8 +25,8 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-data-visualize/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-font/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-polars/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-wasm-report/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/notify_rw_lock/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/wasm/flexim-wasm-report/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />

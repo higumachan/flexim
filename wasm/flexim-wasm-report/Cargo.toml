@@ -1,0 +1,26 @@
+[package]
+name = "flexim-wasm-report"
+version = "0.1.0"
+edition = "2021"
+autobins = false
+
+[[bin]]
+name = "single_stack"
+
+[dependencies]
+flexim-data-visualize.workspace = true
+polars = { workspace = true, features = ["io"] }
+eframe = {workspace = true, features = ["web_screen_reader"]}
+egui.workspace = true
+egui_extras.workspace = true
+image.workspace = true
+log.workspace = true
+serde.workspace = true
+bincode.workspace = true
+flexim-font.workspace = true
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "=0.2.90"
+wasm-bindgen-futures = "0.4"
+web-sys = "0.3"

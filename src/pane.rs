@@ -2,9 +2,7 @@ use eframe::emath::Vec2;
 use flexim_data_type::FlData;
 use flexim_data_view::FlDataFrameView;
 use flexim_data_visualize::data_view::DataView;
-use flexim_data_visualize::visualize::{
-    DataRender, DataRenderable, FlImageRender, FlTensor2DRender,
-};
+use flexim_data_visualize::visualize::{DataRender, FlImageRender, FlTensor2DRender};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -29,6 +27,5 @@ pub fn into_pane_content(fl_data: &FlData) -> anyhow::Result<PaneContent> {
         FlData::DataFrame(fl_dataframe) => Ok(PaneContent::DataView(Arc::new(
             FlDataFrameView::new(fl_dataframe.clone(), Vec2::new(512.0, 512.0)),
         ))),
-        _ => anyhow::bail!("not supported"),
     }
 }

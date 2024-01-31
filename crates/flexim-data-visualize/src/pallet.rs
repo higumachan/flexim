@@ -1,11 +1,11 @@
 use egui::Color32;
 use polars::export::ahash::AHasher;
-use scarlet::material_colors::{AccentTone, MaterialPrimary, MaterialTone, NeutralTone};
+use scarlet::material_colors::{AccentTone, MaterialPrimary, MaterialTone};
 use scarlet::prelude::RGBColor;
 use std::hash::{Hash, Hasher};
 
 pub fn pallet(id: impl Hash) -> Color32 {
-    static COLORS: &'static [MaterialPrimary] = &[
+    static COLORS: &[MaterialPrimary] = &[
         MaterialPrimary::Red(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Purple(MaterialTone::Accent(AccentTone::A400)),
         MaterialPrimary::Indigo(MaterialTone::Accent(AccentTone::A400)),

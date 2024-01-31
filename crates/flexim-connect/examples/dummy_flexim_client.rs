@@ -1,11 +1,11 @@
 use flexim_connect::grpc::append_data_request::{Data, DataMeta};
 use flexim_connect::grpc::flexim_connect_client::FleximConnectClient;
-use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
+
 use flexim_connect::grpc::{AppendDataRequest, CreateBagRequest, DataType};
-use flexim_connect::server::FleximConnectServerImpl;
-use std::ptr::write;
+
+
 use tonic::codegen::tokio_stream;
-use tonic::transport::{Endpoint, Server};
+use tonic::transport::{Endpoint};
 
 const CHUNK_SIZE: usize = 128 * 1024;
 
@@ -31,6 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             bag_id,
             name: "test_data".to_string(),
             data_type: DataType::Image.into(),
+            special_columns: Default::default(),
         })),
     }];
     let image_bytes = include_bytes!("../../../assets/flexim-logo-1.png");

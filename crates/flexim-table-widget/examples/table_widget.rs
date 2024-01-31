@@ -1,8 +1,9 @@
-use flexim_data_type::FlDataFrameRectangle;
+use flexim_data_type::{FlDataFrame, FlDataFrameRectangle};
 use flexim_table_widget::FlTable;
-use polars::datatypes::DataType;
+
 use polars::prelude::*;
 use polars::series::Series;
+use std::collections::HashMap;
 use std::io::Cursor;
 
 fn read_rectangle(s: &Series) -> Series {
@@ -49,11 +50,11 @@ fn main() {
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
         ..Default::default()
     };
-    let df = Arc::new(df);
+    let df = Arc::new(FlDataFrame::new(df, HashMap::new()));
 
     eframe::run_simple_native("FlTable Example", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let mut table = FlTable::new(df.clone());
+            let table = FlTable::new(df.clone());
             table.draw(ui);
         });
     })

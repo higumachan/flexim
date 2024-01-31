@@ -1,3 +1,5 @@
+#![allow(ambiguous_glob_reexports)]
+
 pub use polars_core::prelude::*;
 #[cfg(feature = "polars-io")]
 pub use polars_io::prelude::*;

@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn intercept(mut request: Request<()>) -> Result<Request<()>, Status> {
+fn intercept(request: Request<()>) -> Result<Request<()>, Status> {
     println!("Got a request: {:?}", request.metadata());
     Ok(request)
 }

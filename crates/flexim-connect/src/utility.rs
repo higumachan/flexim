@@ -8,7 +8,6 @@ use polars::prelude::{IpcReader, SerReader};
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::Arc;
-use tonic::codegen::Body;
 
 pub(crate) fn protobuf_data_type_to_fl_data(
     meta: DataMeta,

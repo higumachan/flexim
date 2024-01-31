@@ -1,4 +1,4 @@
-use polars::io::SerReader;
+use polars::prelude::{IpcReader, SerReader};
 use std::io::{BufReader, Cursor, Read};
 use std::process::exit;
 
@@ -8,8 +8,8 @@ fn main() {
     let mut buf = Vec::new();
     reader.read_to_end(&mut buf).unwrap();
 
-    let mut cursor = Cursor::new(buf);
-    let reader = polars::io::ipc::IpcReader::new(cursor);
+    let cursor = Cursor::new(buf);
+    let reader = IpcReader::new(cursor);
 
     if let Ok(df) = reader.finish() {
         println!("{}", df);
