@@ -3,16 +3,48 @@ use egui::{ScrollArea, Ui};
 use flexim_data_type::FlDataFrameRectangle;
 use flexim_data_view::{FlDataFrameView, Id};
 use polars::datatypes::DataType;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-pub trait DataView {
+#[derive(Clone, Serialize, Deserialize)]
+pub enum DataView {
+    FlDataFrameView(FlDataFrameView),
+}
+
+impl DataView {
+    pub fn id(&self) -> Id {
+        match self {
+            Self::FlDataFrameView(v) => v.id(),
+        }
+    }
+
+    pub fn draw(&self, ui: &mut Ui) {
+        match self {
+            Self::FlDataFrameView(v) => v.draw(ui),
+        }
+    }
+
+    pub fn visualizeable_attributes(&self) -> Vec<String> {
+        match self {
+            Self::FlDataFrameView(v) => v.visualizeable_attributes(),
+        }
+    }
+
+    pub fn create_visualize(&self, attribute: String) -> Arc<DataRender> {
+        match self {
+            Self::FlDataFrameView(v) => v.create_visualize(attribute),
+        }
+    }
+}
+
+pub trait DataViewable {
     fn id(&self) -> Id;
     fn draw(&self, ui: &mut Ui);
     fn visualizeable_attributes(&self) -> Vec<String>;
     fn create_visualize(&self, attribute: String) -> Arc<DataRender>;
 }
 
-impl DataView for FlDataFrameView {
+impl DataViewable for FlDataFrameView {
     fn id(&self) -> Id {
         self.id
     }

@@ -227,7 +227,7 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let server_addr = format!("127.0.0.1:{}", puffin_http::DEFAULT_PORT);
-    let _puffin_server = puffin_http::Server::new(&server_addr).unwrap();
+    let _puffin_server = puffin_http::Server::new(&server_addr);
     eprintln!("Run this to view profiling data:  puffin_viewer {server_addr}");
     puffin::set_scopes_on(true);
 

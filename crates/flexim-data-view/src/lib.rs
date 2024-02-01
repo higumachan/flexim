@@ -1,4 +1,3 @@
-use egui::Vec2;
 use flexim_data_type::{FlData, FlDataFrame};
 use flexim_table_widget::FlTable;
 
@@ -11,15 +10,13 @@ pub type Id = u64;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameView {
     pub id: Id,
-    pub size: Vec2,
     pub table: FlTable,
 }
 
 impl FlDataFrameView {
-    pub fn new(dataframe: Arc<FlDataFrame>, size: Vec2) -> Self {
+    pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
         Self {
             id: gen_id(),
-            size,
             table: FlTable::new(dataframe),
         }
     }

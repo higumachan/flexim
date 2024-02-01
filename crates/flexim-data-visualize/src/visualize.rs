@@ -94,13 +94,12 @@ impl DataRender {
         ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
         match self {
-            DataRender::Image(render) => render.render(ui, painter, state, size),
-            DataRender::Tensor2D(render) => render.render(ui, painter, state, size),
-            DataRender::DataFrameView(render) => render.render(ui, painter, state, size),
+            DataRender::Image(render) => render.render(ui, painter, state),
+            DataRender::Tensor2D(render) => render.render(ui, painter, state),
+            DataRender::DataFrameView(render) => render.render(ui, painter, state),
         }
     }
 
@@ -109,14 +108,6 @@ impl DataRender {
             DataRender::Image(render) => render.config_panel(ui),
             DataRender::Tensor2D(render) => render.config_panel(ui),
             DataRender::DataFrameView(render) => render.config_panel(ui),
-        }
-    }
-
-    pub fn size(&self) -> Vec2 {
-        match self {
-            DataRender::Image(render) => render.size(),
-            DataRender::Tensor2D(render) => render.size(),
-            DataRender::DataFrameView(render) => render.size(),
         }
     }
 }
@@ -129,10 +120,8 @@ pub trait DataRenderable {
         ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
     ) -> anyhow::Result<()>;
     fn config_panel(&self, ui: &mut Ui);
-    fn size(&self) -> Vec2;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,7 +145,6 @@ impl DataRenderable for FlImageRender {
         _ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
         let image = Image::from_bytes(
@@ -164,15 +152,13 @@ impl DataRenderable for FlImageRender {
             self.content.value.clone(),
         );
 
+        let size =
+            Vec2::new(self.content.width as f32, self.content.height as f32) * state.scale as f32;
         draw_image(painter, &image, state.shift, size, Color32::WHITE)
     }
 
     fn config_panel(&self, ui: &mut Ui) {
         ui.label("FlImage");
-    }
-
-    fn size(&self) -> Vec2 {
-        Vec2::new(self.content.width as f32, self.content.height as f32)
     }
 }
 
@@ -212,8 +198,6 @@ impl DataRenderable for FlTensor2DRender {
         _ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-
-        size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
         let id = Id::new(self.content.id);
@@ -293,6 +277,10 @@ impl DataRenderable for FlTensor2DRender {
                 transparency,
             );
 
+            let size = Vec2::new(
+                self.content.value.shape()[1] as f32,
+                self.content.value.shape()[0] as f32,
+            ) * state.scale as f32;
             draw_image(painter, &image, state.shift, size, tint_color)?;
         }
 
@@ -308,13 +296,6 @@ impl DataRenderable for FlTensor2DRender {
                 Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
             });
         });
-    }
-
-    fn size(&self) -> Vec2 {
-        Vec2::new(
-            self.content.value.shape()[1] as f32,
-            self.content.value.shape()[0] as f32,
-        )
     }
 }
 
@@ -357,7 +338,6 @@ impl DataRenderable for FlDataFrameViewRender {
         ui: &mut Ui,
         painter: &mut Painter,
         state: &VisualizeState,
-        _size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
         if let DataFramePoll::Ready(computed_dataframe) =
@@ -543,10 +523,6 @@ impl DataRenderable for FlDataFrameViewRender {
             });
         });
     }
-
-    fn size(&self) -> Vec2 {
-        self.dataframe_view.size
-    }
 }
 
 impl FlDataFrameViewRender {
@@ -569,12 +545,8 @@ pub fn visualize(
     render: &DataRender,
 ) -> Response {
     ui.centered_and_justified(|ui| {
-        let size = render.size();
-        let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
-        render
-            .render(ui, &mut painter, visualize_state, size)
-            .unwrap();
+        render.render(ui, &mut painter, visualize_state).unwrap();
 
         if response.dragged() {
             visualize_state.shift += response.drag_delta();
@@ -594,16 +566,10 @@ pub fn stack_visualize(
     assert_ne!(stack.len(), 0);
     ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
-        let size = stack_top.size();
-        let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
-        stack_top
-            .render(ui, &mut painter, visualize_state, size)
-            .unwrap();
+        stack_top.render(ui, &mut painter, visualize_state).unwrap();
         for (_i, render) in stack.iter().enumerate().skip(1) {
-            render
-                .render(ui, &mut painter, visualize_state, size)
-                .unwrap();
+            render.render(ui, &mut painter, visualize_state).unwrap();
         }
 
         if response.dragged() {
