@@ -16,6 +16,13 @@ pub trait FlDataTrait {
     fn id(&self) -> Id;
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+pub enum FlDataType {
+    Image,
+    Tensor,
+    DataFrame,
+}
+
 #[derive(Debug, Clone)]
 pub enum FlData {
     Image(Arc<FlImage>),
@@ -29,6 +36,35 @@ impl FlData {
             Self::Image(v) => v.id(),
             Self::Tensor(v) => v.id(),
             Self::DataFrame(v) => v.id(),
+        }
+    }
+
+    pub fn data_type(&self) -> FlDataType {
+        match self {
+            Self::Image(_) => FlDataType::Image,
+            Self::Tensor(_) => FlDataType::Tensor,
+            Self::DataFrame(_) => FlDataType::DataFrame,
+        }
+    }
+
+    pub fn as_image(&self) -> Option<Arc<FlImage>> {
+        match self {
+            Self::Image(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_tensor(&self) -> Option<Arc<FlTensor2D<f64>>> {
+        match self {
+            Self::Tensor(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_data_frame(&self) -> Option<Arc<FlDataFrame>> {
+        match self {
+            Self::DataFrame(v) => Some(v.clone()),
+            _ => None,
         }
     }
 }
@@ -277,6 +313,29 @@ impl FlDataFrameSegment {
                 false
             }
         })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+pub enum GenerationSelector {
+    Latest,
+    Generation(u64),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+pub struct FlDataReference {
+    pub name: String,
+    pub generation: GenerationSelector,
+    pub data_type: FlDataType,
+}
+
+impl FlDataReference {
+    pub fn new(name: String, generation: GenerationSelector, data_type: FlDataType) -> Self {
+        Self {
+            name,
+            generation,
+            data_type,
+        }
     }
 }
 

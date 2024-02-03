@@ -4,3 +4,11 @@ pub mod data_visualizable;
 mod pallet;
 mod special_columns_visualize;
 pub mod visualize;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {}
+}

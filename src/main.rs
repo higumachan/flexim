@@ -15,7 +15,8 @@ use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, Ui
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
-    FlData, FlDataFrame, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlImage, FlTensor2D,
+    FlData, FlDataFrame, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
+    FlDataType, FlImage, FlTensor2D, GenerationSelector,
 };
 use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
@@ -23,7 +24,7 @@ use flexim_data_visualize::visualize::{
     stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
 };
 use flexim_font::setup_custom_fonts;
-use flexim_storage::{BagId, Storage, StorageQuery};
+use flexim_storage::{Bag, BagId, Storage, StorageQuery};
 use itertools::Itertools;
 use ndarray::Array2;
 use polars::datatypes::StructChunked;
@@ -31,7 +32,7 @@ use polars::prelude::{CsvReader, IntoSeries, NamedFrom, SerReader, Series};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tonic::transport::Server;
 
 const SCROLL_SPEED: f32 = 0.01;
@@ -69,6 +70,7 @@ impl Debug for StackTab {
 }
 
 struct TreeBehavior<'a> {
+    current_bag: Arc<RwLock<Bag>>,
     stack_tabs: HashMap<TileId, StackTab>,
     current_tile_id: &'a mut Option<TileId>,
 }
@@ -138,10 +140,13 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                             },
                         );
 
-                        let response = if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
-                            stack_visualize(ui, &mut state, &stack_tab.contents)
-                        } else {
-                            visualize(ui, &mut state, &pane.name, content.as_ref())
+                        let response = {
+                            let bag = self.current_bag.read().unwrap();
+                            if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+                                stack_visualize(ui, &bag, &mut state, &stack_tab.contents)
+                            } else {
+                                visualize(ui, &bag, &mut state, &pane.name, content.as_ref())
+                            }
                         };
 
                         if response.dragged() {
@@ -165,7 +170,8 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                 UiResponse::None
             }
             PaneContent::DataView(view) => {
-                view.draw(ui);
+                let bag = self.current_bag.read().unwrap();
+                view.draw(ui, &bag);
                 UiResponse::None
             }
         }
@@ -205,20 +211,28 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         puffin::GlobalProfiler::lock().new_frame();
         puffin::profile_scope!("frame");
-        egui::SidePanel::left("data viewer").show(ctx, |ui| {
-            left_panel(self, ui);
-        });
-        egui::SidePanel::right("visualize viewer").show(ctx, |ui| {
-            right_panel(self, ui);
-        });
-        egui::CentralPanel::default().show(ctx, |ui| {
-            puffin::profile_scope!("center panel");
-            let mut behavior = TreeBehavior {
-                stack_tabs: collect_stack_tabs(ui, &self.tree),
-                current_tile_id: &mut self.current_tile_id,
-            };
-            self.tree.ui(&mut behavior, ui);
-        });
+        {
+            egui::SidePanel::left("data viewer").show(ctx, |ui| {
+                let bag = self.storage.get_bag(self.current_bag_id).unwrap();
+                let bag = bag.read().unwrap();
+                left_panel(self, ui, &bag);
+            });
+            egui::SidePanel::right("visualize viewer").show(ctx, |ui| {
+                let bag = self.storage.get_bag(self.current_bag_id).unwrap();
+                let bag = bag.read().unwrap();
+                right_panel(self, ui, &bag);
+            });
+            egui::CentralPanel::default().show(ctx, |ui| {
+                puffin::profile_scope!("center panel");
+                let current_bag = self.storage.get_bag(self.current_bag_id).unwrap();
+                let mut behavior = TreeBehavior {
+                    current_bag,
+                    stack_tabs: collect_stack_tabs(ui, &self.tree),
+                    current_tile_id: &mut self.current_tile_id,
+                };
+                self.tree.ui(&mut behavior, ui);
+            });
+        }
         end_of_frame(self);
     }
 }
@@ -287,7 +301,6 @@ fn main() -> Result<(), eframe::Error> {
             load_long_sample_data().into(),
         )
         .unwrap();
-    let bag_id = storage.create_bag("test".to_string());
 
     {
         let storage = storage.clone();
@@ -350,18 +363,18 @@ fn end_of_frame(app: &mut App) {
     }
 }
 
-fn left_panel(app: &mut App, ui: &mut Ui) {
+fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     puffin::profile_function!();
     data_bag_list_view(app, ui);
     ui.separator();
     data_list_view(app, ui);
     ui.separator();
-    data_view_list_view(app, ui);
+    data_view_list_view(app, ui, bag);
     ui.separator();
     visualize_list_view(app, ui);
 }
 
-fn right_panel(app: &mut App, ui: &mut Ui) {
+fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     puffin::profile_function!();
     if let Some(tile_id) = app.current_tile_id {
         if let Some(tile) = app.tree.tiles.get(tile_id) {
@@ -370,7 +383,7 @@ fn right_panel(app: &mut App, ui: &mut Ui) {
                 ..
             }) = tile
             {
-                data.config_panel(ui);
+                data.config_panel(ui, bag);
             }
         } else {
             log::warn!("tile not found");
@@ -449,24 +462,24 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
             for (name, data_group) in &bag.data_groups() {
                 if data_group.len() > 1 {
                     CollapsingHeader::new(name).show(ui, |ui| {
-                        for d in data_group {
+                        for &d in data_group {
                             data_list_content_view(
                                 app,
                                 ui,
                                 format!("#{}", d.generation).as_str(),
                                 format!("{} #{}", &d.name, d.generation).as_str(),
-                                d.data.clone(),
+                                FlDataReference::from(d.clone()),
                             );
                         }
                     });
                 } else {
-                    let d = data_group.first().unwrap();
+                    let &d = data_group.first().unwrap();
                     data_list_content_view(
                         app,
                         ui,
                         &d.name,
                         format!("{} #{}", &d.name, d.generation).as_str(),
-                        d.data.clone(),
+                        FlDataReference::from(d.clone()),
                     );
                 }
             }
@@ -479,8 +492,17 @@ fn data_list_content_view(
     ui: &mut Ui,
     display_label: &str,
     title: &str,
-    data: FlData,
+    data_ref: FlDataReference,
 ) {
+    let data = app
+        .storage
+        .get_bag(app.current_bag_id)
+        .unwrap()
+        .read()
+        .unwrap()
+        .data_by_reference(&data_ref)
+        .unwrap();
+
     left_and_right_layout(
         ui,
         app,
@@ -490,7 +512,7 @@ fn data_list_content_view(
         |app, ui| {
             if data.is_visualizable() || data.data_view_creatable() {
                 if ui.button("+").clicked() {
-                    let content = into_pane_content(&data).unwrap();
+                    let content = into_pane_content(data_ref).unwrap();
                     let _tile_id = insert_root_tile(&mut app.tree, title, content.clone());
                 }
             }
@@ -498,7 +520,7 @@ fn data_list_content_view(
     )
 }
 
-fn data_view_list_view(app: &mut App, ui: &mut Ui) {
+fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
     let width = ui.available_width();
     let data_views = app
         .tree
@@ -530,7 +552,7 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui) {
                         CollapsingHeader::new(&m.name)
                             .id_source(m.tile_id)
                             .show(ui, |ui| {
-                                for attr in m.data.visualizeable_attributes() {
+                                for attr in m.data.visualizeable_attributes(bag) {
                                     left_and_right_layout_dummy(
                                         ui,
                                         app,
@@ -653,29 +675,21 @@ fn create_tree() -> egui_tiles::Tree<Pane> {
     let mut tabs = vec![];
     tabs.push({
         let image1 = Arc::<DataRender>::new(
-            FlImageRender::new(Arc::new(FlImage::new(
-                include_bytes!("../assets/flexim-logo-1.png").to_vec(),
-                512,
-                512,
-            )))
+            FlImageRender::new(FlDataReference::new(
+                "logo".to_string(),
+                GenerationSelector::Latest,
+                FlDataType::Image,
+            ))
             .into(),
         );
         let image2 = Arc::<DataRender>::new(
-            FlImageRender::new(Arc::new(FlImage::new(
-                include_bytes!("../assets/tall.png").to_vec(),
-                1024,
-                1792,
-            )))
+            FlImageRender::new(FlDataReference::new(
+                "tall".to_string(),
+                GenerationSelector::Latest,
+                FlDataType::Image,
+            ))
             .into(),
         );
-        let _tensor = Arc::new(FlTensor2DRender::new(Arc::new(FlTensor2D::new(
-            Array2::from_shape_fn((512, 512), |(y, x)| {
-                // center peak gauss
-                let x = (x as f64 - 256.0) / 100.0;
-                let y = (y as f64 - 256.0) / 100.0;
-                (-(x * x + y * y) / 2.0).exp()
-            }),
-        ))));
         let children = vec![
             tiles.insert_pane(gen_pane("image".to_string(), image1.clone())),
             tiles.insert_pane(gen_pane("tall".to_string(), image2.clone())),

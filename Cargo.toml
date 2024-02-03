@@ -21,7 +21,7 @@ tonic = "0.10.2"
 tonic-build = "0.10.2"
 tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
-anyhow = "1.0.78"
+anyhow = { version = "1.0.78", features = ["backtrace"] }
 egui = "0.25.0"
 egui_extras = { version = "0.25.0", features = ["image", "svg"] }
 egui_tiles = "0.6.0"

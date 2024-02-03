@@ -6,58 +6,91 @@ use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
 use egui::{Align, ComboBox, Id, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
-use flexim_data_type::{FlDataFrame, FlDataTrait};
+use flexim_data_type::{FlDataFrame, FlDataReference, FlDataTrait};
 use itertools::Itertools;
 use polars::prelude::*;
 use rand::random;
 use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, Deref, DerefMut};
 
+use anyhow::Context;
+use flexim_storage::Bag;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTable {
     id: Id,
-    pub dataframe: Arc<FlDataFrame>,
-    pub state: Arc<Mutex<FlTableState>>,
     previous_state: Option<FlTableState>,
+    pub data_reference: FlDataReference,
 }
 
 impl FlTable {
-    pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
+    pub fn data_id(&self) -> Id {
+        Id::new("FlTable").with(self.id)
+    }
+
+    pub fn new(data_reference: FlDataReference) -> Self {
         Self {
-            id: Id::new("FlTable")
-                .with(dataframe.id())
-                .with(random::<u64>()),
-            dataframe: dataframe.clone(),
-            state: Arc::new(Mutex::new(FlTableState::new(&dataframe.value))),
+            id: Id::new("FlTable").with(random::<u64>()),
             previous_state: None,
+            data_reference,
         }
     }
 
-    pub fn draw(&self, ui: &mut Ui) {
+    pub fn state(&self, ui: &mut Ui) -> Option<Arc<Mutex<FlTableState>>> {
+        let state = ui
+            .ctx()
+            .memory_mut(|mem| mem.data.get_temp(self.data_id()).clone());
+
+        state
+    }
+
+    pub fn dataframe(&self, bag: &Bag) -> anyhow::Result<Arc<FlDataFrame>> {
+        bag.data_by_reference(&self.data_reference)
+            .context("Failed to get data by reference")?
+            .as_data_frame()
+            .context("Mismatched data type")
+    }
+
+    pub fn draw(&self, ui: &mut Ui, bag: &Bag) {
         puffin::profile_function!();
+        let dataframe = bag
+            .data_by_reference(&self.data_reference)
+            .unwrap()
+            .as_data_frame()
+            .unwrap();
+        let state = ui.ctx().memory_mut(|mem| {
+            mem.data
+                .get_temp_mut_or_insert_with(self.data_id(), || {
+                    let state = Arc::new(Mutex::new(FlTableState::new(&dataframe.value)));
+                    state
+                })
+                .clone()
+        });
+
         if self.previous_state.is_none()
-            || self.previous_state.as_ref().unwrap() != self.state.lock().unwrap().deref()
+            || self.previous_state.as_ref().unwrap() != state.lock().unwrap().deref()
         {
             let generation = ui.ctx().memory_mut(move |mem| {
                 let cache = mem.caches.cache::<FilteredDataFrameCache>();
                 cache.insert_calculating(self.id)
             });
-            let dataframe = self.dataframe.clone();
-            let state = self.state.clone().lock().unwrap().clone();
+            let state = state.clone().lock().unwrap().clone();
             let ctx = ui.ctx().clone();
             let id = self.id;
-            std::thread::spawn(move || {
-                let dataframe = compute_dataframe(&dataframe.value, &state);
-                ctx.memory_mut(move |mem| {
-                    let cache = mem.caches.cache::<FilteredDataFrameCache>();
-                    cache.insert_computed(id, generation, dataframe);
-                });
+            std::thread::spawn({
+                let dataframe = dataframe.clone();
+                move || {
+                    let dataframe = compute_dataframe(&dataframe.value, &state);
+                    ctx.memory_mut(move |mem| {
+                        let cache = mem.caches.cache::<FilteredDataFrameCache>();
+                        cache.insert_computed(id, generation, dataframe);
+                    });
+                }
             });
         }
 
-        let dataframe = &self.dataframe.value;
+        let dataframe = dataframe.value.clone();
         let columns = dataframe.get_column_names();
         let dataframe = ui.ctx().memory_mut(|mem| {
             let cache = mem.caches.cache::<FilteredDataFrameCache>();
@@ -71,7 +104,7 @@ impl FlTable {
             for _col in &columns {
                 builder = builder.column(Column::auto().clip(true).resizable(true));
             }
-            let mut state = self.state.lock().unwrap();
+            let mut state = state.lock().unwrap();
             let selected = &mut state.selected;
             let builder = if let Some(selected) = selected {
                 log::info!("selected: {}", *selected);
@@ -351,4 +384,12 @@ fn unique_series(series: &Series) -> Option<Vec<String>> {
             .unique()
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {}
 }

@@ -1,5 +1,7 @@
-use flexim_data_type::{FlData, FlDataFrame};
+use egui::Vec2;
+use flexim_data_type::{FlData, FlDataFrame, FlDataReference};
 use flexim_table_widget::FlTable;
+use std::collections::HashMap;
 
 use rand::random;
 use serde::{Deserialize, Serialize};
@@ -14,10 +16,10 @@ pub struct FlDataFrameView {
 }
 
 impl FlDataFrameView {
-    pub fn new(dataframe: Arc<FlDataFrame>) -> Self {
+    pub fn new(data_reference: FlDataReference) -> Self {
         Self {
             id: gen_id(),
-            table: FlTable::new(dataframe),
+            table: FlTable::new(data_reference),
         }
     }
 }

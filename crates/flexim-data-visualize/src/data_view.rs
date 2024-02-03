@@ -2,6 +2,7 @@ use crate::visualize::{DataRender, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
 use flexim_data_type::FlDataFrameRectangle;
 use flexim_data_view::{FlDataFrameView, Id};
+use flexim_storage::Bag;
 use polars::datatypes::DataType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -18,15 +19,15 @@ impl DataView {
         }
     }
 
-    pub fn draw(&self, ui: &mut Ui) {
+    pub fn draw(&self, ui: &mut Ui, bag: &Bag) {
         match self {
-            Self::FlDataFrameView(v) => v.draw(ui),
+            Self::FlDataFrameView(v) => v.draw(ui, bag),
         }
     }
 
-    pub fn visualizeable_attributes(&self) -> Vec<String> {
+    pub fn visualizeable_attributes(&self, bag: &Bag) -> Vec<String> {
         match self {
-            Self::FlDataFrameView(v) => v.visualizeable_attributes(),
+            Self::FlDataFrameView(v) => v.visualizeable_attributes(bag),
         }
     }
 
@@ -39,8 +40,8 @@ impl DataView {
 
 pub trait DataViewable {
     fn id(&self) -> Id;
-    fn draw(&self, ui: &mut Ui);
-    fn visualizeable_attributes(&self) -> Vec<String>;
+    fn draw(&self, ui: &mut Ui, bag: &Bag);
+    fn visualizeable_attributes(&self, bag: &Bag) -> Vec<String>;
     fn create_visualize(&self, attribute: String) -> Arc<DataRender>;
 }
 
@@ -49,7 +50,7 @@ impl DataViewable for FlDataFrameView {
         self.id
     }
 
-    fn draw(&self, ui: &mut Ui) {
+    fn draw(&self, ui: &mut Ui, bag: &Bag) {
         puffin::profile_function!();
         ScrollArea::horizontal()
             .enable_scrolling(true)
@@ -57,13 +58,12 @@ impl DataViewable for FlDataFrameView {
             .min_scrolled_width(ui.available_width())
             .drag_to_scroll(true)
             .show(ui, |ui| {
-                self.table.draw(ui);
+                self.table.draw(ui, bag);
             });
     }
 
-    fn visualizeable_attributes(&self) -> Vec<String> {
-        let dataframe = &self.table.dataframe.value;
-
+    fn visualizeable_attributes(&self, bag: &Bag) -> Vec<String> {
+        let dataframe = &self.table.dataframe(bag).unwrap().value;
         dataframe
             .fields()
             .iter()
