@@ -6,7 +6,7 @@ use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
 use egui::{Align, ComboBox, Id, Sense, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
-use flexim_data_type::{FlDataFrame, FlDataReference, FlDataTrait};
+use flexim_data_type::{FlDataFrame, FlDataReference};
 use itertools::Itertools;
 use polars::prelude::*;
 use rand::random;
@@ -25,8 +25,11 @@ pub struct FlTable {
 }
 
 impl FlTable {
-    pub fn data_id(&self) -> Id {
-        Id::new("FlTable").with(self.id)
+    pub fn data_id(&self, bag: &Bag) -> anyhow::Result<Id> {
+        let data = bag
+            .data_by_reference(&self.data_reference)
+            .context("Failed to get data by reference")?;
+        Ok(Id::new("FlTable").with(data.id()))
     }
 
     pub fn new(data_reference: FlDataReference) -> Self {
@@ -37,10 +40,10 @@ impl FlTable {
         }
     }
 
-    pub fn state(&self, ui: &mut Ui) -> Option<Arc<Mutex<FlTableState>>> {
+    pub fn state(&self, ui: &mut Ui, bag: &Bag) -> Option<Arc<Mutex<FlTableState>>> {
         let state = ui
             .ctx()
-            .memory_mut(|mem| mem.data.get_temp(self.data_id()).clone());
+            .memory_mut(|mem| mem.data.get_temp(self.data_id(bag).unwrap()).clone());
 
         state
     }
@@ -60,10 +63,10 @@ impl FlTable {
             .as_data_frame()
             .unwrap();
         let state = ui.ctx().memory_mut(|mem| {
+            dbg!(self.data_id(bag).unwrap());
             mem.data
-                .get_temp_mut_or_insert_with(self.data_id(), || {
-                    let state = Arc::new(Mutex::new(FlTableState::new(&dataframe.value)));
-                    state
+                .get_temp_mut_or_insert_with(self.data_id(bag).unwrap(), || {
+                    Arc::new(Mutex::new(FlTableState::new(&dataframe.value)))
                 })
                 .clone()
         });
@@ -71,13 +74,13 @@ impl FlTable {
         if self.previous_state.is_none()
             || self.previous_state.as_ref().unwrap() != state.lock().unwrap().deref()
         {
+            let id = self.data_id(bag).unwrap();
             let generation = ui.ctx().memory_mut(move |mem| {
                 let cache = mem.caches.cache::<FilteredDataFrameCache>();
-                cache.insert_calculating(self.id)
+                cache.insert_calculating(id)
             });
             let state = state.clone().lock().unwrap().clone();
             let ctx = ui.ctx().clone();
-            let id = self.id;
             std::thread::spawn({
                 let dataframe = dataframe.clone();
                 move || {
@@ -94,7 +97,7 @@ impl FlTable {
         let columns = dataframe.get_column_names();
         let dataframe = ui.ctx().memory_mut(|mem| {
             let cache = mem.caches.cache::<FilteredDataFrameCache>();
-            cache.get(self.id).unwrap()
+            cache.get(self.data_id(bag).unwrap()).unwrap()
         });
 
         if let DataFramePoll::Ready(dataframe) = dataframe {
@@ -172,10 +175,10 @@ impl FlTable {
         }
     }
 
-    pub fn computed_dataframe(&self, ui: &mut Ui) -> DataFramePoll<DataFrame> {
+    pub fn computed_dataframe(&self, ui: &mut Ui, bag: &Bag) -> Option<DataFramePoll<DataFrame>> {
         let dataframe = ui.ctx().memory_mut(|mem| {
             let cache = mem.caches.cache::<FilteredDataFrameCache>();
-            cache.get(self.id).unwrap()
+            cache.get(self.data_id(bag).unwrap())
         });
 
         dataframe
@@ -388,7 +391,6 @@ fn unique_series(series: &Series) -> Option<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn it_works() {}

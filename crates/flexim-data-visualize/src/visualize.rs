@@ -9,7 +9,7 @@ use egui::{
 
 use flexim_data_type::{
     FlData, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlDataReference,
-    FlImage, FlTensor2D,
+    FlImage,
 };
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
@@ -22,7 +22,7 @@ use anyhow::Context as _;
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
-use egui::epaint::HsvaGamma;
+
 use flexim_storage::Bag;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
@@ -147,7 +147,7 @@ impl DataRenderable for FlImageRender {
 
     fn render(
         &self,
-        ui: &mut Ui,
+        _ui: &mut Ui,
         bag: &Bag,
         painter: &mut Painter,
         state: &VisualizeState,
@@ -167,7 +167,7 @@ impl DataRenderable for FlImageRender {
         }
     }
 
-    fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
+    fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlImage");
     }
 }
@@ -301,7 +301,7 @@ impl DataRenderable for FlTensor2DRender {
         }
     }
 
-    fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
+    fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlTensor2D");
         CollapsingHeader::new("Config").show(ui, |ui| {
             let mut render_context = self.context.lock().unwrap();
@@ -355,14 +355,14 @@ impl DataRenderable for FlDataFrameViewRender {
         state: &VisualizeState,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
-        if let DataFramePoll::Ready(computed_dataframe) =
-            self.dataframe_view.table.computed_dataframe(ui)
+        if let Some(DataFramePoll::Ready(computed_dataframe)) =
+            self.dataframe_view.table.computed_dataframe(ui, bag)
         {
             let dataframe = self.dataframe_view.table.dataframe(bag)?;
             let special_column = dataframe
                 .special_columns
                 .get(&self.column)
-                .context("special column not found")?;
+                .with_context(|| format!("special column not found: {}", self.column))?;
             let target_series = computed_dataframe
                 .column(self.column.as_str())
                 .unwrap()
@@ -381,7 +381,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 .map(|v| v.extract::<u32>().unwrap() as u64)
                 .collect_vec();
             let highlight = {
-                if let Some(state) = self.dataframe_view.table.state(ui) {
+                if let Some(state) = self.dataframe_view.table.state(ui, bag) {
                     let state = state.lock().unwrap();
                     let highlight = &state.highlight;
                     Some(
@@ -454,7 +454,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 let g = self
                     .dataframe_view
                     .table
-                    .state(ui)
+                    .state(ui, bag)
                     .context("state not initialized")?;
                 let mut state = g.lock().unwrap();
                 let mut any_hovered = false;
@@ -479,7 +479,7 @@ impl DataRenderable for FlDataFrameViewRender {
             let g = self
                 .dataframe_view
                 .table
-                .state(ui)
+                .state(ui, bag)
                 .context("state not initialized")?;
             let mut state = g.lock().unwrap();
             if let Some(hi) = hovered_index {

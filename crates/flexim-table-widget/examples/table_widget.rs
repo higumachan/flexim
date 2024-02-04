@@ -1,6 +1,9 @@
-use flexim_data_type::{FlDataFrame, FlDataFrameRectangle};
+use flexim_data_type::{
+    FlData, FlDataFrame, FlDataFrameRectangle, FlDataReference, FlDataType, GenerationSelector,
+};
 use flexim_table_widget::FlTable;
 
+use flexim_storage::{Storage, StorageQuery};
 use polars::prelude::*;
 use polars::series::Series;
 use std::collections::HashMap;
@@ -51,11 +54,26 @@ fn main() {
         ..Default::default()
     };
     let df = Arc::new(FlDataFrame::new(df, HashMap::new()));
+    let storage = Storage::default();
+    let bag_id = storage.create_bag("test".to_string());
+    storage
+        .insert_data(
+            bag_id,
+            "dataframe".to_string(),
+            FlData::DataFrame(df.clone()),
+        )
+        .unwrap();
+    let bag = storage.get_bag(bag_id).unwrap();
 
     eframe::run_simple_native("FlTable Example", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let table = FlTable::new(df.clone());
-            table.draw(ui);
+            let table = FlTable::new(FlDataReference::new(
+                "dataframe".to_string(),
+                GenerationSelector::Latest,
+                FlDataType::DataFrame,
+            ));
+            let bag = bag.read().unwrap();
+            table.draw(ui, &bag);
         });
     })
     .unwrap();

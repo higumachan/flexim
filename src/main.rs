@@ -15,13 +15,13 @@ use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, Ui
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
-    FlData, FlDataFrame, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
+    FlDataFrame, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
     FlDataType, FlImage, FlTensor2D, GenerationSelector,
 };
 use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_data_visualize::visualize::{
-    stack_visualize, visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
+    stack_visualize, visualize, DataRender, FlImageRender, VisualizeState,
 };
 use flexim_font::setup_custom_fonts;
 use flexim_storage::{Bag, BagId, Storage, StorageQuery};
@@ -318,6 +318,66 @@ fn main() -> Result<(), eframe::Error> {
             });
         });
     }
+
+    let bag_id = storage.create_bag("test2".to_string());
+    storage
+        .insert_data(
+            bag_id,
+            "logo".to_string(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "tall".to_string(),
+            FlImage::new(
+                include_bytes!("../assets/flexim-logo-1.png").to_vec(),
+                512,
+                512,
+            )
+            .into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "tall".to_string(),
+            FlImage::new(
+                include_bytes!("../assets/flexim-logo-1.png").to_vec(),
+                512,
+                512,
+            )
+            .into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "gauss".to_string(),
+            FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
+                // center peak gauss
+                let x = (x as f64 - 256.0) / 100.0;
+                let y = (y as f64 - 256.0) / 100.0;
+                (-(x * x + y * y) / 2.0).exp()
+            }))
+            .into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "tabledata".to_string(),
+            load_long_sample_data2().into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "long_tabledata".to_string(),
+            load_long_sample_data().into(),
+        )
+        .unwrap();
 
     let tree = create_tree();
     let app = App {
@@ -828,6 +888,32 @@ fn load_long_sample_data() -> FlDataFrame {
         [
             ("Face".to_string(), FlDataFrameSpecialColumn::Rectangle),
             ("Segment".to_string(), FlDataFrameSpecialColumn::Segment),
+        ]
+        .into_iter()
+        .collect(),
+    )
+}
+
+fn load_long_sample_data2() -> FlDataFrame {
+    let data = Vec::from(include_bytes!("../assets/long_sample2.csv"));
+    let data = Cursor::new(data);
+    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+
+    let mut df = df
+        .apply("Face1", |s| read_rectangle(s, "Face"))
+        .unwrap()
+        .clone();
+
+    let df = df
+        .apply("Segment1", |s| read_segment(s, "Segment"))
+        .unwrap()
+        .clone();
+
+    FlDataFrame::new(
+        df,
+        [
+            ("Face1".to_string(), FlDataFrameSpecialColumn::Rectangle),
+            ("Segment1".to_string(), FlDataFrameSpecialColumn::Segment),
         ]
         .into_iter()
         .collect(),

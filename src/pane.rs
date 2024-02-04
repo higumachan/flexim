@@ -1,4 +1,4 @@
-use flexim_data_type::{FlData, FlDataReference, FlDataType};
+use flexim_data_type::{FlDataReference, FlDataType};
 use flexim_data_view::FlDataFrameView;
 use flexim_data_visualize::data_view::DataView;
 use flexim_data_visualize::visualize::{DataRender, FlImageRender, FlTensor2DRender};
