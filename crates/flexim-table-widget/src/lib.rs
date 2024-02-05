@@ -63,7 +63,6 @@ impl FlTable {
             .as_data_frame()
             .unwrap();
         let state = ui.ctx().memory_mut(|mem| {
-            dbg!(self.data_id(bag).unwrap());
             mem.data
                 .get_temp_mut_or_insert_with(self.data_id(bag).unwrap(), || {
                     Arc::new(Mutex::new(FlTableState::new(&dataframe.value)))

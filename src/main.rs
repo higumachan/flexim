@@ -454,16 +454,16 @@ fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     }
 }
 
-fn left_and_right_layout<R>(
+fn left_and_right_layout<Ctx, R>(
     ui: &mut Ui,
-    app: &mut App,
-    left_content: impl FnOnce(&mut App, &mut Ui) -> R,
-    right_content: impl FnOnce(&mut App, &mut Ui) -> R,
+    ctx: &mut Ctx,
+    left_content: impl FnOnce(&mut Ctx, &mut Ui) -> R,
+    right_content: impl FnOnce(&mut Ctx, &mut Ui) -> R,
 ) {
     ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-        left_content(app, ui);
+        left_content(ctx, ui);
         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-            right_content(app, ui)
+            right_content(ctx, ui)
         });
     });
 }

@@ -279,9 +279,9 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
             ui.set_width(width);
             left_and_right_layout(
                 ui,
-                app,
-                |_app, ui| ui.label("Layout"),
-                |app, ui| {
+                &mut (),
+                |_, ui| ui.label("Layout"),
+                |_, ui| {
                     let button = ui.button("💾");
                     if button.clicked() {
                         ui.ctx().memory_mut(|mem| {
@@ -292,17 +292,16 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
                 },
             );
             let mut remove_layout_id = None;
-            let layout = app.layouts.clone();
-            for l in layout {
+            for l in &app.layouts {
                 left_and_right_layout(
                     ui,
-                    app,
+                    &mut app.tree,
                     |_app, ui| {
                         ui.label(&l.name);
                     },
-                    |app, ui| {
+                    |tree, ui| {
                         if ui.button("📲").clicked() {
-                            app.tree = l.tree.clone();
+                            *tree = l.tree.clone();
                         }
                         if ui.button("➖").clicked() {
                             remove_layout_id.replace(l.id);
@@ -314,14 +313,16 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
                 app.layouts.retain(|l| l.id != id);
             }
         });
-    let layout_save_dialog = ui
+    let mut layout_save_dialog = ui
         .ctx()
         .memory(|mem| mem.data.get_temp(Id::new("layout save dialog")))
         .unwrap_or(false);
-    if layout_save_dialog {
-        egui::Window::new("Save Layout").show(ui.ctx(), |ui| {
+    let mut saved = false;
+    egui::Window::new("Save Layout")
+        .open(&mut layout_save_dialog)
+        .show(ui.ctx(), |ui| {
             ui.label("保存するLayoutの名前を入力してください");
-            let mut layout_name = ui.ctx().memory_mut(|mem| {
+            let layout_name = ui.ctx().memory_mut(|mem| {
                 mem.data
                     .get_temp_mut_or_insert_with(Id::new("layout save dialog layout name"), || {
                         Arc::new(Mutex::new("".to_string()))
@@ -331,14 +332,22 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
             ui.text_edit_singleline(layout_name.lock().unwrap().deref_mut());
             let layout_name = layout_name.clone();
             if ui.button("Save").clicked() {
-                ui.ctx().memory_mut(|mem| {
-                    mem.data.insert_temp(Id::new("layout save dialog"), false);
-                });
+                saved = true;
                 app.layouts.push(FlLayout::new(
                     layout_name.lock().unwrap().clone(),
                     app.tree.clone(),
                 ))
             }
         });
+    if saved {
+        layout_save_dialog = false;
     }
+    ui.ctx().memory_mut(|mem| {
+        mem.data
+            .insert_temp(Id::new("layout save dialog"), layout_save_dialog);
+        if !layout_save_dialog {
+            mem.data
+                .remove_temp::<Arc<Mutex<String>>>(Id::new("layout save dialog layout name"));
+        }
+    });
 }
