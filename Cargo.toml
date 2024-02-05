@@ -54,9 +54,11 @@ downcast-rs = "1.2.0"
 indexmap = "2.1.0"
 puffin = "0.19.0"
 puffin_http = "0.16.0"
+rfd = "0.13.0"
 
 
 [dependencies]
+rfd.workspace = true
 anyhow.workspace = true
 egui.workspace = true
 egui_extras.workspace = true

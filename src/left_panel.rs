@@ -3,7 +3,10 @@ use crate::{
     insert_root_tile, left_and_right_layout, left_and_right_layout_dummy, App, FlLayout, Managed,
 };
 use chrono::Local;
-use egui::{CollapsingHeader, Id, ScrollArea, Ui};
+use egui::menu::menu_image_button;
+use egui::{
+    global_dark_light_mode_switch, CollapsingHeader, Id, Image, ImageButton, ScrollArea, Ui, Vec2,
+};
 use egui_tiles::Tile;
 use flexim_data_type::FlDataReference;
 use flexim_data_view::DataViewCreatable;
@@ -15,6 +18,29 @@ use std::sync::{Arc, Mutex};
 
 pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     puffin::profile_function!();
+    menu_image_button(
+        ui,
+        ImageButton::new(
+            Image::from_bytes("bytes://logo.png", include_bytes!("../assets/logo.png"))
+                .max_size(Vec2::new(12.0, 12.0)),
+        ),
+        |ui| {
+            global_dark_light_mode_switch(ui);
+            if ui.button("Save Layout").clicked() {
+                if let Some(path) = rfd::FileDialog::new().save_file() {
+                    let mut buf_writer =
+                        std::io::BufWriter::new(std::fs::File::create(path).unwrap());
+                    serde_json::to_writer(&mut buf_writer, &app.layouts).unwrap();
+                }
+            }
+            if ui.button("Load Layout").clicked() {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    let buf_reader = std::io::BufReader::new(std::fs::File::open(path).unwrap());
+                    app.layouts = serde_json::from_reader(buf_reader).unwrap();
+                }
+            }
+        },
+    );
     data_bag_list_view(app, ui);
     ui.separator();
     data_list_view(app, ui);
