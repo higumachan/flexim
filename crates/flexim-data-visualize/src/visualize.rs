@@ -8,7 +8,8 @@ use egui::{
 };
 
 use flexim_data_type::{
-    FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlImage, FlTensor2D,
+    FlData, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlDataReference,
+    FlImage,
 };
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
@@ -21,6 +22,8 @@ use anyhow::Context as _;
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
+
+use flexim_storage::Bag;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
@@ -92,31 +95,23 @@ impl DataRender {
     pub fn render(
         &self,
         ui: &mut Ui,
+        bag: &Bag,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
         match self {
-            DataRender::Image(render) => render.render(ui, painter, state, size),
-            DataRender::Tensor2D(render) => render.render(ui, painter, state, size),
-            DataRender::DataFrameView(render) => render.render(ui, painter, state, size),
+            DataRender::Image(render) => render.render(ui, bag, painter, state),
+            DataRender::Tensor2D(render) => render.render(ui, bag, painter, state),
+            DataRender::DataFrameView(render) => render.render(ui, bag, painter, state),
         }
     }
 
-    pub fn config_panel(&self, ui: &mut Ui) {
+    pub fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
         match self {
-            DataRender::Image(render) => render.config_panel(ui),
-            DataRender::Tensor2D(render) => render.config_panel(ui),
-            DataRender::DataFrameView(render) => render.config_panel(ui),
-        }
-    }
-
-    pub fn size(&self) -> Vec2 {
-        match self {
-            DataRender::Image(render) => render.size(),
-            DataRender::Tensor2D(render) => render.size(),
-            DataRender::DataFrameView(render) => render.size(),
+            DataRender::Image(render) => render.config_panel(ui, bag),
+            DataRender::Tensor2D(render) => render.config_panel(ui, bag),
+            DataRender::DataFrameView(render) => render.config_panel(ui, bag),
         }
     }
 }
@@ -127,52 +122,53 @@ pub trait DataRenderable {
     fn render(
         &self,
         ui: &mut Ui,
+        bag: &Bag,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
     ) -> anyhow::Result<()>;
-    fn config_panel(&self, ui: &mut Ui);
-    fn size(&self) -> Vec2;
+    fn config_panel(&self, ui: &mut Ui, bag: &Bag);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlImageRender {
-    pub content: Arc<FlImage>,
+    pub content: FlDataReference,
 }
 
 impl FlImageRender {
-    pub fn new(content: Arc<FlImage>) -> Self {
+    pub fn new(content: FlDataReference) -> Self {
         Self { content }
     }
 }
 
 impl DataRenderable for FlImageRender {
     fn id(&self) -> Id {
-        Id::new("fl_image").with(self.content.id)
+        Id::new("fl_image").with(&self.content)
     }
 
     fn render(
         &self,
         _ui: &mut Ui,
+        bag: &Bag,
         painter: &mut Painter,
         state: &VisualizeState,
-        size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
-        let image = Image::from_bytes(
-            format!("bytes://{}.png", self.content.id),
-            self.content.value.clone(),
-        );
+        let data = bag.data_by_reference(&self.content)?;
 
-        draw_image(painter, &image, state.shift, size, Color32::WHITE)
+        if let FlData::Image(data) = data {
+            let image = Image::from_bytes(format!("bytes://{}.png", data.id), data.value.clone());
+
+            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale as f32;
+            draw_image(painter, &image, state.shift, size, Color32::WHITE)
+        } else {
+            Err(anyhow::anyhow!(
+                "mismatched data type expected FlData::Image"
+            ))
+        }
     }
 
-    fn config_panel(&self, ui: &mut Ui) {
+    fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlImage");
-    }
-
-    fn size(&self) -> Vec2 {
-        Vec2::new(self.content.width as f32, self.content.height as f32)
     }
 }
 
@@ -189,12 +185,12 @@ impl Default for FlTensor2DRenderContext {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTensor2DRender {
-    content: Arc<FlTensor2D<f64>>,
+    content: FlDataReference,
     context: Arc<Mutex<FlTensor2DRenderContext>>,
 }
 
 impl FlTensor2DRender {
-    pub fn new(content: Arc<FlTensor2D<f64>>) -> Self {
+    pub fn new(content: FlDataReference) -> Self {
         Self {
             content,
             context: Arc::new(Mutex::new(FlTensor2DRenderContext::default())),
@@ -204,102 +200,108 @@ impl FlTensor2DRender {
 
 impl DataRenderable for FlTensor2DRender {
     fn id(&self) -> Id {
-        Id::new("fl_tensor2d").with(self.content.id)
+        Id::new("fl_tensor2d").with(&self.content)
     }
 
     fn render(
         &self,
         _ui: &mut Ui,
+        bag: &Bag,
         painter: &mut Painter,
         state: &VisualizeState,
-
-        size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
-        let id = Id::new(self.content.id);
-        let image = painter.ctx().memory_mut(|mem| {
-            let cache = mem.caches.cache::<VisualizedImageCache>();
-            if let Some(image) = cache.get(id) {
-                if let Poll::Ready(image) = image {
-                    Some(image)
+        let data = bag.data_by_reference(&self.content)?;
+        if let FlData::Tensor(data) = data {
+            let id = Id::new(data.id);
+            let image = painter.ctx().memory_mut(|mem| {
+                let cache = mem.caches.cache::<VisualizedImageCache>();
+                if let Some(image) = cache.get(id) {
+                    if let Poll::Ready(image) = image {
+                        Some(image)
+                    } else {
+                        None
+                    }
                 } else {
+                    let ctx = painter.ctx().clone();
+                    let content = data.clone();
+                    std::thread::spawn(move || {
+                        let cm = scarlet::colormap::ListedColorMap::viridis();
+                        let max = content
+                            .value
+                            .iter()
+                            .copied()
+                            .max_by_key(|t| UnwrapOrd(*t))
+                            .unwrap();
+                        let min = content
+                            .value
+                            .iter()
+                            .copied()
+                            .min_by_key(|t| UnwrapOrd(*t))
+                            .unwrap();
+                        let normalize = move |v| (v - min) / (max - min);
+                        let transformed: Vec<RGBColor> =
+                            cm.transform(content.value.iter().map(|v| normalize(*v)));
+                        let pixels: Vec<u8> = transformed
+                            .into_iter()
+                            .flat_map(|c| [c.int_r(), c.int_g(), c.int_b()])
+                            .collect();
+                        let image_buffer: ImageBuffer<Rgb<u8>, _> = ImageBuffer::from_vec(
+                            content.value.shape()[1] as u32,
+                            content.value.shape()[0] as u32,
+                            pixels,
+                        )
+                        .unwrap();
+                        let image = DynamicImage::ImageRgb8(image_buffer);
+
+                        let mut image_png_bytes = Vec::new();
+                        let mut cursor = Cursor::new(&mut image_png_bytes);
+                        image
+                            .write_to(&mut cursor, image::ImageOutputFormat::Png)
+                            .unwrap();
+                        ctx.memory_mut(|mem| {
+                            let cache = mem.caches.cache::<VisualizedImageCache>();
+                            cache.insert(
+                                id,
+                                FlImage::new(
+                                    image_png_bytes,
+                                    image.width() as usize,
+                                    image.height() as usize,
+                                ),
+                            )
+                        })
+                    });
+                    cache.insert_pending(id);
                     None
                 }
-            } else {
-                let ctx = painter.ctx().clone();
-                let content = self.content.clone();
-                std::thread::spawn(move || {
-                    let cm = scarlet::colormap::ListedColorMap::viridis();
-                    let max = content
-                        .value
-                        .iter()
-                        .copied()
-                        .max_by_key(|t| UnwrapOrd(*t))
-                        .unwrap();
-                    let min = content
-                        .value
-                        .iter()
-                        .copied()
-                        .min_by_key(|t| UnwrapOrd(*t))
-                        .unwrap();
-                    let normalize = move |v| (v - min) / (max - min);
-                    let transformed: Vec<RGBColor> =
-                        cm.transform(content.value.iter().map(|v| normalize(*v)));
-                    let pixels: Vec<u8> = transformed
-                        .into_iter()
-                        .flat_map(|c| [c.int_r(), c.int_g(), c.int_b()])
-                        .collect();
-                    let image_buffer: ImageBuffer<Rgb<u8>, _> = ImageBuffer::from_vec(
-                        content.value.shape()[1] as u32,
-                        content.value.shape()[0] as u32,
-                        pixels,
-                    )
-                    .unwrap();
-                    let image = DynamicImage::ImageRgb8(image_buffer);
+            });
 
-                    let mut image_png_bytes = Vec::new();
-                    let mut cursor = Cursor::new(&mut image_png_bytes);
-                    image
-                        .write_to(&mut cursor, image::ImageOutputFormat::Png)
-                        .unwrap();
-                    ctx.memory_mut(|mem| {
-                        let cache = mem.caches.cache::<VisualizedImageCache>();
-                        cache.insert(
-                            id,
-                            FlImage::new(
-                                image_png_bytes,
-                                image.width() as usize,
-                                image.height() as usize,
-                            ),
-                        )
-                    })
-                });
-                cache.insert_pending(id);
-                None
+            if let Some(image) = image {
+                let image =
+                    Image::from_bytes(format!("bytes://{}.png", data.id), image.value.clone());
+
+                let transparency = (self.context.lock().unwrap().transparency * 255.0) as u8;
+                let tint_color = Color32::from_rgba_premultiplied(
+                    transparency,
+                    transparency,
+                    transparency,
+                    transparency,
+                );
+
+                let size = Vec2::new(data.value.shape()[1] as f32, data.value.shape()[0] as f32)
+                    * state.scale as f32;
+                draw_image(painter, &image, state.shift, size, tint_color)?;
             }
-        });
 
-        if let Some(image) = image {
-            let image = Image::from_bytes(
-                format!("bytes://{}.png", self.content.id),
-                image.value.clone(),
-            );
-
-            let transparency = (self.context.lock().unwrap().transparency * 255.0) as u8;
-            let tint_color = Color32::from_rgba_premultiplied(
-                transparency,
-                transparency,
-                transparency,
-                transparency,
-            );
-
-            draw_image(painter, &image, state.shift, size, tint_color)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(
+                "mismatched data type expected FlData::Tensor"
+            ))
         }
-
-        Ok(())
     }
 
-    fn config_panel(&self, ui: &mut Ui) {
+    fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlTensor2D");
         CollapsingHeader::new("Config").show(ui, |ui| {
             let mut render_context = self.context.lock().unwrap();
@@ -308,13 +310,6 @@ impl DataRenderable for FlTensor2DRender {
                 Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
             });
         });
-    }
-
-    fn size(&self) -> Vec2 {
-        Vec2::new(
-            self.content.value.shape()[1] as f32,
-            self.content.value.shape()[0] as f32,
-        )
     }
 }
 
@@ -355,21 +350,19 @@ impl DataRenderable for FlDataFrameViewRender {
     fn render(
         &self,
         ui: &mut Ui,
+        bag: &Bag,
         painter: &mut Painter,
         state: &VisualizeState,
-        _size: Vec2,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
-        if let DataFramePoll::Ready(computed_dataframe) =
-            self.dataframe_view.table.computed_dataframe(ui)
+        if let Some(DataFramePoll::Ready(computed_dataframe)) =
+            self.dataframe_view.table.computed_dataframe(ui, bag)
         {
-            let special_column = self
-                .dataframe_view
-                .table
-                .dataframe
+            let dataframe = self.dataframe_view.table.dataframe(bag)?;
+            let special_column = dataframe
                 .special_columns
                 .get(&self.column)
-                .context("special column not found")?;
+                .with_context(|| format!("special column not found: {}", self.column))?;
             let target_series = computed_dataframe
                 .column(self.column.as_str())
                 .unwrap()
@@ -388,17 +381,23 @@ impl DataRenderable for FlDataFrameViewRender {
                 .map(|v| v.extract::<u32>().unwrap() as u64)
                 .collect_vec();
             let highlight = {
-                let state = self.dataframe_view.table.state.lock().unwrap();
-                let highlight = &state.highlight;
-                computed_dataframe
-                    .column("__FleximRowId")
-                    .unwrap()
-                    .iter()
-                    .map(|v| {
-                        let index = v.extract::<u32>().unwrap() as u64;
-                        highlight.contains(&index)
-                    })
-                    .collect_vec()
+                if let Some(state) = self.dataframe_view.table.state(ui, bag) {
+                    let state = state.lock().unwrap();
+                    let highlight = &state.highlight;
+                    Some(
+                        computed_dataframe
+                            .column("__FleximRowId")
+                            .unwrap()
+                            .iter()
+                            .map(|v| {
+                                let index = v.extract::<u32>().unwrap() as u64;
+                                highlight.contains(&index)
+                            })
+                            .collect_vec(),
+                    )
+                } else {
+                    None
+                }
             };
             let shapes: anyhow::Result<Vec<Box<dyn SpecialColumnShape>>> = target_series
                 .iter()
@@ -445,14 +444,19 @@ impl DataRenderable for FlDataFrameViewRender {
                     color_array[2],
                     color_array[3],
                 );
-                let thickness = if highlight[i] {
+                let thickness = if highlight.as_ref().map_or(false, |h| h[i]) {
                     self.render_context.lock().unwrap().highlight_thickness
                 } else {
                     self.render_context.lock().unwrap().normal_thickness
                 } as f32;
                 let responses = shape.render(ui, painter, color, thickness, label, state);
 
-                let mut state = self.dataframe_view.table.state.lock().unwrap();
+                let g = self
+                    .dataframe_view
+                    .table
+                    .state(ui, bag)
+                    .context("state not initialized")?;
+                let mut state = g.lock().unwrap();
                 let mut any_hovered = false;
                 for r in responses {
                     if r.hovered() {
@@ -472,7 +476,12 @@ impl DataRenderable for FlDataFrameViewRender {
                     hovered_index = Some(indices[i]);
                 }
             }
-            let mut state = self.dataframe_view.table.state.lock().unwrap();
+            let g = self
+                .dataframe_view
+                .table
+                .state(ui, bag)
+                .context("state not initialized")?;
+            let mut state = g.lock().unwrap();
             if let Some(hi) = hovered_index {
                 state.selected.replace(hi);
             } else {
@@ -485,13 +494,14 @@ impl DataRenderable for FlDataFrameViewRender {
         }
     }
 
-    fn config_panel(&self, ui: &mut Ui) {
+    fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
         ui.label("FlDataFrameView");
         CollapsingHeader::new("Config").show(ui, |ui| {
             let mut render_context = self.render_context.lock().unwrap();
             ui.horizontal(|ui| {
                 ui.label("Color Scatter Column");
-                let columns = self.dataframe_view.table.dataframe.value.get_column_names();
+                let dataframe = self.dataframe_view.table.dataframe(bag).unwrap();
+                let columns = dataframe.value.get_column_names();
                 let columns = columns
                     .into_iter()
                     .filter(|c| c != &self.column)
@@ -511,7 +521,8 @@ impl DataRenderable for FlDataFrameViewRender {
             });
             ui.horizontal(|ui| {
                 ui.label("Label Column");
-                let columns = self.dataframe_view.table.dataframe.value.get_column_names();
+                let dataframe = self.dataframe_view.table.dataframe(bag).unwrap();
+                let columns = dataframe.value.get_column_names();
                 let columns = columns
                     .into_iter()
                     .filter(|c| c != &self.column)
@@ -543,10 +554,6 @@ impl DataRenderable for FlDataFrameViewRender {
             });
         });
     }
-
-    fn size(&self) -> Vec2 {
-        self.dataframe_view.size
-    }
 }
 
 impl FlDataFrameViewRender {
@@ -564,16 +571,15 @@ impl FlDataFrameViewRender {
 
 pub fn visualize(
     ui: &mut Ui,
+    bag: &Bag,
     visualize_state: &mut VisualizeState,
     _name: &str,
     render: &DataRender,
 ) -> Response {
     ui.centered_and_justified(|ui| {
-        let size = render.size();
-        let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         render
-            .render(ui, &mut painter, visualize_state, size)
+            .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
 
         if response.dragged() {
@@ -588,21 +594,20 @@ pub fn visualize(
 
 pub fn stack_visualize(
     ui: &mut Ui,
+    bag: &Bag,
     visualize_state: &mut VisualizeState,
     stack: &Vec<Arc<DataRender>>,
 ) -> Response {
     assert_ne!(stack.len(), 0);
     ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
-        let size = stack_top.size();
-        let size = size * visualize_state.scale as f32;
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         stack_top
-            .render(ui, &mut painter, visualize_state, size)
+            .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
         for (_i, render) in stack.iter().enumerate().skip(1) {
             render
-                .render(ui, &mut painter, visualize_state, size)
+                .render(ui, bag, &mut painter, visualize_state)
                 .unwrap();
         }
 

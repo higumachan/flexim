@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 use chrono::{DateTime, Utc};
-use flexim_data_type::FlData;
+use flexim_data_type::{FlData, FlDataReference, GenerationSelector};
 use rand::random;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
@@ -30,6 +30,16 @@ pub struct ManagedData {
     pub data: FlData,
 }
 
+impl From<ManagedData> for FlDataReference {
+    fn from(value: ManagedData) -> Self {
+        Self::new(
+            value.name,
+            GenerationSelector::Generation(value.generation),
+            value.data.data_type(),
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct Bag {
     pub id: BagId,
@@ -50,6 +60,26 @@ impl Bag {
             data_groups.sort_by_key(|data| data.generation);
         }
         data_groups
+    }
+
+    pub fn data_by_reference(&self, reference: &FlDataReference) -> anyhow::Result<FlData> {
+        let mut name_filtered = self
+            .data_list
+            .iter()
+            .filter(|data| data.name == reference.name);
+
+        Ok((match reference.generation {
+            GenerationSelector::Latest => {
+                let data = name_filtered.max_by_key(|data| data.generation);
+                data.context("data not found")
+            }
+            GenerationSelector::Generation(generation) => {
+                let data = name_filtered.find(|data| data.generation == generation);
+                data.context("data not found")
+            }
+        })?
+        .data
+        .clone())
     }
 }
 

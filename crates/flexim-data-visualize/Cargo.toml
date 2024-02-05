@@ -9,6 +9,7 @@ edition = "2021"
 flexim-data-type.workspace = true
 flexim-data-view.workspace = true
 flexim-table-widget.workspace = true
+flexim-storage.workspace = true
 egui.workspace = true
 egui_tiles.workspace = true
 scarlet.workspace = true

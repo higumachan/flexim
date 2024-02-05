@@ -1,26 +1,25 @@
-use egui::Vec2;
-use flexim_data_type::{FlData, FlDataFrame};
+
+use flexim_data_type::{FlData, FlDataReference};
 use flexim_table_widget::FlTable;
+
 
 use rand::random;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+
 
 pub type Id = u64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameView {
     pub id: Id,
-    pub size: Vec2,
     pub table: FlTable,
 }
 
 impl FlDataFrameView {
-    pub fn new(dataframe: Arc<FlDataFrame>, size: Vec2) -> Self {
+    pub fn new(data_reference: FlDataReference) -> Self {
         Self {
             id: gen_id(),
-            size,
-            table: FlTable::new(dataframe),
+            table: FlTable::new(data_reference),
         }
     }
 }
