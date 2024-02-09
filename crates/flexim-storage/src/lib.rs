@@ -2,6 +2,7 @@ use anyhow::Context as _;
 use chrono::{DateTime, Utc};
 use flexim_data_type::{FlData, FlDataReference, GenerationSelector};
 use rand::random;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
 
@@ -10,7 +11,7 @@ pub trait StorageQuery {
     fn get_bag(&self, bag_id: BagId) -> anyhow::Result<Arc<RwLock<Bag>>>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BagId(u64);
 
 impl BagId {
@@ -23,7 +24,7 @@ impl BagId {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManagedData {
     pub generation: u64,
     pub name: String,
@@ -40,7 +41,7 @@ impl From<ManagedData> for FlDataReference {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Bag {
     pub id: BagId,
     pub name: String,
@@ -91,6 +92,17 @@ pub struct Storage {
 type BagGroups = BTreeMap<String, Vec<Arc<RwLock<Bag>>>>;
 
 impl Storage {
+    pub fn load_bag(&self, bag: Bag) -> bool {
+        let bag = Arc::new(RwLock::new(bag));
+        let mut bags = self.bags.write().unwrap();
+        let id = bag.read().unwrap().id;
+        if bags.contains_key(&id) {
+            return false;
+        }
+        let _ = bags.insert(id, bag);
+        true
+    }
+
     pub fn create_bag(&self, name: String) -> BagId {
         log::info!("create_bag: name={}", name);
         let id = BagId::new(gen_id());

@@ -13,7 +13,7 @@ use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_storage::{Bag, StorageQuery};
 use itertools::Itertools;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 
 pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
@@ -62,7 +62,25 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
         .enable_scrolling(true)
         .show(ui, |ui| {
             ui.set_width(width);
-            ui.label("Data Bag");
+            left_and_right_layout(
+                ui,
+                app,
+                |_app, ui| {
+                    ui.label("Data Bag");
+                },
+                |app, ui| {
+                    if ui.button("📲").clicked() {
+                        if let Some(file_path) = rfd::FileDialog::new().pick_file() {
+                            let buf_reader =
+                                std::io::BufReader::new(std::fs::File::open(file_path).unwrap());
+                            let bag: Bag = bincode::deserialize_from(buf_reader).unwrap();
+                            if !app.storage.load_bag(bag) {
+                                log::error!("bag already exists");
+                            }
+                        }
+                    }
+                },
+            );
             let bag_groups = app.storage.bag_groups().unwrap();
             for (bag_name, bag_group) in bag_groups {
                 if bag_group.len() > 1 {
@@ -99,6 +117,14 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                         |app, ui| {
                             if ui.button("+").clicked() {
                                 app.replace_bag_id = Some(bag.id);
+                            }
+                            if ui.button("💾").clicked() {
+                                if let Some(file_path) = rfd::FileDialog::new().save_file() {
+                                    let mut buf_writer = std::io::BufWriter::new(
+                                        std::fs::File::create(file_path).unwrap(),
+                                    );
+                                    bincode::serialize_into(&mut buf_writer, bag.deref()).unwrap();
+                                }
                             }
                         },
                     )

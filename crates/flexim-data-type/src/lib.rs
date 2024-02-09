@@ -23,7 +23,7 @@ pub enum FlDataType {
     DataFrame,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FlData {
     Image(Arc<FlImage>),
     Tensor(Arc<FlTensor2D<f64>>),
