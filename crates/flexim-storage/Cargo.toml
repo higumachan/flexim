@@ -11,3 +11,4 @@ chrono.workspace = true
 anyhow.workspace = true
 rand.workspace = true
 log.workspace = true
+serde.workspace = true
