@@ -4,7 +4,7 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, ComboBox, Id, Label, Sense, Slider, Ui, Widget};
+use egui::{Align, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataReference};
 use itertools::Itertools;
@@ -100,13 +100,22 @@ impl FlTable {
         });
 
         if let DataFramePoll::Ready(dataframe) = dataframe {
+            let mut state = state.lock().unwrap();
+            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                ui.label(format!(
+                    "{} rows",
+                    self.dataframe(bag).unwrap().value.height()
+                ));
+                ui.label(format!("{} filtered rows", dataframe.height()));
+                ui.label(format!("{} selected rows", state.highlight.len()));
+            });
+
             let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
             builder = builder.column(Column::auto().clip(true).resizable(true));
             for _col in &columns {
                 builder = builder.column(Column::auto().clip(true).resizable(true));
             }
-            let mut state = state.lock().unwrap();
             let selected = &mut state.selected;
             let builder = if let Some(selected) = selected {
                 log::info!("selected: {}", *selected);
