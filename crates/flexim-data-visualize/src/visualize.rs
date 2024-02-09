@@ -22,7 +22,6 @@ use anyhow::Context as _;
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
-
 use flexim_storage::Bag;
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
@@ -449,7 +448,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 } else {
                     self.render_context.lock().unwrap().normal_thickness
                 } as f32;
-                let responses = shape.render(ui, painter, color, thickness, label, state);
+                let response = shape.render(ui, painter, color, thickness, label, state);
 
                 let g = self
                     .dataframe_view
@@ -457,11 +456,11 @@ impl DataRenderable for FlDataFrameViewRender {
                     .state(ui, bag)
                     .context("state not initialized")?;
                 let mut state = g.lock().unwrap();
-                let mut any_hovered = false;
-                for r in responses {
+                if let Some(r) = response {
                     if r.hovered() {
-                        any_hovered = true;
+                        hovered_index = Some(indices[i]);
                     }
+
                     if r.clicked() {
                         let highlight = &mut state.highlight;
                         let index = indices[i];
@@ -471,9 +470,14 @@ impl DataRenderable for FlDataFrameViewRender {
                             highlight.insert(index);
                         }
                     }
-                }
-                if any_hovered {
-                    hovered_index = Some(indices[i]);
+                    r.on_hover_ui_at_pointer(|ui| {
+                        ui.label(format!("index: {}", indices[i]));
+                        let dataframe = &self.dataframe_view.table.dataframe(bag).unwrap().value;
+                        let row = dataframe.get_row(indices[i] as usize).unwrap();
+                        for (c, v) in dataframe.get_column_names().iter().zip(row.0.iter()) {
+                            ui.label(format!("{}: {}", c, v.to_string()));
+                        }
+                    });
                 }
             }
             let g = self

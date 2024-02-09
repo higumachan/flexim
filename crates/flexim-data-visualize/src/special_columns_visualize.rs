@@ -13,7 +13,7 @@ pub trait SpecialColumnShape {
         thickness: f32,
         label: Option<&str>,
         state: &VisualizeState,
-    ) -> Vec<Response>;
+    ) -> Option<Response>;
 }
 
 impl SpecialColumnShape for FlDataFrameRectangle {
@@ -25,7 +25,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         thickness: f32,
         label: Option<&str>,
         state: &VisualizeState,
-    ) -> Vec<Response> {
+    ) -> Option<Response> {
         let rect = Rect::from_min_max(
             painter.clip_rect().min
                 + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale as f32 + state.shift),
@@ -84,7 +84,8 @@ impl SpecialColumnShape for FlDataFrameRectangle {
             responses.push(ui.allocate_rect(text_rect, Sense::click()));
         }
 
-        responses
+        let last = responses.pop()?;
+        Some(responses.into_iter().fold(last, |acc, r| acc.union(r)))
     }
 }
 
@@ -97,7 +98,7 @@ impl SpecialColumnShape for FlDataFrameSegment {
         thickness: f32,
         _label: Option<&str>,
         state: &VisualizeState,
-    ) -> Vec<Response> {
+    ) -> Option<Response> {
         let segmment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale as f32
             + state.shift
             + painter.clip_rect().min.to_vec2();
@@ -105,6 +106,6 @@ impl SpecialColumnShape for FlDataFrameSegment {
             + state.shift
             + painter.clip_rect().min.to_vec2();
         painter.line_segment([segmment_p1, segmment_p2], Stroke::new(thickness, color));
-        vec![]
+        None
     }
 }
