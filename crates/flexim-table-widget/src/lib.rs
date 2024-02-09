@@ -4,7 +4,7 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, ComboBox, Id, Sense, Slider, Ui};
+use egui::{Align, ComboBox, Id, Label, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataReference};
 use itertools::Itertools;
@@ -119,7 +119,7 @@ impl FlTable {
                 .header(80.0, |mut header| {
                     for col in &columns {
                         header.col(|ui| {
-                            ui.heading(col.to_string());
+                            Label::new(col.to_string()).truncate(true).ui(ui);
                             let filter = state.filters.get_mut(&col.to_string()).unwrap();
                             filter.draw(Id::new(self.id).with(col), ui);
                         });
