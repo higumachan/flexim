@@ -118,7 +118,7 @@ impl FlTable {
             }
             let selected = &mut state.selected;
             let builder = if let Some(selected) = selected {
-                log::info!("selected: {}", *selected);
+                log::trace!("selected: {}", *selected);
                 builder.scroll_to_row(*selected as usize, Some(Align::Center))
             } else {
                 builder
