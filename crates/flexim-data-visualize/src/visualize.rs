@@ -9,7 +9,7 @@ use egui::{
 
 use flexim_data_type::{
     FlData, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlDataReference,
-    FlImage,
+    FlImage, FlShapeConvertError,
 };
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
@@ -379,6 +379,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 .iter()
                 .map(|v| v.extract::<u32>().unwrap() as u64)
                 .collect_vec();
+
             let highlight = {
                 if let Some(state) = self.dataframe_view.table.state(ui, bag) {
                     let state = state.lock().unwrap();
@@ -398,17 +399,26 @@ impl DataRenderable for FlDataFrameViewRender {
                     None
                 }
             };
-            let shapes: anyhow::Result<Vec<Box<dyn SpecialColumnShape>>> = target_series
-                .iter()
-                .map(|x| match special_column {
-                    FlDataFrameSpecialColumn::Rectangle => {
-                        FlDataFrameRectangle::try_from(x.clone())
-                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
-                    }
-                    FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
-                        .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
-                })
-                .collect();
+            let shapes: Result<Vec<Option<Box<dyn SpecialColumnShape>>>, FlShapeConvertError> =
+                target_series
+                    .iter()
+                    .map(|x| match special_column {
+                        FlDataFrameSpecialColumn::Rectangle => {
+                            FlDataFrameRectangle::try_from(x.clone())
+                                .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                        }
+                        FlDataFrameSpecialColumn::Segment => {
+                            FlDataFrameSegment::try_from(x.clone())
+                                .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                        }
+                    })
+                    .map(|x| {
+                        x.map(Some).or_else(|e| match e {
+                            FlShapeConvertError::NullValue => Ok(None),
+                            _ => Err(e),
+                        })
+                    })
+                    .collect();
             let shapes = shapes?;
             let colors =
                 color_series.map(|color_series| color_series.iter().map(pallet).collect_vec());
@@ -423,7 +433,11 @@ impl DataRenderable for FlDataFrameViewRender {
                 .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
             let mut hovered_index = None;
-            for (i, shape) in shapes.iter().enumerate() {
+            for (i, shape) in shapes
+                .iter()
+                .enumerate()
+                .filter_map(|(i, x)| Some((i, x.as_ref()?)))
+            {
                 let color = if let Some(colors) = &colors {
                     colors[i]
                 } else {
@@ -475,7 +489,7 @@ impl DataRenderable for FlDataFrameViewRender {
                         let dataframe = &self.dataframe_view.table.dataframe(bag).unwrap().value;
                         let row = dataframe.get_row(indices[i] as usize).unwrap();
                         for (c, v) in dataframe.get_column_names().iter().zip(row.0.iter()) {
-                            ui.label(format!("{}: {}", c, v.to_string()));
+                            ui.label(format!("{}: {}", c, v));
                         }
                     });
                 }

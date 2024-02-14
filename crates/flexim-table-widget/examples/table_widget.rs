@@ -43,11 +43,8 @@ fn main() {
     let data = Vec::from(include_bytes!("../assets/input.csv"));
     let data = Cursor::new(data);
     let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
-    dbg!(&df);
 
     let df = df.apply("Face", read_rectangle).unwrap().clone();
-
-    dbg!(&df);
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
