@@ -332,7 +332,8 @@ fn main() -> Result<(), eframe::Error> {
         });
     }
 
-    let bag_id = storage.create_bag("test2".to_string());
+    let _ = storage.create_bag("test2test2test2test2test2".to_string());
+    let bag_id = storage.create_bag("test2test2test2test2test2".to_string());
     storage
         .insert_data(
             bag_id,
@@ -454,16 +455,16 @@ fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     }
 }
 
-fn left_and_right_layout<Ctx, R>(
+fn left_and_right_layout<Ctx, LR, RR>(
     ui: &mut Ui,
     ctx: &mut Ctx,
-    left_content: impl FnOnce(&mut Ctx, &mut Ui) -> R,
-    right_content: impl FnOnce(&mut Ctx, &mut Ui) -> R,
+    left_content: impl FnOnce(&mut Ctx, &mut Ui) -> LR,
+    right_content: impl FnOnce(&mut Ctx, &mut Ui) -> RR,
 ) {
-    ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-        left_content(ctx, ui);
-        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-            right_content(ctx, ui)
+    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+        right_content(ctx, ui);
+        ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+            left_content(ctx, ui);
         });
     });
 }

@@ -3,9 +3,12 @@ use crate::{
     insert_root_tile, left_and_right_layout, left_and_right_layout_dummy, App, FlLayout, Managed,
 };
 use chrono::Local;
+use egui::collapsing_header::CollapsingState;
 use egui::menu::menu_image_button;
+use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    global_dark_light_mode_switch, CollapsingHeader, Id, Image, ImageButton, ScrollArea, Ui, Vec2,
+    global_dark_light_mode_switch, CollapsingHeader, FontId, Id, Image, ImageButton, Label,
+    Response, ScrollArea, TextFormat, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
 use flexim_data_type::FlDataReference;
@@ -84,7 +87,19 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
             let bag_groups = app.storage.bag_groups().unwrap();
             for (bag_name, bag_group) in bag_groups {
                 if bag_group.len() > 1 {
-                    CollapsingHeader::new(&bag_name).show(ui, |ui| {
+                    let id = ui.make_persistent_id(Id::new("left_panel_bag_group").with(&bag_name));
+                    let mut should_toggle = false;
+                    egui::collapsing_header::CollapsingState::load_with_default_open(
+                        ui.ctx(),
+                        id,
+                        false,
+                    )
+                    .show_header(ui, |ui| {
+                        if list_item_label(ui, bag_name.as_str()).clicked() {
+                            should_toggle = true
+                        }
+                    })
+                    .body(|ui| {
                         for bag in bag_group {
                             let bag = bag.read().unwrap();
                             left_and_right_layout(
@@ -112,7 +127,7 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                         ui,
                         app,
                         |_app, ui| {
-                            ui.label(&bag.name);
+                            Label::new(bag_name).truncate(true).ui(ui);
                         },
                         |app, ui| {
                             if ui.button("+").clicked() {
@@ -194,7 +209,7 @@ fn data_list_content_view(
         ui,
         app,
         |_app, ui| {
-            ui.label(display_label);
+            list_item_label(ui, display_label);
         },
         |app, ui| {
             if data.is_visualizable() || data.data_view_creatable() {
@@ -232,44 +247,48 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
             ui.set_width(width);
             ui.label("Data View");
             for m in &data_views {
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |app, ui| {
-                        CollapsingHeader::new(&m.name)
-                            .id_source(m.tile_id)
-                            .show(ui, |ui| {
-                                for attr in m.data.visualizeable_attributes(bag) {
-                                    left_and_right_layout_dummy(
-                                        ui,
-                                        app,
-                                        |_app, ui| {
-                                            ui.label(attr.to_string());
-                                        },
-                                        |app, ui| {
-                                            if ui.button("+").clicked() {
-                                                let render = m.data.create_visualize(attr.clone());
-                                                insert_root_tile(
-                                                    &mut app.tree,
-                                                    format!("{} {}", m.name, attr).as_str(),
-                                                    PaneContent::Visualize(render),
-                                                );
-                                            }
-                                        },
+                CollapsingState::load_with_default_open(
+                    ui.ctx(),
+                    Id::new("left_panel_data_view_list").with(&m.name),
+                    true,
+                )
+                .show_header(ui, |ui| {
+                    left_and_right_layout(
+                        ui,
+                        app,
+                        |_ctx, ui| {
+                            list_item_label(ui, &m.name);
+                        },
+                        |app, ui| {
+                            let tile_visible = app.tree.tiles.is_visible(m.tile_id);
+                            if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
+                                app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                            }
+                            if ui.button("➖").clicked() {
+                                app.removing_tiles.push(m.tile_id);
+                            }
+                        },
+                    )
+                })
+                .body(|ui| {
+                    for attr in m.data.visualizeable_attributes(bag) {
+                        left_and_right_layout(
+                            ui,
+                            app,
+                            |_app, ui| list_item_label(ui, attr.as_str()),
+                            |app, ui| {
+                                if ui.button("+").clicked() {
+                                    let render = m.data.create_visualize(attr.clone());
+                                    insert_root_tile(
+                                        &mut app.tree,
+                                        format!("{} {}", attr, m.name).as_str(),
+                                        PaneContent::Visualize(render),
                                     );
                                 }
-                            });
-                    },
-                    |app, ui| {
-                        let tile_visible = app.tree.tiles.is_visible(m.tile_id);
-                        if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
-                            app.tree.tiles.set_visible(m.tile_id, !tile_visible);
-                        }
-                        if ui.button("➖").clicked() {
-                            app.removing_tiles.push(m.tile_id);
-                        }
-                    },
-                );
+                            },
+                        );
+                    }
+                });
             }
         });
 }
@@ -303,7 +322,7 @@ fn visualize_list_view(app: &mut App, ui: &mut Ui) {
                     ui,
                     app,
                     |_app, ui| {
-                        ui.label(m.name);
+                        list_item_label(ui, &m.name);
                     },
                     |app, ui| {
                         let tile_visible = app.tree.tiles.is_visible(m.tile_id);
@@ -349,7 +368,7 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
                     ui,
                     &mut app.tree,
                     |_app, ui| {
-                        ui.label(&l.name);
+                        list_item_label(ui, &l.name);
                     },
                     |tree, ui| {
                         if ui.button("📲").clicked() {
@@ -402,4 +421,8 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
                 .remove_temp::<Arc<Mutex<String>>>(Id::new("layout save dialog layout name"));
         }
     });
+}
+
+fn list_item_label(ui: &mut Ui, name: &str) -> Response {
+    Label::new(name).truncate(true).ui(ui)
 }
