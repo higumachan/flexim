@@ -650,12 +650,14 @@ fn draw_image(
         .load_for_size(painter.ctx(), Vec2::new(512.0, 512.0))
         .context("load image")?
     {
-        TexturePoll::Ready { texture } => painter.image(
-            texture.id,
-            Rect::from_min_size(painter.clip_rect().min + shift, size),
-            Rect::from_min_size(Pos2::ZERO, Vec2::new(1.0, 1.0)),
-            tint_color,
-        ),
+        TexturePoll::Ready { texture } => {
+            painter.image(
+                texture.id,
+                Rect::from_min_size(painter.clip_rect().min + shift, size),
+                Rect::from_min_size(Pos2::ZERO, Vec2::new(1.0, 1.0)),
+                tint_color,
+            );
+        }
         TexturePoll::Pending { .. } => {}
     }
     Ok(())

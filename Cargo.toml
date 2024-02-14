@@ -11,8 +11,6 @@ members = [
     "flexim_py"
 ]
 
-
-
 [workspace.lints.clippy]
 dbg_macro = "deny"
 
@@ -25,12 +23,11 @@ tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
-egui = "0.25.0"
-egui_extras = { version = "0.25.0", features = ["image", "svg"] }
-egui_tiles = "0.6.0"
+egui = "0.26.2"
+egui_extras = { version = "0.26.2", features = ["image", "svg"] }
+egui_tiles = "0.7.2"
 image = { version = "0.24", features = ["png", "jpeg"] }
 ndarray = { version = "0.15.6", features = ["serde"] }
-#polars = { version = "0.35.4", default-features = false, features = ["serde", "dtype-struct", "dtype-categorical", "lazy_regex", "strings", "ipc" ] }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.108"
 bincode = "1.3.3"
@@ -44,7 +41,7 @@ flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
 num-derive = "0.4.1"
 chrono = { version = "0.4.31", features = ["serde"] }
-eframe = "0.25.0"
+eframe = "0.26.2"
 env_logger = "0.10.1"
 scarlet = "1.2.0"
 unwrap-ord = "0.1.2"
@@ -90,3 +87,11 @@ flexim-font.workspace = true
 puffin_http.workspace = true
 puffin.workspace = true
 chrono.workspace = true
+
+
+[package.metadata.packager]
+before-packaging-command = "cargo build --release"
+product-name = "flexim"
+identifier = "com.higumachan.flexim"
+resources = ["Cargo.toml", "src", "crates", "assets/logo.png"]
+icons = ["assets/logo.png"]

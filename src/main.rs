@@ -152,7 +152,7 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                         }
                         if response.hovered() {
                             ui.input(|input| {
-                                state.scale += (input.scroll_delta.y * SCROLL_SPEED) as f64;
+                                state.scale += (input.raw_scroll_delta.y * SCROLL_SPEED) as f64;
                             });
                             state.verify();
                             log::debug!("scale {:?}", state.scale);
