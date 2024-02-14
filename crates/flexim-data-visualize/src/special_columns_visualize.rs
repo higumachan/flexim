@@ -3,8 +3,9 @@ use egui::{
     Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2,
 };
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
+use std::fmt::Debug;
 
-pub trait SpecialColumnShape {
+pub trait SpecialColumnShape: Debug {
     fn render(
         &self,
         ui: &mut Ui,

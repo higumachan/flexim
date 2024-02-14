@@ -11,7 +11,9 @@ members = [
     "flexim_py"
 ]
 
-[lints.clippy]
+
+
+[workspace.lints.clippy]
 dbg_macro = "deny"
 
 [workspace.dependencies]
@@ -22,6 +24,7 @@ tonic-build = "0.10.2"
 tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
+thiserror = { version = "1.0.57", features = [] }
 egui = "0.25.0"
 egui_extras = { version = "0.25.0", features = ["image", "svg"] }
 egui_tiles = "0.6.0"
@@ -40,7 +43,7 @@ flexim-connect = { path = "crates/flexim-connect" }
 flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
 num-derive = "0.4.1"
-chrono = "0.4.31"
+chrono = { version = "0.4.31", features = ["serde"] }
 eframe = "0.25.0"
 env_logger = "0.10.1"
 scarlet = "1.2.0"
@@ -56,6 +59,8 @@ puffin = "0.19.0"
 puffin_http = "0.16.0"
 rfd = "0.13.0"
 
+[lints]
+workspace = true
 
 [dependencies]
 rfd.workspace = true

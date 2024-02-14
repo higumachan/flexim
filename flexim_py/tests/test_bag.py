@@ -19,7 +19,7 @@ test_df = pandas.DataFrame([
 test_df_with_null = pandas.DataFrame([
     {"a": 1, "b": 2, "c": None, "d": None},
     {"a": 3, "b": 4, "c": Rectangle(x1=100.0, y1=50.0, x2=200.0, y2=300.0).model_dump(), "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
-    {"a": 5, "b": 6, "c": Rectangle(x1=400.0, y1=50.0, x2=100.0, y2=500.0).model_dump(), "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
+    {"a": 5, "b": 6, "c": Rectangle(x1=400.0, y1=50.0, x2=500.0, y2=500.0).model_dump(), "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
 ])
 
 

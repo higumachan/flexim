@@ -1,4 +1,4 @@
-use anyhow::{bail, Context};
+use anyhow::{anyhow, Context};
 
 use ndarray::{Array2, Array3};
 
@@ -202,8 +202,16 @@ pub struct FlDataFrameRectangle {
     pub y2: f64,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum FlShapeConvertError {
+    #[error("Null value")]
+    NullValue,
+    #[error("Unhandled error {0}")]
+    UnhandledError(#[from] anyhow::Error),
+}
+
 impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
-    type Error = anyhow::Error;
+    type Error = FlShapeConvertError;
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
         let mut x1 = None;
@@ -212,32 +220,79 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
         let mut y2 = None;
         let mut update_func = |field: &Field, value: AnyValue| {
             if !field.dtype.is_float() {
-                bail!("Expected float field, found {:?}", field.dtype);
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected float field, found {:?}",
+                    field.dtype
+                )));
             }
             match field.name().as_str() {
-                "x1" => x1 = Some(value.try_extract().context("Expected float")?),
-                "y1" => y1 = Some(value.try_extract().context("Expected float")?),
-                "x2" => x2 = Some(value.try_extract().context("Expected float")?),
-                "y2" => y2 = Some(value.try_extract().context("Expected float")?),
-                _ => bail!("Unknown field {:?}", field.name()),
+                "x1" => {
+                    x1 = if !value.is_nested_null() {
+                        Some(Some(value.try_extract().context("Expected float")?))
+                    } else {
+                        Some(None)
+                    }
+                }
+                "y1" => {
+                    y1 = if !value.is_nested_null() {
+                        Some(Some(value.try_extract().context("Expected float")?))
+                    } else {
+                        Some(None)
+                    }
+                }
+                "x2" => {
+                    x2 = if !value.is_nested_null() {
+                        Some(Some(value.try_extract().context("Expected float")?))
+                    } else {
+                        Some(None)
+                    }
+                }
+                "y2" => {
+                    y2 = if !value.is_nested_null() {
+                        Some(Some(value.try_extract().context("Expected float")?))
+                    } else {
+                        Some(None)
+                    }
+                }
+                _ => {
+                    return Err(Self::Error::UnhandledError(anyhow!(
+                        "Unknown field {:?}",
+                        field.name()
+                    )));
+                }
             }
             Ok(())
         };
 
-        let value = value.into_static()?;
+        let value = value.into_static().context("Failed to convert to static")?;
+
         match value {
             AnyValue::StructOwned(s) => {
                 for (field, value) in s.1.iter().zip(s.0) {
                     update_func(field, value)?;
                 }
             }
-            _ => bail!("Expected struct, found {:?}", value),
+            _ => {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected struct, found {:?}",
+                    value
+                )));
+            }
         }
+
         Ok(Self {
-            x1: x1.context("Missing field x1")?,
-            y1: y1.context("Missing field y1")?,
-            x2: x2.context("Missing field x2")?,
-            y2: y2.context("Missing field y2")?,
+            x1: x1
+                .context("Missing field x1")?
+                .ok_or(Self::Error::NullValue)?,
+            y1: y1
+                .context("Missing field y1")?
+                .ok_or(Self::Error::NullValue)?,
+            x2: x2
+                .context("Missing field x2")?
+                .ok_or(Self::Error::NullValue)?,
+            y2: y2
+                .context("Missing field y2")?
+                .ok_or(Self::Error::NullValue)?,
         })
     }
 }
@@ -264,7 +319,7 @@ pub struct FlDataFrameSegment {
 }
 
 impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameSegment {
-    type Error = anyhow::Error;
+    type Error = FlShapeConvertError;
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
         let mut x1 = None;
@@ -273,32 +328,66 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameSegment {
         let mut y2 = None;
         let mut update_func = |field: &Field, value: AnyValue| {
             if !field.dtype.is_float() {
-                bail!("Expected float field, found {:?}", field.dtype);
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected float field, found {:?}",
+                    field.dtype
+                )));
             }
+            let value = if !value.is_nested_null() {
+                Some(Some(value.try_extract().context("Expected float")?))
+            } else {
+                Some(None)
+            };
             match field.name().as_str() {
-                "x1" => x1 = Some(value.try_extract().context("Expected float")?),
-                "y1" => y1 = Some(value.try_extract().context("Expected float")?),
-                "x2" => x2 = Some(value.try_extract().context("Expected float")?),
-                "y2" => y2 = Some(value.try_extract().context("Expected float")?),
-                _ => bail!("Unknown field {:?}", field.name()),
+                "x1" => {
+                    x1 = value;
+                }
+                "y1" => {
+                    y1 = value;
+                }
+                "x2" => {
+                    x2 = value;
+                }
+                "y2" => {
+                    y2 = value;
+                }
+                _ => {
+                    return Err(Self::Error::UnhandledError(anyhow!(
+                        "Unknown field {:?}",
+                        field.name()
+                    )));
+                }
             }
             Ok(())
         };
 
-        let value = value.into_static()?;
+        let value = value.into_static().context("Failed to convert to static")?;
         match value {
             AnyValue::StructOwned(s) => {
                 for (field, value) in s.1.iter().zip(s.0) {
                     update_func(field, value)?;
                 }
             }
-            _ => bail!("Expected struct, found {:?}", value),
+            _ => {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected struct, found {:?}",
+                    value
+                )));
+            }
         }
         Ok(Self {
-            x1: x1.context("Missing field x1")?,
-            y1: y1.context("Missing field y1")?,
-            x2: x2.context("Missing field x2")?,
-            y2: y2.context("Missing field y2")?,
+            x1: x1
+                .context("Missing field x1")?
+                .ok_or(Self::Error::NullValue)?,
+            y1: y1
+                .context("Missing field y1")?
+                .ok_or(Self::Error::NullValue)?,
+            x2: x2
+                .context("Missing field x2")?
+                .ok_or(Self::Error::NullValue)?,
+            y2: y2
+                .context("Missing field y2")?
+                .ok_or(Self::Error::NullValue)?,
         })
     }
 }
