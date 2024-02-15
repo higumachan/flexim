@@ -31,7 +31,7 @@ use unwrap_ord::UnwrapOrd;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
-    pub scale: f64,
+    pub scale: f32,
     pub shift: Vec2,
 }
 
@@ -600,11 +600,6 @@ pub fn visualize(
             .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
 
-        if response.dragged() {
-            visualize_state.shift += response.drag_delta();
-            log::debug!("dragged {:?}", visualize_state.shift);
-        }
-
         response
     })
     .response
@@ -627,11 +622,6 @@ pub fn stack_visualize(
             render
                 .render(ui, bag, &mut painter, visualize_state)
                 .unwrap();
-        }
-
-        if response.dragged() {
-            visualize_state.shift += response.drag_delta();
-            log::debug!("dragged {:?}", visualize_state.shift);
         }
 
         response

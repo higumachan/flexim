@@ -33,7 +33,8 @@ use std::io::Cursor;
 use std::sync::{Arc, RwLock};
 use tonic::transport::Server;
 
-const SCROLL_SPEED: f32 = 0.01;
+const SCROLL_SPEED: f32 = 1.0;
+const ZOOM_SPEED: f32 = 0.1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StackId(u64);
@@ -147,15 +148,17 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                             }
                         };
 
-                        if response.dragged() {
-                            state.shift -= response.drag_delta() / response.rect.size();
-                        }
                         if response.hovered() {
                             ui.input(|input| {
-                                state.scale += (input.raw_scroll_delta.y * SCROLL_SPEED) as f64;
+                                // スクロール関係
+                                {
+                                    let dy = input.raw_scroll_delta.y;
+                                    let dx = input.raw_scroll_delta.x;
+                                    state.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
+                                }
+                                // ズーム関係
+                                state.scale *= input.zoom_delta();
                             });
-                            state.verify();
-                            log::debug!("scale {:?}", state.scale);
                         }
 
                         response
