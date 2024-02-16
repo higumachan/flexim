@@ -126,12 +126,12 @@ def _validate_value(value: Any, special_column: SpecialColumn) -> bool:
 
 def _validate_data(data: ImageData | DataFrameData | Tensor2DData):
     if data.type == "Image":
-        return True
+        return data.image.ndim == 3 and data.image.shape[0] == 3
     elif data.type == "DataFrame":
         special_columns = data.special_columns
         for key, sp_value in special_columns.items():
             return data.dataframe[key].map(lambda value: _validate_value(value, sp_value)).all()
     elif data.type == "Tensor2D":
-        return True
+        return data.tensor.ndim == 2
     else:
         return False
