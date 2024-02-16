@@ -19,9 +19,7 @@ class Client(BaseModel):
     port: int
     channel: Channel | None
 
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True
-    )
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 global_client: Client | None = None
@@ -34,7 +32,6 @@ def init(host: str, port: int):
 
 
 def create_bag(name: str) -> int:
-
     global global_client
 
     stub = connect_pb2_grpc.FleximConnectStub(global_client.channel)
@@ -50,25 +47,28 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
 
     stub = connect_pb2_grpc.FleximConnectStub(global_client.channel)
 
-    data_iter = iter([connect_pb2.AppendDataRequest(
-            meta=connect_pb2.AppendDataRequest.DataMeta(
-                bag_id=bag_id,
-                name=name,
-                data_type=_data_type_to_proto(data),
-                special_columns=_dataframe_special_columns(data) if data.type == "DataFrame" else {},
-            ),
-        )] + [connect_pb2.AppendDataRequest(
-            data_bytes=bytes(list(chunked_data))
-        ) for chunked_data in batched(data_bytes, CHUNK_SIZE)])
-
-    response: connect_pb2.AppendDataResponse = stub.AppendData(
-        data_iter
+    data_iter = iter(
+        [
+            connect_pb2.AppendDataRequest(
+                meta=connect_pb2.AppendDataRequest.DataMeta(
+                    bag_id=bag_id,
+                    name=name,
+                    data_type=_data_type_to_proto(data),
+                    special_columns=_dataframe_special_columns(data) if data.type == "DataFrame" else {},
+                ),
+            )
+        ]
+        + [connect_pb2.AppendDataRequest(data_bytes=bytes(list(chunked_data))) for chunked_data in batched(data_bytes, CHUNK_SIZE)]
     )
+
+    response: connect_pb2.AppendDataResponse = stub.AppendData(data_iter)
 
     print(response)
 
 
-def _data_type_to_proto(data: ImageData | DataFrameData | Tensor2DData) -> connect_pb2.DataType:
+def _data_type_to_proto(
+    data: ImageData | DataFrameData | Tensor2DData,
+) -> connect_pb2.DataType:
     if isinstance(data, ImageData):
         return connect_pb2.DataType.Image
     elif isinstance(data, DataFrameData):
@@ -78,14 +78,16 @@ def _data_type_to_proto(data: ImageData | DataFrameData | Tensor2DData) -> conne
     else:
         raise RuntimeError(f"Unknown data type {type(data)}")
 
-def _dataframe_special_columns(data: DataFrameData) -> dict[str, connect_pb2.AppendDataRequest.DataMeta.SpecialColumn]:
-    return {
-        key: _special_column_to_proto(value)
-        for key, value in data.special_columns.items()
-    }
+
+def _dataframe_special_columns(
+    data: DataFrameData,
+) -> dict[str, connect_pb2.AppendDataRequest.DataMeta.SpecialColumn]:
+    return {key: _special_column_to_proto(value) for key, value in data.special_columns.items()}
 
 
-def _special_column_to_proto(special_column: SpecialColumn) -> connect_pb2.AppendDataRequest.DataMeta.SpecialColumn:
+def _special_column_to_proto(
+    special_column: SpecialColumn,
+) -> connect_pb2.AppendDataRequest.DataMeta.SpecialColumn:
     match special_column:
         case SpecialColumn.Rectangle:
             return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Rectangle

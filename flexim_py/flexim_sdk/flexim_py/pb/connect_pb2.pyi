@@ -2,7 +2,13 @@ from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import (
+    ClassVar as _ClassVar,
+    Iterable as _Iterable,
+    Mapping as _Mapping,
+    Optional as _Optional,
+    Union as _Union,
+)
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -11,6 +17,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Image: _ClassVar[DataType]
     Tensor2D: _ClassVar[DataType]
     DataFrame: _ClassVar[DataType]
+
 Image: DataType
 Tensor2D: DataType
 DataFrame: DataType
@@ -51,7 +58,11 @@ class AppendDataRequest(_message.Message):
             VALUE_FIELD_NUMBER: _ClassVar[int]
             key: str
             value: AppendDataRequest.DataMeta.SpecialColumn
-            def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[AppendDataRequest.DataMeta.SpecialColumn, str]] = ...) -> None: ...
+            def __init__(
+                self,
+                key: _Optional[str] = ...,
+                value: _Optional[_Union[AppendDataRequest.DataMeta.SpecialColumn, str]] = ...,
+            ) -> None: ...
         BAG_ID_FIELD_NUMBER: _ClassVar[int]
         NAME_FIELD_NUMBER: _ClassVar[int]
         DATA_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -60,12 +71,22 @@ class AppendDataRequest(_message.Message):
         name: str
         data_type: DataType
         special_columns: _containers.ScalarMap[str, AppendDataRequest.DataMeta.SpecialColumn]
-        def __init__(self, bag_id: _Optional[int] = ..., name: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., special_columns: _Optional[_Mapping[str, AppendDataRequest.DataMeta.SpecialColumn]] = ...) -> None: ...
+        def __init__(
+            self,
+            bag_id: _Optional[int] = ...,
+            name: _Optional[str] = ...,
+            data_type: _Optional[_Union[DataType, str]] = ...,
+            special_columns: _Optional[_Mapping[str, AppendDataRequest.DataMeta.SpecialColumn]] = ...,
+        ) -> None: ...
     META_FIELD_NUMBER: _ClassVar[int]
     DATA_BYTES_FIELD_NUMBER: _ClassVar[int]
     meta: AppendDataRequest.DataMeta
     data_bytes: bytes
-    def __init__(self, meta: _Optional[_Union[AppendDataRequest.DataMeta, _Mapping]] = ..., data_bytes: _Optional[bytes] = ...) -> None: ...
+    def __init__(
+        self,
+        meta: _Optional[_Union[AppendDataRequest.DataMeta, _Mapping]] = ...,
+        data_bytes: _Optional[bytes] = ...,
+    ) -> None: ...
 
 class AppendDataResponse(_message.Message):
     __slots__ = ("bag_id", "data_id", "data_size")
@@ -75,7 +96,12 @@ class AppendDataResponse(_message.Message):
     bag_id: int
     data_id: int
     data_size: int
-    def __init__(self, bag_id: _Optional[int] = ..., data_id: _Optional[int] = ..., data_size: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        bag_id: _Optional[int] = ...,
+        data_id: _Optional[int] = ...,
+        data_size: _Optional[int] = ...,
+    ) -> None: ...
 
 class ListBagsRequest(_message.Message):
     __slots__ = ()
@@ -93,7 +119,16 @@ class ListBagsResponse(_message.Message):
         name: str
         number_of_data: int
         created_at: str
-        def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., number_of_data: _Optional[int] = ..., created_at: _Optional[str] = ...) -> None: ...
+        def __init__(
+            self,
+            id: _Optional[int] = ...,
+            name: _Optional[str] = ...,
+            number_of_data: _Optional[int] = ...,
+            created_at: _Optional[str] = ...,
+        ) -> None: ...
     BAG_METAS_FIELD_NUMBER: _ClassVar[int]
     bag_metas: _containers.RepeatedCompositeFieldContainer[ListBagsResponse.BagMeta]
-    def __init__(self, bag_metas: _Optional[_Iterable[_Union[ListBagsResponse.BagMeta, _Mapping]]] = ...) -> None: ...
+    def __init__(
+        self,
+        bag_metas: _Optional[_Iterable[_Union[ListBagsResponse.BagMeta, _Mapping]]] = ...,
+    ) -> None: ...

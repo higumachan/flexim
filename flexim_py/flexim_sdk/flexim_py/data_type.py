@@ -28,6 +28,7 @@ class Segment(BaseModel):
     x2: float
     y2: float
 
+
 class ImageData(BaseModel):
     type: Literal["Image"] = "Image"
     image: npt.NDArray[np.uint8]
@@ -58,10 +59,7 @@ class DataFrameData(BaseModel):
 
     @classmethod
     def from_pandas(cls, dataframe: pandas.DataFrame, special_columns: dict[str, SpecialColumn]):
-        return cls(
-            dataframe=dataframe,
-            special_columns=special_columns
-        )
+        return cls(dataframe=dataframe, special_columns=special_columns)
 
     def to_bytes(self) -> bytes:
         sink = BytesIO()
