@@ -29,6 +29,7 @@ dependencies = [
 rye = { dev-dependencies = [
     "pytest>=7.4.4",
     "pip>=24.0",
+    "maturin>=1.4.0",
 ] }
 
 [tool.maturin]

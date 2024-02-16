@@ -1711,9 +1711,12 @@ dependencies = [
 name = "flexim_py"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "ndarray",
  "numpy",
  "polars",
  "pyo3",
+ "serde",
 ]
 
 [[package]]

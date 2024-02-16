@@ -1,6 +1,7 @@
 from enum import Enum
 from io import BytesIO
 from typing import Self, Literal
+from flexim_py import flexim_py
 
 import PIL.Image
 import pyarrow
@@ -75,10 +76,12 @@ class Tensor2DData(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def from_numpy(self, array: npt.NDArray[np.float32]):
-        self.tensor = array
-        assert self.tensor.ndim == 2
+    @classmethod
+    def from_numpy(cls, array: npt.NDArray[np.float32]):
+        return cls(tensor=array)
 
     def to_bytes(self) -> bytes:
         # bytes encoded as C major
-        return self.tensor.tobytes("C")
+        by = flexim_py.tensor2d_to_bytes(self.tensor)
+        print(by[:100])
+        return flexim_py.tensor2d_to_bytes(self.tensor)

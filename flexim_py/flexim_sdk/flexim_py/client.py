@@ -66,9 +66,7 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
         + [connect_pb2.AppendDataRequest(data_bytes=bytes(list(chunked_data))) for chunked_data in batched(data_bytes, CHUNK_SIZE)]
     )
 
-    response: connect_pb2.AppendDataResponse = stub.AppendData(data_iter)
-
-    print(response)
+    _response: connect_pb2.AppendDataResponse = stub.AppendData(data_iter)
 
 
 def _data_type_to_proto(
@@ -126,7 +124,7 @@ def _validate_value(value: Any, special_column: SpecialColumn) -> bool:
 
 def _validate_data(data: ImageData | DataFrameData | Tensor2DData):
     if data.type == "Image":
-        return data.image.ndim == 3 and data.image.shape[0] == 3
+        return data.image.ndim == 3 and (data.image.shape[-1] == 3 or data.image.shape[-1] == 4)
     elif data.type == "DataFrame":
         special_columns = data.special_columns
         for key, sp_value in special_columns.items():

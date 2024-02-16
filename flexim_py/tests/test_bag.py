@@ -1,6 +1,7 @@
 import subprocess
 from io import BytesIO
 
+import numpy as np
 import pandas
 import pyarrow
 import pyarrow.ipc
@@ -14,7 +15,7 @@ from flexim_py.data_type import (
     Rectangle,
     DataFrameData,
     Segment,
-    SpecialColumn,
+    SpecialColumn, Tensor2DData,
 )
 
 test_df = pandas.DataFrame(
@@ -77,6 +78,7 @@ test_df_with_invalid = pandas.DataFrame(
     ]
 )
 
+
 def test_simple_append_data():
     # Create a bag
     init(host="localhost", port=50051)
@@ -131,6 +133,23 @@ def test_append_data_with_invalid_special_column():
             )
 
 
+def test_append_tensor2d_data():
+    init(host="localhost", port=50051)
+    with Bag(name="test_bag_with_tensor2d") as bag:
+        # Append data
+
+        gauss = np.fromfunction(lambda y, x: np.exp(-((x - 256.0) / 100.0) ** 2 - ((y - 256.0) / 100.0) ** 2), (512, 512), dtype=np.float32)
+
+        print(gauss)
+
+        bag.append_data(
+            "python-tensor2d-data",
+            Tensor2DData.from_numpy(
+                gauss
+            ),
+        )
+
+
 def test_dataframe_encode_and_decode():
     df = pandas.DataFrame(
         [
@@ -162,3 +181,5 @@ def test_dataframe_encode_and_decode():
     ret = subprocess.run(["cargo", "run", "--example", "decode"], input=sink.getvalue())
 
     assert ret.returncode == 0
+
+
