@@ -4,6 +4,7 @@ from io import BytesIO
 import pandas
 import pyarrow
 import pyarrow.ipc
+import pytest
 from PIL import Image
 
 from flexim_py.bag import Bag
@@ -58,6 +59,24 @@ test_df_with_null = pandas.DataFrame(
 )
 
 
+test_df_with_invalid = pandas.DataFrame(
+    [
+        {"a": 1, "b": 2, "c": None, "d": None},
+        {
+            "a": 3,
+            "b": 4,
+            "c": {"x": 100, "y": 100},
+            "d": Segment(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump(),
+        },
+        {
+            "a": 5,
+            "b": 6,
+            "c": Rectangle(x1=400.0, y1=50.0, x2=500.0, y2=500.0).model_dump(),
+            "d": {"x": 100, "y": 100},
+        },
+    ]
+)
+
 def test_simple_append_data():
     # Create a bag
     init(host="localhost", port=50051)
@@ -93,6 +112,23 @@ def test_append_data_with_null():
                 },
             ),
         )
+
+
+def test_append_data_with_invalid_special_column():
+    init(host="localhost", port=50051)
+    with Bag(name="test_bag_with_invalid") as bag:
+        # Append data
+        with pytest.raises(ValueError):
+            bag.append_data(
+                "python-table-data",
+                DataFrameData.from_pandas(
+                    test_df_with_invalid,
+                    {
+                        "c": SpecialColumn.Rectangle,
+                        "d": SpecialColumn.Segment,
+                    },
+                ),
+            )
 
 
 def test_dataframe_encode_and_decode():

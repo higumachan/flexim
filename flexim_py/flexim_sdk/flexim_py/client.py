@@ -1,11 +1,12 @@
 import logging
-from typing import Any
+from typing import Any, Type, TypeVar
 
 import grpc
+import pydantic
 from grpc import Channel
 from pydantic import BaseModel, ConfigDict
 
-from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn, Rectangle, Segment
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
 from flexim_py.utility import batched
 
@@ -43,7 +44,11 @@ def create_bag(name: str) -> int:
 def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor2DData):
     global global_client
 
+    if not _validate_data(data):
+        raise ValueError(f"Data is not valid")
+
     data_bytes = data.to_bytes()
+
 
     stub = connect_pb2_grpc.FleximConnectStub(global_client.channel)
 
@@ -95,3 +100,38 @@ def _special_column_to_proto(
             return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Segment
         case _:
             raise RuntimeError(f"Unknown special column {special_column}")
+
+
+def _validate_value_with_type(value: Any, value_type: type[BaseModel]) -> bool:
+    model_validated = True
+    try:
+        value_type.model_validate(value)
+    except pydantic.ValidationError:
+        model_validated = False
+    model_json_validated = True
+    try:
+        value_type.model_validate(value)
+    except pydantic.ValidationError:
+        model_json_validated = False
+    return value is None or isinstance(value, value_type) or model_validated or model_json_validated
+
+
+def _validate_value(value: Any, special_column: SpecialColumn) -> bool:
+    match special_column:
+        case SpecialColumn.Rectangle:
+            return _validate_value_with_type(value, Rectangle)
+        case SpecialColumn.Segment:
+            return _validate_value_with_type(value, Segment)
+
+
+def _validate_data(data: ImageData | DataFrameData | Tensor2DData):
+    if data.type == "Image":
+        return True
+    elif data.type == "DataFrame":
+        special_columns = data.special_columns
+        for key, sp_value in special_columns.items():
+            return data.dataframe[key].map(lambda value: _validate_value(value, sp_value)).all()
+    elif data.type == "Tensor2D":
+        return True
+    else:
+        return False
