@@ -95,6 +95,7 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                 let mut state = ui
                     .memory_mut(|mem| mem.data.get_persisted::<VisualizeState>(id))
                     .unwrap_or_default();
+                let old_state = state.clone();
 
                 let _response = ui
                     .with_layout(Layout::top_down(Align::Min), |ui| {
@@ -148,7 +149,8 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                             }
                         };
 
-                        if response.hovered() {
+                        if let Some(hover_pos) = response.hover_pos() {
+                            let hover_pos = hover_pos - response.rect.min;
                             ui.input(|input| {
                                 // スクロール関係
                                 {
@@ -157,15 +159,26 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                                     state.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
                                 }
                                 // ズーム関係
-                                state.scale *= input.zoom_delta();
+                                {
+                                    // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
+                                    let scale = input.zoom_delta();
+                                    let pos = hover_pos;
+                                    state.scale *= scale;
+                                    state.shift = state.shift * scale
+                                        + egui::vec2(
+                                            -scale * pos.x + pos.x,
+                                            -scale * pos.y + pos.y,
+                                        );
+                                }
                             });
                         }
 
                         response
                     })
                     .inner;
-
-                state.verify();
+                if !state.is_valid() {
+                    state = old_state;
+                }
                 ui.memory_mut(|mem| mem.data.insert_persisted(id, state));
 
                 UiResponse::None
