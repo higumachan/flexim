@@ -43,8 +43,13 @@ impl VisualizeState {
         )
     }
 
-    pub fn verify(&mut self) {
-        self.scale = self.scale.clamp(0.01, 10.0);
+    pub fn is_valid(&self) -> bool {
+        0.0 <= self.scale
+            && self.scale <= 10.0
+            && -100000.0 <= self.shift.x
+            && self.shift.x <= 100000.0
+            && -100000.0 <= self.shift.y
+            && self.shift.y <= 100000.0
     }
 }
 
@@ -288,7 +293,7 @@ impl DataRenderable for FlTensor2DRender {
                 );
 
                 let size = Vec2::new(data.value.shape()[1] as f32, data.value.shape()[0] as f32)
-                    * state.scale as f32;
+                    * state.scale;
                 draw_image(painter, &image, state.shift, size, tint_color)?;
             }
 
