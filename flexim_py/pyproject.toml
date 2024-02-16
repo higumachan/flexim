@@ -28,3 +28,9 @@ dependencies = [
 [tool.maturin]
 python-source = "flexim_sdk"
 module-name = "flexim_py._flexim_lib"
+
+
+[tool.ruff]
+line-length = 150
+indent-width = 4
+target-version = 'py312'
