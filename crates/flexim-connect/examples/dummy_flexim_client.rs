@@ -3,9 +3,8 @@ use flexim_connect::grpc::flexim_connect_client::FleximConnectClient;
 
 use flexim_connect::grpc::{AppendDataRequest, CreateBagRequest, DataType};
 
-
 use tonic::codegen::tokio_stream;
-use tonic::transport::{Endpoint};
+use tonic::transport::Endpoint;
 
 const CHUNK_SIZE: usize = 128 * 1024;
 

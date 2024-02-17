@@ -1,11 +1,8 @@
-
 use flexim_data_type::{FlData, FlDataReference};
 use flexim_table_widget::FlTable;
 
-
 use rand::random;
 use serde::{Deserialize, Serialize};
-
 
 pub type Id = u64;
 
