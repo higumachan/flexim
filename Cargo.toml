@@ -1,7 +1,7 @@
 [package]
 name = "flexim"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,8 +11,13 @@ members = [
     "flexim_py"
 ]
 
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
 [workspace.lints.clippy]
 dbg_macro = "deny"
+
 
 [workspace.dependencies]
 tracing = { version = "0.1.40" }

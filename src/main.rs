@@ -34,7 +34,7 @@ use std::sync::{Arc, RwLock};
 use tonic::transport::Server;
 
 const SCROLL_SPEED: f32 = 1.0;
-const ZOOM_SPEED: f32 = 0.1;
+const ZOOM_SPEED: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StackId(u64);
@@ -161,7 +161,7 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                                 // ズーム関係
                                 {
                                     // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
-                                    let scale = input.zoom_delta();
+                                    let scale = input.zoom_delta() * ZOOM_SPEED;
                                     let pos = hover_pos;
                                     state.scale *= scale;
                                     state.shift = state.shift * scale
@@ -482,19 +482,6 @@ fn left_and_right_layout<Ctx, LR, RR>(
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
             left_content(ctx, ui);
         });
-    });
-}
-
-// TODO(higumachan): 最終的には消す
-fn left_and_right_layout_dummy<R>(
-    ui: &mut Ui,
-    app: &mut App,
-    left_content: impl FnOnce(&mut App, &mut Ui) -> R,
-    right_content: impl FnOnce(&mut App, &mut Ui) -> R,
-) {
-    ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-        left_content(app, ui);
-        right_content(app, ui);
     });
 }
 
