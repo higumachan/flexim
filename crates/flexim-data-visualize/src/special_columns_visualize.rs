@@ -29,9 +29,9 @@ impl SpecialColumnShape for FlDataFrameRectangle {
     ) -> Option<Response> {
         let rect = Rect::from_min_max(
             painter.clip_rect().min
-                + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale as f32 + state.shift),
+                + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale + state.shift),
             painter.clip_rect().min
-                + (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale as f32 + state.shift),
+                + (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale + state.shift),
         );
         painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
 
@@ -100,10 +100,10 @@ impl SpecialColumnShape for FlDataFrameSegment {
         _label: Option<&str>,
         state: &VisualizeState,
     ) -> Option<Response> {
-        let segmment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale as f32
+        let segmment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale
             + state.shift
             + painter.clip_rect().min.to_vec2();
-        let segmment_p2 = Pos2::new(self.x2 as f32, self.y2 as f32) * state.scale as f32
+        let segmment_p2 = Pos2::new(self.x2 as f32, self.y2 as f32) * state.scale
             + state.shift
             + painter.clip_rect().min.to_vec2();
         painter.line_segment([segmment_p1, segmment_p2], Stroke::new(thickness, color));

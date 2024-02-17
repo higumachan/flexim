@@ -1,14 +1,11 @@
 use crate::pane::{into_pane_content, Pane, PaneContent};
-use crate::{
-    insert_root_tile, left_and_right_layout, left_and_right_layout_dummy, App, FlLayout, Managed,
-};
+use crate::{insert_root_tile, left_and_right_layout, App, FlLayout, Managed};
 use chrono::Local;
 use egui::collapsing_header::CollapsingState;
 use egui::menu::menu_image_button;
-use egui::text::{LayoutJob, TextWrapping};
 use egui::{
-    global_dark_light_mode_switch, CollapsingHeader, FontId, Id, Image, ImageButton, Label,
-    Response, ScrollArea, TextFormat, Ui, Vec2, Widget,
+    global_dark_light_mode_switch, CollapsingHeader, Id, Image, ImageButton, Label, Response,
+    ScrollArea, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
 use flexim_data_type::FlDataReference;

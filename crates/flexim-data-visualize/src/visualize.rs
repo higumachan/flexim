@@ -39,7 +39,7 @@ impl VisualizeState {
     pub fn uv_rect(&self) -> Rect {
         Rect::from_center_size(
             Pos2::new(0.5, 0.5) + self.shift,
-            Vec2::new(1.0 / self.scale as f32, 1.0 / self.scale as f32),
+            Vec2::new(1.0 / self.scale, 1.0 / self.scale),
         )
     }
 
@@ -162,7 +162,7 @@ impl DataRenderable for FlImageRender {
         if let FlData::Image(data) = data {
             let image = Image::from_bytes(format!("bytes://{}.png", data.id), data.value.clone());
 
-            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale as f32;
+            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale;
             draw_image(painter, &image, state.shift, size, Color32::WHITE)
         } else {
             Err(anyhow::anyhow!(
