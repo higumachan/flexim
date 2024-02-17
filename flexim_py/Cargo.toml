@@ -11,6 +11,9 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = "0.20.2", features = ["extension-module"] }
 numpy = "0.20.0"
+ndarray.workspace = true
+serde.workspace = true
+bincode.workspace = true
 
 [dev-dependencies]
 polars = { workspace = true, features = ["io", "ipc", "csv"]}
