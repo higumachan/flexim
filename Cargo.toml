@@ -16,7 +16,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.lints.clippy]
-dbg_macro = "deny"
+dbg_macro = "warn"
 
 
 [workspace.dependencies]
