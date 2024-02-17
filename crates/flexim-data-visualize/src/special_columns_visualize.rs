@@ -10,11 +10,16 @@ pub trait SpecialColumnShape: Debug {
         &self,
         ui: &mut Ui,
         painter: &mut Painter,
-        color: Color32,
-        thickness: f32,
-        label: Option<&str>,
+        parameter: RenderParameter,
         state: &VisualizeState,
     ) -> Option<Response>;
+}
+
+pub struct RenderParameter {
+    pub stroke_color: Color32,
+    pub stroke_thickness: f32,
+    pub fill_color: Option<Color32>,
+    pub label: Option<String>,
 }
 
 impl SpecialColumnShape for FlDataFrameRectangle {
@@ -22,17 +27,25 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         &self,
         ui: &mut Ui,
         painter: &mut Painter,
-        color: Color32,
-        thickness: f32,
-        label: Option<&str>,
+        parameter: RenderParameter,
         state: &VisualizeState,
     ) -> Option<Response> {
+        let RenderParameter {
+            stroke_color: color,
+            stroke_thickness: thickness,
+            label,
+            fill_color,
+        } = parameter;
+
         let rect = Rect::from_min_max(
             painter.clip_rect().min
                 + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale + state.shift),
             painter.clip_rect().min
                 + (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale + state.shift),
         );
+        if let Some(fill_color) = fill_color {
+            painter.rect_filled(rect, 0.0, fill_color);
+        }
         painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
 
         let mut responses = vec![
@@ -70,7 +83,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
             let text_rect = painter.text(
                 rect.left_top(),
                 Align2::LEFT_BOTTOM,
-                label,
+                label.as_str(),
                 FontId::default(),
                 Color32::BLACK,
             );
@@ -78,7 +91,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
             let text_rect = painter.text(
                 rect.left_top(),
                 Align2::LEFT_BOTTOM,
-                label,
+                label.as_str(),
                 FontId::default(),
                 Color32::BLACK,
             );
@@ -95,11 +108,15 @@ impl SpecialColumnShape for FlDataFrameSegment {
         &self,
         _ui: &mut Ui,
         painter: &mut Painter,
-        color: Color32,
-        thickness: f32,
-        _label: Option<&str>,
+        parameter: RenderParameter,
         state: &VisualizeState,
     ) -> Option<Response> {
+        let RenderParameter {
+            stroke_color: color,
+            stroke_thickness: thickness,
+            ..
+        } = parameter;
+
         let segmment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale
             + state.shift
             + painter.clip_rect().min.to_vec2();
