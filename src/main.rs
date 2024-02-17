@@ -15,8 +15,8 @@ use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, Ui
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
-    FlDataFrame, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference, FlDataType,
-    FlImage, FlTensor2D, GenerationSelector,
+    FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
+    FlDataType, FlImage, FlTensor2D, GenerationSelector,
 };
 use flexim_data_visualize::visualize::{
     stack_visualize, visualize, DataRender, FlImageRender, VisualizeState,
@@ -618,8 +618,13 @@ fn load_sample_data() -> FlDataFrame {
         .unwrap()
         .clone();
 
-    let df = df
+    let mut df = df
         .apply("Segment", |s| read_segment(s, "Segment"))
+        .unwrap()
+        .clone();
+
+    let df = df
+        .apply("Color", |s| read_color(s, "Color"))
         .unwrap()
         .clone();
 
@@ -628,6 +633,7 @@ fn load_sample_data() -> FlDataFrame {
         [
             ("Face".to_string(), FlDataFrameSpecialColumn::Rectangle),
             ("Segment".to_string(), FlDataFrameSpecialColumn::Segment),
+            ("Color".to_string(), FlDataFrameSpecialColumn::Color),
         ]
         .into_iter()
         .collect(),
@@ -744,4 +750,28 @@ fn read_segment(s: &Series, name: &str) -> Series {
     StructChunked::new(name, &[x1, y1, x2, y2])
         .unwrap()
         .into_series()
+}
+
+fn read_color(s: &Series, name: &str) -> Series {
+    let mut r = vec![];
+    let mut g = vec![];
+    let mut b = vec![];
+    for s in s.utf8().unwrap().into_iter() {
+        let s: Option<&str> = s;
+        if let Some(s) = s {
+            let t = serde_json::from_str::<FlDataFrameColor>(s).unwrap();
+            r.push(Some(t.r));
+            g.push(Some(t.g));
+            b.push(Some(t.b));
+        } else {
+            r.push(None);
+            g.push(None);
+            b.push(None);
+        }
+    }
+    let r = Series::new("r", r);
+    let g = Series::new("g", g);
+    let b = Series::new("b", b);
+
+    StructChunked::new(name, &[r, g, b]).unwrap().into_series()
 }

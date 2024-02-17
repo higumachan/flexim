@@ -8,8 +8,8 @@ use egui::{
 };
 
 use flexim_data_type::{
-    FlData, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlDataReference,
-    FlImage, FlShapeConvertError,
+    FlData, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
+    FlDataReference, FlImage, FlShapeConvertError,
 };
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
@@ -23,6 +23,8 @@ use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
 use flexim_storage::Bag;
+use polars::datatypes::DataType;
+use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
@@ -427,6 +429,7 @@ impl DataRenderable for FlDataFrameViewRender {
                             FlDataFrameSegment::try_from(x.clone())
                                 .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
                         }
+                        _ => Err(FlShapeConvertError::CanNotConvert),
                     })
                     .map(|x| {
                         x.map(Some).or_else(|e| match e {
@@ -436,10 +439,18 @@ impl DataRenderable for FlDataFrameViewRender {
                     })
                     .collect();
             let shapes = shapes?;
-            let stroke_colors = stroke_color_series
-                .map(|color_series| color_series.iter().map(pallet).collect_vec());
-            let fill_colors =
-                fill_color_series.map(|color_series| color_series.iter().map(pallet).collect_vec());
+            let stroke_colors = stroke_color_series.map(|color_series| {
+                color_series
+                    .iter()
+                    .map(|value| serise_value_to_color(color_series.field().as_ref(), &value))
+                    .collect_vec()
+            });
+            let fill_colors = fill_color_series.map(|color_series| {
+                color_series
+                    .iter()
+                    .map(|v| serise_value_to_color(color_series.field().as_ref(), &v))
+                    .collect_vec()
+            });
             let label_series = self
                 .render_context
                 .lock()
@@ -718,6 +729,20 @@ fn calc_transparent_color(color: Color32, transparent: f64) -> Color32 {
         color_array[2],
         color_array[3],
     )
+}
+
+fn serise_value_to_color(field: &Field, value: &AnyValue) -> Color32 {
+    match &field.dtype {
+        DataType::Struct(inner_field) => {
+            if FlDataFrameColor::validate_fields(inner_field) {
+                let color = FlDataFrameColor::try_from(value.clone()).unwrap();
+                Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8)
+            } else {
+                Color32::RED
+            }
+        }
+        _ => pallet(value),
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
-use flexim_data_type::FlDataFrameRectangle;
+use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
 use flexim_data_view::{FlDataFrameView, Id};
 use flexim_storage::Bag;
 use polars::datatypes::DataType;
@@ -68,7 +68,10 @@ impl DataViewable for FlDataFrameView {
             .fields()
             .iter()
             .filter(|field| match &field.dtype {
-                DataType::Struct(inner_field) => FlDataFrameRectangle::validate_fields(inner_field),
+                DataType::Struct(inner_field) => {
+                    FlDataFrameRectangle::validate_fields(inner_field)
+                        | FlDataFrameSegment::validate_fields(inner_field)
+                }
                 _ => false,
             })
             .map(|field| field.name().to_string())

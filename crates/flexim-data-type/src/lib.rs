@@ -192,6 +192,7 @@ impl FlDataTrait for FlDataFrame {
 pub enum FlDataFrameSpecialColumn {
     Rectangle,
     Segment,
+    Color,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,6 +207,8 @@ pub struct FlDataFrameRectangle {
 pub enum FlShapeConvertError {
     #[error("Null value")]
     NullValue,
+    #[error("Can not convert")]
+    CanNotConvert,
     #[error("Unhandled error {0}")]
     UnhandledError(#[from] anyhow::Error),
 }
@@ -396,6 +399,90 @@ impl FlDataFrameSegment {
     pub fn validate_fields(fields: &[Field]) -> bool {
         let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
         ["x1", "y1", "x2", "y2"].into_iter().all(|key| {
+            if let Some(dt) = field_map.get(key) {
+                dt.is_float()
+            } else {
+                false
+            }
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlDataFrameColor {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+}
+
+impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameColor {
+    type Error = FlShapeConvertError;
+
+    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
+        let mut r = None;
+        let mut g = None;
+        let mut b = None;
+        let mut update_func = |field: &Field, value: AnyValue| {
+            if !field.dtype.is_float() {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected float field, found {:?}",
+                    field.dtype
+                )));
+            }
+            let value = if !value.is_nested_null() {
+                Some(Some(value.try_extract().context("Expected float")?))
+            } else {
+                Some(None)
+            };
+            match field.name().as_str() {
+                "r" => {
+                    r = value;
+                }
+                "g" => {
+                    g = value;
+                }
+                "b" => {
+                    b = value;
+                }
+                _ => {
+                    return Err(Self::Error::UnhandledError(anyhow!(
+                        "Unknown field {:?}",
+                        field.name()
+                    )));
+                }
+            }
+            Ok(())
+        };
+
+        let value = value.into_static().context("Failed to convert to static")?;
+        match value {
+            AnyValue::StructOwned(s) => {
+                for (field, value) in s.1.iter().zip(s.0) {
+                    update_func(field, value)?;
+                }
+            }
+            _ => {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected struct, found {:?}",
+                    value
+                )));
+            }
+        }
+        Ok(Self {
+            r: r.context("Missing field r")?
+                .ok_or(Self::Error::NullValue)?,
+            g: g.context("Missing field g")?
+                .ok_or(Self::Error::NullValue)?,
+            b: b.context("Missing field b")?
+                .ok_or(Self::Error::NullValue)?,
+        })
+    }
+}
+
+impl FlDataFrameColor {
+    pub fn validate_fields(fields: &[Field]) -> bool {
+        let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
+        ["r", "g", "b"].into_iter().all(|key| {
             if let Some(dt) = field_map.get(key) {
                 dt.is_float()
             } else {
