@@ -1,6 +1,6 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
-use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
+use flexim_data_type::{FlDataFrame, FlDataFrameRectangle, FlDataFrameSegment};
 use flexim_data_view::{FlDataFrameView, Id};
 use flexim_storage::Bag;
 use polars::datatypes::DataType;
@@ -63,16 +63,19 @@ impl DataViewable for FlDataFrameView {
     }
 
     fn visualizeable_attributes(&self, bag: &Bag) -> Vec<String> {
-        let dataframe = &self.table.dataframe(bag).unwrap().value;
+        let dataframe = self.table.dataframe(bag);
+        let FlDataFrame {
+            value: dataframe,
+            special_columns,
+            ..
+        } = dataframe.as_ref().unwrap().as_ref();
         dataframe
             .fields()
             .iter()
-            .filter(|field| match &field.dtype {
-                DataType::Struct(inner_field) => {
-                    FlDataFrameRectangle::validate_fields(inner_field)
-                        | FlDataFrameSegment::validate_fields(inner_field)
-                }
-                _ => false,
+            .filter(|field| {
+                special_columns
+                    .get(&field.name().to_string())
+                    .map_or(false, |v| v.visualizable_attribute())
             })
             .map(|field| field.name().to_string())
             .collect()

@@ -15,7 +15,7 @@ from flexim_py.data_type import (
     Rectangle,
     DataFrameData,
     Segment,
-    SpecialColumn, Tensor2DData,
+    SpecialColumn, Tensor2DData, Color,
 )
 
 test_df = pandas.DataFrame(
@@ -75,6 +75,15 @@ test_df_with_invalid = pandas.DataFrame(
             "c": Rectangle(x1=400.0, y1=50.0, x2=500.0, y2=500.0).model_dump(),
             "d": {"x": 100, "y": 100},
         },
+    ]
+)
+
+
+test_df_with_color = pandas.DataFrame(
+    [
+        {"a": 1, "color": Color(r=255, g=0, b=0).model_dump(), "rect": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
+        {"a": 2, "color": Color(r=0, g=255, b=0).model_dump(), "rect": Rectangle(x1=200.0, y1=100.0, x2=300.0, y2=200.0).model_dump()},
+        {"a": 3, "color": Color(r=0, g=0, b=255).model_dump() , "rect": Rectangle(x1=100.0, y1=400.0, x2=200.0, y2=500.0).model_dump()},
     ]
 )
 
@@ -149,6 +158,21 @@ def test_append_tensor2d_data():
             ),
         )
 
+
+def test_append_color_data():
+    init(host="localhost", port=50051)
+    with Bag(name="test_bag_with_color") as bag:
+        # Append data
+        bag.append_data(
+            "python-color-data",
+            DataFrameData.from_pandas(
+                test_df_with_color,
+                {
+                    "color": SpecialColumn.Color,
+                    "rect": SpecialColumn.Rectangle,
+                },
+            ),
+        )
 
 def test_dataframe_encode_and_decode():
     df = pandas.DataFrame(

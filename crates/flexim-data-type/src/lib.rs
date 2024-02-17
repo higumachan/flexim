@@ -195,6 +195,16 @@ pub enum FlDataFrameSpecialColumn {
     Color,
 }
 
+impl FlDataFrameSpecialColumn {
+    pub fn visualizable_attribute(&self) -> bool {
+        match self {
+            Self::Rectangle => true,
+            Self::Segment => true,
+            Self::Color => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameRectangle {
     pub x1: f64,

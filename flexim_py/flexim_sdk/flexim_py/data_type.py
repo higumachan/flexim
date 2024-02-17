@@ -14,6 +14,7 @@ import pandas
 class SpecialColumn(str, Enum):
     Rectangle = "Rectangle"
     Segment = "Segment"
+    Color = "Color"
 
 
 class Rectangle(BaseModel):
@@ -29,6 +30,11 @@ class Segment(BaseModel):
     x2: float
     y2: float
 
+
+class Color(BaseModel):
+    r: float
+    g: float
+    b: float
 
 class ImageData(BaseModel):
     type: Literal["Image"] = "Image"
