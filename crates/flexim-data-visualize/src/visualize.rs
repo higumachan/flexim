@@ -672,7 +672,7 @@ pub fn stack_visualize(
     ui: &mut Ui,
     bag: &Bag,
     visualize_state: &mut VisualizeState,
-    stack: &Vec<Arc<DataRender>>,
+    stack: &[Arc<DataRender>],
 ) -> Response {
     assert_ne!(stack.len(), 0);
     ui.centered_and_justified(|ui| {
