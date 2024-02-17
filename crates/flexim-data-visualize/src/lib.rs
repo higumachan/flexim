@@ -7,7 +7,6 @@ pub mod visualize;
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn it_works() {}
