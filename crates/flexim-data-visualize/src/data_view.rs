@@ -1,9 +1,8 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
-use flexim_data_type::{FlDataFrame, FlDataFrameRectangle, FlDataFrameSegment};
+use flexim_data_type::FlDataFrame;
 use flexim_data_view::{FlDataFrameView, Id};
 use flexim_storage::Bag;
-use polars::datatypes::DataType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
