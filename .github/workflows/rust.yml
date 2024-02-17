@@ -1,0 +1,26 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        version: [1.74, stable]
+    name: Test with Rust ${{ matrix.version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.version }}
+          components: rustfmt, clippy
+      - run: cargo fmt --all --workspace -- --check
+      - run: cargo clippy --all-targets  --workspace --all-features
+      - run: cargo test  --workspace
