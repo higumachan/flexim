@@ -96,6 +96,8 @@ def _special_column_to_proto(
             return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Rectangle
         case SpecialColumn.Segment:
             return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Segment
+        case SpecialColumn.Color:
+            return connect_pb2.AppendDataRequest.DataMeta.SpecialColumn.Color
         case _:
             raise RuntimeError(f"Unknown special column {special_column}")
 

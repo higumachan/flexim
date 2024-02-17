@@ -45,6 +45,7 @@ fn special_column_convert(
     match special_column {
         SpecialColumn::Rectangle => Ok(FlDataFrameSpecialColumn::Rectangle),
         SpecialColumn::Segment => Ok(FlDataFrameSpecialColumn::Segment),
+        SpecialColumn::Color => Ok(FlDataFrameSpecialColumn::Color),
         _ => anyhow::bail!("unknown special column"),
     }
 }

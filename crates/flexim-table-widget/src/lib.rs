@@ -4,9 +4,9 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
+use egui::{Align, Color32, ComboBox, Id, Label, Layout, Response, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
-use flexim_data_type::{FlDataFrame, FlDataReference};
+use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
 use itertools::Itertools;
 use polars::prelude::*;
 use rand::random;
@@ -92,6 +92,7 @@ impl FlTable {
             });
         }
 
+        let special_columns = &dataframe.special_columns;
         let dataframe = dataframe.value.clone();
         let columns = dataframe.get_column_names();
         let dataframe = ui.ctx().memory_mut(|mem| {
@@ -123,8 +124,8 @@ impl FlTable {
             } else {
                 builder
             };
-            let builder = builder.sense(Sense::click());
             builder
+                .sense(Sense::click())
                 .header(80.0, |mut header| {
                     for col in &columns {
                         header.col(|ui| {
@@ -158,18 +159,52 @@ impl FlTable {
                                 row.set_selected(true);
                             }
                         }
+                        let mut row_response: Option<Response> = None;
                         for c in &columns {
-                            let (_, _r) = row.col(|ui| {
-                                let c = dataframe
-                                    .column(c)
-                                    .unwrap()
-                                    .get(row_idx)
-                                    .unwrap()
-                                    .to_string();
-                                ui.label(c);
-                            });
+                            match special_columns.get(&c.to_string()) {
+                                Some(FlDataFrameSpecialColumn::Color) => {
+                                    let color = FlDataFrameColor::try_from(
+                                        dataframe.column(c).unwrap().get(row_idx).unwrap(),
+                                    )
+                                    .unwrap();
+                                    let (_, response) = row.col(|ui| {
+                                        let size = ui.spacing().interact_size;
+                                        let (rect, _response) =
+                                            ui.allocate_exact_size(size, Sense::hover());
+                                        ui.painter().rect_filled(
+                                            rect,
+                                            0.0,
+                                            Color32::from_rgb(
+                                                color.r as u8,
+                                                color.g as u8,
+                                                color.b as u8,
+                                            ),
+                                        );
+                                    });
+                                    response.on_hover_text(format!(
+                                        "R: {}, G: {}, B: {}",
+                                        color.r, color.g, color.b
+                                    ));
+                                }
+                                _ => {
+                                    let (_, response) = row.col(|ui| {
+                                        let c = dataframe
+                                            .column(c)
+                                            .unwrap()
+                                            .get(row_idx)
+                                            .unwrap()
+                                            .to_string();
+                                        Label::new(c).sense(Sense::click()).ui(ui);
+                                    });
+                                    if let Some(rr) = row_response {
+                                        row_response = Some(rr.union(response));
+                                    } else {
+                                        row_response = Some(response);
+                                    }
+                                }
+                            }
                         }
-                        if row.response().clicked() {
+                        if row_response.map(|r| r.clicked()).unwrap_or(false) {
                             if highlight.contains(&d) {
                                 highlight.remove(&d);
                             } else {

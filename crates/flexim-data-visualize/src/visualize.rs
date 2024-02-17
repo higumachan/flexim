@@ -8,21 +8,23 @@ use egui::{
 };
 
 use flexim_data_type::{
-    FlData, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn, FlDataReference,
-    FlImage, FlShapeConvertError,
+    FlData, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
+    FlDataReference, FlImage, FlShapeConvertError,
 };
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 
 use crate::pallet::pallet;
-use crate::special_columns_visualize::SpecialColumnShape;
+use crate::special_columns_visualize::{RenderParameter, SpecialColumnShape};
 use anyhow::Context as _;
 
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
 use flexim_storage::Bag;
+use polars::datatypes::DataType;
+use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
@@ -320,8 +322,10 @@ impl DataRenderable for FlTensor2DRender {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlDataFrameViewRenderContext {
     pub color_scatter_column: Option<String>,
+    pub fill_color_scatter_column: Option<String>,
     pub label_column: Option<String>,
     pub transparency: f64,
+    pub fill_transparency: f64,
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
 }
@@ -330,8 +334,10 @@ impl Default for FlDataFrameViewRenderContext {
     fn default() -> Self {
         Self {
             color_scatter_column: None,
+            fill_color_scatter_column: None,
             label_column: None,
             transparency: 0.5,
+            fill_transparency: 0.9,
             normal_thickness: 1.0,
             highlight_thickness: 3.0,
         }
@@ -371,11 +377,18 @@ impl DataRenderable for FlDataFrameViewRender {
                 .column(self.column.as_str())
                 .unwrap()
                 .clone();
-            let color_series = self
+            let stroke_color_series = self
                 .render_context
                 .lock()
                 .unwrap()
                 .color_scatter_column
+                .as_ref()
+                .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+            let fill_color_series = self
+                .render_context
+                .lock()
+                .unwrap()
+                .fill_color_scatter_column
                 .as_ref()
                 .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
             let indices = computed_dataframe
@@ -416,6 +429,7 @@ impl DataRenderable for FlDataFrameViewRender {
                             FlDataFrameSegment::try_from(x.clone())
                                 .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
                         }
+                        _ => Err(FlShapeConvertError::CanNotConvert),
                     })
                     .map(|x| {
                         x.map(Some).or_else(|e| match e {
@@ -425,8 +439,18 @@ impl DataRenderable for FlDataFrameViewRender {
                     })
                     .collect();
             let shapes = shapes?;
-            let colors =
-                color_series.map(|color_series| color_series.iter().map(pallet).collect_vec());
+            let stroke_colors = stroke_color_series.map(|color_series| {
+                color_series
+                    .iter()
+                    .map(|value| serise_value_to_color(color_series.field().as_ref(), &value))
+                    .collect_vec()
+            });
+            let fill_colors = fill_color_series.map(|color_series| {
+                color_series
+                    .iter()
+                    .map(|v| serise_value_to_color(color_series.field().as_ref(), &v))
+                    .collect_vec()
+            });
             let label_series = self
                 .render_context
                 .lock()
@@ -443,31 +467,34 @@ impl DataRenderable for FlDataFrameViewRender {
                 .enumerate()
                 .filter_map(|(i, x)| Some((i, x.as_ref()?)))
             {
-                let color = if let Some(colors) = &colors {
+                let color = if let Some(colors) = &stroke_colors {
                     colors[i]
                 } else {
                     Color32::RED
                 };
+                let fill_color = fill_colors.as_ref().map(|colors| colors[i]);
+
                 let label = labels.as_ref().map(|labels| labels[i].as_str());
                 let transparent = self.render_context.lock().unwrap().transparency;
-                let alpha = 1.0 - transparent;
-                let color_array = color
-                    .to_normalized_gamma_f32()
-                    .into_iter()
-                    .map(|c| ((c as f64 * alpha) * 255.0) as u8)
-                    .collect_vec();
-                let color = Color32::from_rgba_premultiplied(
-                    color_array[0],
-                    color_array[1],
-                    color_array[2],
-                    color_array[3],
-                );
+                let fill_transparent = self.render_context.lock().unwrap().fill_transparency;
+
                 let thickness = if highlight.as_ref().map_or(false, |h| h[i]) {
                     self.render_context.lock().unwrap().highlight_thickness
                 } else {
                     self.render_context.lock().unwrap().normal_thickness
                 } as f32;
-                let response = shape.render(ui, painter, color, thickness, label, state);
+
+                let response = shape.render(
+                    ui,
+                    painter,
+                    RenderParameter {
+                        stroke_color: calc_transparent_color(color, transparent),
+                        stroke_thickness: thickness,
+                        label: label.map(|s| s.to_string()),
+                        fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
+                    },
+                    state,
+                );
 
                 let g = self
                     .dataframe_view
@@ -519,63 +546,94 @@ impl DataRenderable for FlDataFrameViewRender {
 
     fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
         ui.label("FlDataFrameView");
-        CollapsingHeader::new("Config").show(ui, |ui| {
-            let mut render_context = self.render_context.lock().unwrap();
-            ui.horizontal(|ui| {
-                ui.label("Color Scatter Column");
+        CollapsingHeader::new("Config")
+            .default_open(true)
+            .show(ui, |ui| {
+                let mut render_context = self.render_context.lock().unwrap();
                 let dataframe = self.dataframe_view.table.dataframe(bag).unwrap();
                 let columns = dataframe.value.get_column_names();
                 let columns = columns
                     .into_iter()
                     .filter(|c| c != &self.column)
                     .collect_vec();
-                ComboBox::from_id_source("Color Scatter Column")
-                    .selected_text(render_context.color_scatter_column.as_deref().unwrap_or(""))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut render_context.color_scatter_column, None, "");
-                        for column in columns {
+                ui.horizontal(|ui| {
+                    ui.label("Color Scatter Column");
+
+                    ComboBox::from_id_source("Color Scatter Column")
+                        .selected_text(render_context.color_scatter_column.as_deref().unwrap_or(""))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut render_context.color_scatter_column, None, "");
+                            for &column in &columns {
+                                ui.selectable_value(
+                                    &mut render_context.color_scatter_column,
+                                    Some(column.to_string()),
+                                    column,
+                                );
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Fill Color Scatter Column");
+                    ComboBox::from_id_source("Fill Color Scatter Column")
+                        .selected_text(
+                            render_context
+                                .fill_color_scatter_column
+                                .as_deref()
+                                .unwrap_or(""),
+                        )
+                        .show_ui(ui, |ui| {
                             ui.selectable_value(
-                                &mut render_context.color_scatter_column,
-                                Some(column.to_string()),
-                                column,
+                                &mut render_context.fill_color_scatter_column,
+                                None,
+                                "",
                             );
-                        }
-                    });
+                            for &column in &columns {
+                                ui.selectable_value(
+                                    &mut render_context.fill_color_scatter_column,
+                                    Some(column.to_string()),
+                                    column,
+                                );
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Label Column");
+                    let dataframe = self.dataframe_view.table.dataframe(bag).unwrap();
+                    let columns = dataframe.value.get_column_names();
+                    let columns = columns
+                        .into_iter()
+                        .filter(|c| c != &self.column)
+                        .collect_vec();
+                    ComboBox::from_id_source("Label Column")
+                        .selected_text(render_context.label_column.as_deref().unwrap_or(""))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut render_context.label_column, None, "");
+                            for column in columns {
+                                ui.selectable_value(
+                                    &mut render_context.label_column,
+                                    Some(column.to_string()),
+                                    column,
+                                );
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Transparency");
+                    Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Fill Transparency");
+                    Slider::new(&mut render_context.fill_transparency, 0.0..=1.0).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Highlight Thickness");
+                    Slider::new(&mut render_context.highlight_thickness, 0.0..=10.0).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Normal Thickness");
+                    Slider::new(&mut render_context.normal_thickness, 0.0..=10.0).ui(ui);
+                });
             });
-            ui.horizontal(|ui| {
-                ui.label("Label Column");
-                let dataframe = self.dataframe_view.table.dataframe(bag).unwrap();
-                let columns = dataframe.value.get_column_names();
-                let columns = columns
-                    .into_iter()
-                    .filter(|c| c != &self.column)
-                    .collect_vec();
-                ComboBox::from_id_source("Label Column")
-                    .selected_text(render_context.label_column.as_deref().unwrap_or(""))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut render_context.label_column, None, "");
-                        for column in columns {
-                            ui.selectable_value(
-                                &mut render_context.label_column,
-                                Some(column.to_string()),
-                                column,
-                            );
-                        }
-                    });
-            });
-            ui.horizontal(|ui| {
-                ui.label("Transparency");
-                Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Highlight Thickness");
-                Slider::new(&mut render_context.highlight_thickness, 0.0..=10.0).ui(ui);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Normal Thickness");
-                Slider::new(&mut render_context.normal_thickness, 0.0..=10.0).ui(ui);
-            });
-        });
     }
 }
 
@@ -614,7 +672,7 @@ pub fn stack_visualize(
     ui: &mut Ui,
     bag: &Bag,
     visualize_state: &mut VisualizeState,
-    stack: &Vec<Arc<DataRender>>,
+    stack: &[Arc<DataRender>],
 ) -> Response {
     assert_ne!(stack.len(), 0);
     ui.centered_and_justified(|ui| {
@@ -656,6 +714,35 @@ fn draw_image(
         TexturePoll::Pending { .. } => {}
     }
     Ok(())
+}
+
+fn calc_transparent_color(color: Color32, transparent: f64) -> Color32 {
+    let alpha = 1.0 - transparent;
+    let color_array = color
+        .to_normalized_gamma_f32()
+        .into_iter()
+        .map(|c| ((c as f64 * alpha) * 255.0) as u8)
+        .collect_vec();
+    Color32::from_rgba_premultiplied(
+        color_array[0],
+        color_array[1],
+        color_array[2],
+        color_array[3],
+    )
+}
+
+fn serise_value_to_color(field: &Field, value: &AnyValue) -> Color32 {
+    match &field.dtype {
+        DataType::Struct(inner_field) => {
+            if FlDataFrameColor::validate_fields(inner_field) {
+                let color = FlDataFrameColor::try_from(value.clone()).unwrap();
+                Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8)
+            } else {
+                Color32::RED
+            }
+        }
+        _ => pallet(value),
+    }
 }
 
 #[cfg(test)]
