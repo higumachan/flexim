@@ -34,7 +34,7 @@ rye = { dev-dependencies = [
 
 [tool.maturin]
 python-source = "flexim_sdk"
-module-name = "flexim_py._flexim_lib"
+module-name = "flexim_py.flexim_py"
 
 
 [tool.ruff]
