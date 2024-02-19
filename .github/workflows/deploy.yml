@@ -19,7 +19,7 @@ jobs:
       - name: Install packager
         run: cargo install cargo-packager
       - name: Packaging
-        run: cargo packager  --release
+        run: cargo packager --release -v
 
       - name: Prepare Release Name and Tag
         id: vars
