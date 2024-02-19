@@ -4,7 +4,7 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
+use egui::{Align, Checkbox, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
 use itertools::Itertools;
@@ -132,6 +132,7 @@ impl FlTable {
                         header.col(|ui| {
                             Label::new(col.to_string()).truncate(true).ui(ui);
                             let filter = state.filters.get_mut(&col.to_string()).unwrap();
+                            Checkbox::new(&mut filter.allow_null_value, "Allow Null").ui(ui);
                             filter.draw(Id::new(self.id).with(col), ui);
                         });
                     }
@@ -163,28 +164,11 @@ impl FlTable {
                         for c in &columns {
                             match special_columns.get(&c.to_string()) {
                                 Some(FlDataFrameSpecialColumn::Color) => {
-                                    let color = FlDataFrameColor::try_from(
+                                    if let Ok(color) = FlDataFrameColor::try_from(
                                         dataframe.column(c).unwrap().get(row_idx).unwrap(),
-                                    )
-                                    .unwrap();
-                                    let (_, response) = row.col(|ui| {
-                                        let size = ui.spacing().interact_size;
-                                        let (rect, _response) =
-                                            ui.allocate_exact_size(size, Sense::hover());
-                                        ui.painter().rect_filled(
-                                            rect,
-                                            0.0,
-                                            Color32::from_rgb(
-                                                color.r as u8,
-                                                color.g as u8,
-                                                color.b as u8,
-                                            ),
-                                        );
-                                    });
-                                    response.on_hover_text(format!(
-                                        "R: {}, G: {}, B: {}",
-                                        color.r, color.g, color.b
-                                    ));
+                                    ) {
+                                        color_column(&mut row, color);
+                                    }
                                 }
                                 _ => {
                                     row.col(|ui| {
@@ -194,7 +178,7 @@ impl FlTable {
                                             .get(row_idx)
                                             .unwrap()
                                             .to_string();
-                                        Label::new(c).sense(Sense::click()).ui(ui);
+                                        Label::new(c).ui(ui);
                                     });
                                 }
                             }
@@ -223,6 +207,19 @@ impl FlTable {
     }
 }
 
+fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) {
+    let (_, response) = row.col(|ui| {
+        let size = ui.spacing().interact_size;
+        let (rect, _response) = ui.allocate_exact_size(size, Sense::hover());
+        ui.painter().rect_filled(
+            rect,
+            0.0,
+            Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8),
+        );
+    });
+    response.on_hover_text(format!("R: {}, G: {}, B: {}", color.r, color.g, color.b));
+}
+
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
     let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
@@ -231,11 +228,14 @@ fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
         .collect::<BooleanChunked>();
 
     for col in &columns {
-        let filter = state.filters.get(*col).unwrap().filter.as_ref();
+        let filter = state.filters.get(*col).unwrap();
+        let allow_null_value = filter.allow_null_value;
+        let filter = filter.filter.as_ref();
         let series = dataframe.column(col).unwrap();
         if let Some(filter) = filter.as_ref() {
             if let Some(m) = filter.apply(series) {
-                col_filter_mask = col_filter_mask.bitand(m);
+                col_filter_mask =
+                    col_filter_mask.bitand(m.fill_null_with_values(allow_null_value).unwrap());
             }
         }
     }
@@ -278,8 +278,23 @@ struct Aggregated {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ColumnFilter {
+    allow_null_value: bool,
     filter: Option<Filter>,
     aggregated: Arc<Aggregated>,
+}
+
+impl Default for ColumnFilter {
+    fn default() -> Self {
+        Self {
+            allow_null_value: true,
+            filter: None,
+            aggregated: Arc::new(Aggregated {
+                min_max: None,
+                unique: None,
+                dtype: DataType::Null,
+            }),
+        }
+    }
 }
 
 impl ColumnFilter {
@@ -351,26 +366,31 @@ impl ColumnFilter {
             Self {
                 aggregated,
                 filter: Some(Filter::Range { min, max }),
+                ..Default::default()
             }
         } else if dtype == &DataType::Boolean {
             Self {
                 aggregated,
                 filter: Some(Filter::Categorical(None)),
+                ..Default::default()
             }
         } else if dtype == &DataType::Utf8 {
             Self {
                 aggregated,
                 filter: Some(Filter::Search(String::new())),
+                ..Default::default()
             }
         } else if let DataType::Categorical(_d) = dtype {
             Self {
                 aggregated,
                 filter: Some(Filter::Categorical(None)),
+                ..Default::default()
             }
         } else {
             Self {
                 aggregated,
                 filter: None,
+                ..Default::default()
             }
         }
     }
