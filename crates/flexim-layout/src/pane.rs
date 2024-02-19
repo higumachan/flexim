@@ -26,6 +26,12 @@ pub struct Pane {
     pub content: PaneContent,
 }
 
+impl Pane {
+    pub fn new(name: String, content: PaneContent) -> Self {
+        Self { name, content }
+    }
+}
+
 pub fn into_pane_content(fl_data_reference: FlDataReference) -> anyhow::Result<PaneContent> {
     match fl_data_reference.data_type {
         FlDataType::Image => Ok(PaneContent::Visualize(Arc::new(

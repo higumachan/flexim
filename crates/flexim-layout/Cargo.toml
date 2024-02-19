@@ -14,6 +14,7 @@ flexim-data-visualize.workspace = true
 flexim-data-view.workspace = true
 flexim-storage.workspace = true
 anyhow.workspace = true
+chrono.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
