@@ -1,0 +1,22 @@
+[package]
+name = "flexim-layout"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde.workspace = true
+egui.workspace = true
+egui_tiles.workspace = true
+flexim-data-type.workspace = true
+flexim-data-visualize.workspace = true
+flexim-data-view.workspace = true
+flexim-storage.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+
+[lints]
+workspace = true

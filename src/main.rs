@@ -1,9 +1,6 @@
 mod left_panel;
-mod pane;
 
 use std::default::Default;
-
-use crate::pane::{Pane, PaneContent};
 
 use eframe::{run_native, Frame};
 use egui::ahash::{HashMap, HashMapExt};
@@ -22,6 +19,8 @@ use flexim_data_visualize::visualize::{
     stack_visualize, visualize, DataRender, FlImageRender, VisualizeState,
 };
 use flexim_font::setup_custom_fonts;
+use flexim_layout::pane::{Pane, PaneContent};
+use flexim_layout::FlLayout;
 use flexim_storage::{Bag, BagId, Storage, StorageQuery};
 use itertools::Itertools;
 use ndarray::Array2;
@@ -208,20 +207,6 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
             *self.current_tile_id = Some(tile_id);
         }
         button_response
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct FlLayout {
-    id: Id,
-    name: String,
-    tree: Tree<Pane>,
-}
-
-impl FlLayout {
-    fn new(name: String, tree: Tree<Pane>) -> Self {
-        let id = Id::new(name.clone()).with(tree.id());
-        Self { id, name, tree }
     }
 }
 

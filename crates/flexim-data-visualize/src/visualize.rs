@@ -71,6 +71,16 @@ pub enum DataRender {
     DataFrameView(Box<FlDataFrameViewRender>),
 }
 
+impl DataRender {
+    pub fn reference(&self) -> FlDataReference {
+        match self {
+            DataRender::Image(render) => render.content.clone(),
+            DataRender::Tensor2D(render) => render.content.clone(),
+            DataRender::DataFrameView(render) => render.dataframe_view.table.data_reference.clone(),
+        }
+    }
+}
+
 impl From<FlImageRender> for DataRender {
     fn from(render: FlImageRender) -> Self {
         Self::Image(render)

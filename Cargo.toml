@@ -45,6 +45,7 @@ flexim-table-widget = { path = "crates/flexim-table-widget" }
 flexim-connect = { path = "crates/flexim-connect" }
 flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
+flexim-layout = { path = "crates/flexim-layout" }
 num-derive = "0.4.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 env_logger = "0.10.1"
@@ -60,6 +61,7 @@ indexmap = "2.1.0"
 puffin = "0.19.0"
 puffin_http = "0.16.0"
 rfd = "0.13.0"
+rstest = "0.18.2"
 
 [lints]
 workspace = true
@@ -75,6 +77,7 @@ flexim-data-view.workspace = true
 flexim-data-visualize.workspace = true
 flexim-connect.workspace = true
 flexim-storage.workspace = true
+flexim-layout.workspace = true
 eframe.workspace = true
 env_logger.workspace = true
 ndarray.workspace = true

@@ -1,6 +1,6 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use egui::{ScrollArea, Ui};
-use flexim_data_type::FlDataFrame;
+use flexim_data_type::{FlDataFrame, FlDataReference};
 use flexim_data_view::{FlDataFrameView, Id};
 use flexim_storage::Bag;
 use serde::{Deserialize, Serialize};
@@ -33,6 +33,12 @@ impl DataView {
     pub fn create_visualize(&self, attribute: String) -> Arc<DataRender> {
         match self {
             Self::FlDataFrameView(v) => v.create_visualize(attribute),
+        }
+    }
+
+    pub fn reference(&self) -> FlDataReference {
+        match self {
+            Self::FlDataFrameView(v) => v.table.data_reference.clone(),
         }
     }
 }

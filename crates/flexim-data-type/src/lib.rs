@@ -16,7 +16,7 @@ pub trait FlDataTrait {
     fn id(&self) -> Id;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum FlDataType {
     Image,
     Tensor,
@@ -502,13 +502,13 @@ impl FlDataFrameColor {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum GenerationSelector {
     Latest,
     Generation(u64),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct FlDataReference {
     pub name: String,
     pub generation: GenerationSelector,

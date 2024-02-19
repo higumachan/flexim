@@ -1,5 +1,4 @@
-use crate::pane::{into_pane_content, Pane, PaneContent};
-use crate::{insert_root_tile, left_and_right_layout, App, FlLayout, Managed};
+use crate::{insert_root_tile, left_and_right_layout, App, Managed};
 use chrono::Local;
 use egui::collapsing_header::CollapsingState;
 use egui::menu::menu_image_button;
@@ -11,6 +10,9 @@ use egui_tiles::Tile;
 use flexim_data_type::FlDataReference;
 use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
+use flexim_layout::check::check_applicable;
+use flexim_layout::pane::{into_pane_content, Pane, PaneContent};
+use flexim_layout::FlLayout;
 use flexim_storage::{Bag, StorageQuery};
 use itertools::Itertools;
 use std::ops::{Deref, DerefMut};
@@ -368,8 +370,19 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
                         list_item_label(ui, &l.name);
                     },
                     |tree, ui| {
-                        if ui.button("📲").clicked() {
-                            *tree = l.tree.clone();
+                        if check_applicable(
+                            &app.storage
+                                .get_bag(app.current_bag_id)
+                                .unwrap()
+                                .read()
+                                .unwrap(),
+                            l,
+                        ) {
+                            if ui.button("📲").clicked() {
+                                *tree = l.tree.clone();
+                            }
+                        } else {
+                            ui.button("🚫").on_hover_text("Not applicable");
                         }
                         if ui.button("➖").clicked() {
                             remove_layout_id.replace(l.id);

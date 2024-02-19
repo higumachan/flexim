@@ -11,6 +11,15 @@ pub enum PaneContent {
     DataView(Arc<DataView>),
 }
 
+impl PaneContent {
+    pub fn reference(&self) -> FlDataReference {
+        match self {
+            Self::Visualize(render) => render.reference(),
+            Self::DataView(view) => view.reference(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pane {
     pub name: String,
