@@ -17,3 +17,4 @@ polars-ops = { version = "0.35.4", default-features = false, features = [ "dtype
 io = ["polars-io"]
 ipc = ["polars-io/ipc"]
 csv = ["polars-io/csv"]
+fmt = ["polars-core/fmt"]

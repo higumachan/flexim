@@ -163,28 +163,11 @@ impl FlTable {
                         for c in &columns {
                             match special_columns.get(&c.to_string()) {
                                 Some(FlDataFrameSpecialColumn::Color) => {
-                                    let color = FlDataFrameColor::try_from(
+                                    if let Ok(color) = FlDataFrameColor::try_from(
                                         dataframe.column(c).unwrap().get(row_idx).unwrap(),
-                                    )
-                                    .unwrap();
-                                    let (_, response) = row.col(|ui| {
-                                        let size = ui.spacing().interact_size;
-                                        let (rect, _response) =
-                                            ui.allocate_exact_size(size, Sense::hover());
-                                        ui.painter().rect_filled(
-                                            rect,
-                                            0.0,
-                                            Color32::from_rgb(
-                                                color.r as u8,
-                                                color.g as u8,
-                                                color.b as u8,
-                                            ),
-                                        );
-                                    });
-                                    response.on_hover_text(format!(
-                                        "R: {}, G: {}, B: {}",
-                                        color.r, color.g, color.b
-                                    ));
+                                    ) {
+                                        color_column(&mut row, color);
+                                    }
                                 }
                                 _ => {
                                     row.col(|ui| {
@@ -194,7 +177,7 @@ impl FlTable {
                                             .get(row_idx)
                                             .unwrap()
                                             .to_string();
-                                        Label::new(c).sense(Sense::click()).ui(ui);
+                                        Label::new(c).ui(ui);
                                     });
                                 }
                             }
@@ -223,6 +206,19 @@ impl FlTable {
     }
 }
 
+fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) {
+    let (_, response) = row.col(|ui| {
+        let size = ui.spacing().interact_size;
+        let (rect, _response) = ui.allocate_exact_size(size, Sense::hover());
+        ui.painter().rect_filled(
+            rect,
+            0.0,
+            Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8),
+        );
+    });
+    response.on_hover_text(format!("R: {}, G: {}, B: {}", color.r, color.g, color.b));
+}
+
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
     let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
@@ -235,10 +231,11 @@ fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
         let series = dataframe.column(col).unwrap();
         if let Some(filter) = filter.as_ref() {
             if let Some(m) = filter.apply(series) {
-                col_filter_mask = col_filter_mask.bitand(m);
+                col_filter_mask = col_filter_mask.bitand(m.fill_null_with_values(true).unwrap());
             }
         }
     }
+    dbg!(&col_filter_mask);
     dataframe.filter(&col_filter_mask).unwrap()
 }
 
