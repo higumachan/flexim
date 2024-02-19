@@ -160,7 +160,6 @@ impl FlTable {
                                 row.set_selected(true);
                             }
                         }
-                        let mut row_response: Option<Response> = None;
                         for c in &columns {
                             match special_columns.get(&c.to_string()) {
                                 Some(FlDataFrameSpecialColumn::Color) => {
@@ -188,7 +187,7 @@ impl FlTable {
                                     ));
                                 }
                                 _ => {
-                                    let (_, response) = row.col(|ui| {
+                                    row.col(|ui| {
                                         let c = dataframe
                                             .column(c)
                                             .unwrap()
@@ -197,15 +196,10 @@ impl FlTable {
                                             .to_string();
                                         Label::new(c).sense(Sense::click()).ui(ui);
                                     });
-                                    if let Some(rr) = row_response {
-                                        row_response = Some(rr.union(response));
-                                    } else {
-                                        row_response = Some(response);
-                                    }
                                 }
                             }
                         }
-                        if row_response.map(|r| r.clicked()).unwrap_or(false) {
+                        if row.response().clicked() {
                             if highlight.contains(&d) {
                                 highlight.remove(&d);
                             } else {
