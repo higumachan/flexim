@@ -4,7 +4,7 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
+use egui::{Align, Checkbox, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
 use itertools::Itertools;
@@ -15,6 +15,7 @@ use std::ops::{BitAnd, Deref, DerefMut};
 
 use anyhow::Context;
 use flexim_storage::Bag;
+use polars::export::arrow::compute::boolean::all;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,6 +133,7 @@ impl FlTable {
                         header.col(|ui| {
                             Label::new(col.to_string()).truncate(true).ui(ui);
                             let filter = state.filters.get_mut(&col.to_string()).unwrap();
+                            Checkbox::new(&mut filter.allow_null_value, "Allow Null").ui(ui);
                             filter.draw(Id::new(self.id).with(col), ui);
                         });
                     }
@@ -227,15 +229,17 @@ fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
         .collect::<BooleanChunked>();
 
     for col in &columns {
-        let filter = state.filters.get(*col).unwrap().filter.as_ref();
+        let filter = state.filters.get(*col).unwrap();
+        let allow_null_value = filter.allow_null_value;
+        let filter = filter.filter.as_ref();
         let series = dataframe.column(col).unwrap();
         if let Some(filter) = filter.as_ref() {
             if let Some(m) = filter.apply(series) {
-                col_filter_mask = col_filter_mask.bitand(m.fill_null_with_values(true).unwrap());
+                col_filter_mask =
+                    col_filter_mask.bitand(m.fill_null_with_values(allow_null_value).unwrap());
             }
         }
     }
-    dbg!(&col_filter_mask);
     dataframe.filter(&col_filter_mask).unwrap()
 }
 
@@ -275,8 +279,23 @@ struct Aggregated {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ColumnFilter {
+    allow_null_value: bool,
     filter: Option<Filter>,
     aggregated: Arc<Aggregated>,
+}
+
+impl Default for ColumnFilter {
+    fn default() -> Self {
+        Self {
+            allow_null_value: true,
+            filter: None,
+            aggregated: Arc::new(Aggregated {
+                min_max: None,
+                unique: None,
+                dtype: DataType::Null,
+            }),
+        }
+    }
 }
 
 impl ColumnFilter {
@@ -348,26 +367,31 @@ impl ColumnFilter {
             Self {
                 aggregated,
                 filter: Some(Filter::Range { min, max }),
+                ..Default::default()
             }
         } else if dtype == &DataType::Boolean {
             Self {
                 aggregated,
                 filter: Some(Filter::Categorical(None)),
+                ..Default::default()
             }
         } else if dtype == &DataType::Utf8 {
             Self {
                 aggregated,
                 filter: Some(Filter::Search(String::new())),
+                ..Default::default()
             }
         } else if let DataType::Categorical(_d) = dtype {
             Self {
                 aggregated,
                 filter: Some(Filter::Categorical(None)),
+                ..Default::default()
             }
         } else {
             Self {
                 aggregated,
                 filter: None,
+                ..Default::default()
             }
         }
     }

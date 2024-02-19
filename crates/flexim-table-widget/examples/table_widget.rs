@@ -94,6 +94,7 @@ fn read_color(s: &Series, name: &str) -> Series {
     StructChunked::new(name, &[r, g, b]).unwrap().into_series()
 }
 
+#[allow(clippy::dbg_macro)]
 fn main() {
     let data = Vec::from(include_bytes!("../assets/input.csv"));
     let data = Cursor::new(data);
