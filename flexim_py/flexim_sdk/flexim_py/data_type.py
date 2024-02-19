@@ -88,6 +88,4 @@ class Tensor2DData(BaseModel):
 
     def to_bytes(self) -> bytes:
         # bytes encoded as C major
-        by = flexim_py.tensor2d_to_bytes(self.tensor)
-        print(by[:100])
-        return flexim_py.tensor2d_to_bytes(self.tensor)
+        return _flexim_lib.tensor2d_to_bytes(self.tensor)
