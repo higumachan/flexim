@@ -4,7 +4,7 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, Color32, ComboBox, Id, Label, Layout, Response, Sense, Slider, Ui, Widget};
+use egui::{Align, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
 use itertools::Itertools;
