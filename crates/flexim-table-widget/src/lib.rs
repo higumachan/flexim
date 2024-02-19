@@ -4,7 +4,7 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, Color32, ComboBox, Id, Label, Layout, Response, Sense, Slider, Ui, Widget};
+use egui::{Align, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
 use itertools::Itertools;
@@ -126,6 +126,7 @@ impl FlTable {
             };
             builder
                 .sense(Sense::click())
+                .drag_to_scroll(false)
                 .header(80.0, |mut header| {
                     for col in &columns {
                         header.col(|ui| {
@@ -159,7 +160,6 @@ impl FlTable {
                                 row.set_selected(true);
                             }
                         }
-                        let mut row_response: Option<Response> = None;
                         for c in &columns {
                             match special_columns.get(&c.to_string()) {
                                 Some(FlDataFrameSpecialColumn::Color) => {
@@ -187,7 +187,7 @@ impl FlTable {
                                     ));
                                 }
                                 _ => {
-                                    let (_, response) = row.col(|ui| {
+                                    row.col(|ui| {
                                         let c = dataframe
                                             .column(c)
                                             .unwrap()
@@ -196,15 +196,10 @@ impl FlTable {
                                             .to_string();
                                         Label::new(c).sense(Sense::click()).ui(ui);
                                     });
-                                    if let Some(rr) = row_response {
-                                        row_response = Some(rr.union(response));
-                                    } else {
-                                        row_response = Some(response);
-                                    }
                                 }
                             }
                         }
-                        if row_response.map(|r| r.clicked()).unwrap_or(false) {
+                        if row.response().clicked() {
                             if highlight.contains(&d) {
                                 highlight.remove(&d);
                             } else {
