@@ -3,6 +3,9 @@ name: Build and Release
 on:
   schedule:
     - cron: '0 0 * * *' # 毎日JST 9時に実行
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
