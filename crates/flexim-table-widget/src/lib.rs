@@ -15,7 +15,6 @@ use std::ops::{BitAnd, Deref, DerefMut};
 
 use anyhow::Context;
 use flexim_storage::Bag;
-use polars::export::arrow::compute::boolean::all;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
