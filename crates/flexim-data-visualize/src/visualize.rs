@@ -325,9 +325,14 @@ pub struct FlDataFrameViewRenderContext {
     pub fill_color_scatter_column: Option<String>,
     pub label_column: Option<String>,
     pub transparency: f64,
+    #[serde(default = "default_fill_transparency")]
     pub fill_transparency: f64,
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
+}
+
+fn default_fill_transparency() -> f64 {
+    0.9
 }
 
 impl Default for FlDataFrameViewRenderContext {
