@@ -154,8 +154,8 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
                             ui.input(|input| {
                                 // スクロール関係
                                 {
-                                    let dy = input.raw_scroll_delta.y;
-                                    let dx = input.raw_scroll_delta.x;
+                                    let dy = input.scroll_delta.y;
+                                    let dx = input.scroll_delta.x;
                                     state.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
                                 }
                                 // ズーム関係

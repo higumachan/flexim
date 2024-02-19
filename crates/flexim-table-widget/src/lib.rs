@@ -126,6 +126,7 @@ impl FlTable {
             };
             builder
                 .sense(Sense::click())
+                .drag_to_scroll(false)
                 .header(80.0, |mut header| {
                     for col in &columns {
                         header.col(|ui| {
