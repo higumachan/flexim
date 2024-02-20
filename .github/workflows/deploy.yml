@@ -18,12 +18,12 @@ jobs:
           components: rustfmt, clippy
       - name: Install packager
         run: cargo install cargo-packager
-      - name: Packaging
-        run: cargo packager --release -v
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Packaging
+        run: cargo packager --release -v
       - name: Prepare Release Name and Tag
         id: vars
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
