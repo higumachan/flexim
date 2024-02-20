@@ -126,12 +126,12 @@ impl VisualizeState {
                     }
                 };
 
-                if response.dragged_by(PointerButton::Middle) {
-                    self.shift += response.drag_delta();
+                if response.inner.dragged_by(PointerButton::Middle) {
+                    self.shift += response.inner.drag_delta();
                 }
 
-                if let Some(hover_pos) = response.hover_pos() {
-                    let hover_pos = hover_pos - response.rect.min;
+                if let Some(hover_pos) = response.outer.hover_pos() {
+                    let hover_pos = hover_pos - response.inner.rect.min;
                     ui.input(|input| {
                         // スクロール関係
                         {
@@ -760,21 +760,30 @@ impl FlDataFrameViewRender {
     }
 }
 
+struct VisualizeResponse {
+    outer: Response,
+    inner: Response,
+}
+
 fn visualize(
     ui: &mut Ui,
     bag: &Bag,
     visualize_state: &mut VisualizeState,
     render: &DataRender,
-) -> Response {
-    ui.centered_and_justified(|ui| {
+) -> VisualizeResponse {
+    let responses = ui.centered_and_justified(|ui| {
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         render
             .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
 
         response
-    })
-    .inner
+    });
+
+    VisualizeResponse {
+        outer: responses.response,
+        inner: responses.inner,
+    }
 }
 
 fn stack_visualize(
@@ -782,9 +791,9 @@ fn stack_visualize(
     bag: &Bag,
     visualize_state: &mut VisualizeState,
     stack: &[Arc<DataRender>],
-) -> Response {
+) -> VisualizeResponse {
     assert_ne!(stack.len(), 0);
-    ui.centered_and_justified(|ui| {
+    let responses = ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         stack_top
@@ -797,8 +806,12 @@ fn stack_visualize(
         }
 
         response
-    })
-    .inner
+    });
+
+    VisualizeResponse {
+        outer: responses.response,
+        inner: responses.inner,
+    }
 }
 
 fn draw_image(
