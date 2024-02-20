@@ -23,7 +23,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate key
-        run: cargo r --package cargo-packager -- signer generate --password '${{ secrets.CARGO_PACKAGER_PASSWORD }}' --path ./signing-key -vvv
+        run: cargo packager signer generate --password '${{ secrets.CARGO_PACKAGER_PASSWORD }}' --path ./signing-key -vvv
       - name: Packaging
         run: cargo packager --release --private-key ./signing-key --password '${{ secrets.CARGO_PACKAGER_PASSWORD }}' --formats all -vvv
       - name: Prepare Release Name and Tag
