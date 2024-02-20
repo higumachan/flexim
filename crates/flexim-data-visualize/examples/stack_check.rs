@@ -1,9 +1,10 @@
+use egui::Id;
 use egui_extras::install_image_loaders;
 use flexim_data_type::{
     FlData, FlDataReference, FlDataType, FlImage, FlTensor2D, GenerationSelector,
 };
 use flexim_data_visualize::visualize::{
-    stack_visualize, DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
+    DataRender, FlImageRender, FlTensor2DRender, VisualizeState,
 };
 use flexim_storage::StorageQuery;
 use ndarray::Array2;
@@ -47,7 +48,6 @@ fn main() -> eframe::Result<()> {
         .unwrap();
     let bag = storage.get_bag(bag_id).unwrap();
 
-    let mut state = VisualizeState::default();
     let stack: Vec<Arc<DataRender>> = vec![
         Arc::new(
             FlImageRender::new(FlDataReference::new(
@@ -71,6 +71,7 @@ fn main() -> eframe::Result<()> {
         install_image_loaders(ctx);
 
         let bag = bag.read().unwrap();
-        egui::CentralPanel::default().show(ctx, |ui| stack_visualize(ui, &bag, &mut state, &stack));
+        let mut state = VisualizeState::load(ctx, Id::new("stack"));
+        egui::CentralPanel::default().show(ctx, |ui| state.show(ui, &bag, &stack));
     })
 }
