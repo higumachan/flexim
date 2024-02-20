@@ -19,6 +19,8 @@ puffin.workspace = true
 rand.workspace = true
 anyhow.workspace = true
 flexim-table-widget.workspace = true
+flexim-data-visualize.workspace = true
+flexim-data-view.workspace = true
 
 [dev-dependencies]
 eframe.workspace = true

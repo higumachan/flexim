@@ -118,6 +118,7 @@ impl VisualizeState {
         self.show_header(ui);
         let _response = ui
             .with_layout(Layout::top_down(Align::Min), |ui| {
+                dbg!(contents.len());
                 let response = {
                     if contents.len() > 1 {
                         stack_visualize(ui, bag, self, contents)
@@ -473,142 +474,146 @@ impl DataRenderable for FlDataFrameViewRender {
         state: &VisualizeState,
     ) -> anyhow::Result<()> {
         puffin::profile_function!();
-        if let Some(DataFramePoll::Ready(computed_dataframe)) =
+        let dataframe = self.dataframe_view.table.dataframe(bag)?;
+        let special_column = dataframe
+            .special_columns
+            .get(&self.column)
+            .with_context(|| format!("special column not found: {}", self.column))?;
+
+        let computed_dataframe = if let Some(DataFramePoll::Ready(computed_dataframe)) =
             self.dataframe_view.table.computed_dataframe(ui, bag)
         {
-            let dataframe = self.dataframe_view.table.dataframe(bag)?;
-            let special_column = dataframe
-                .special_columns
-                .get(&self.column)
-                .with_context(|| format!("special column not found: {}", self.column))?;
-            let target_series = computed_dataframe
-                .column(self.column.as_str())
+            computed_dataframe
+        } else {
+            dataframe
+                .value
+                .clone()
+                .with_row_count("__FleximRowId", None)
                 .unwrap()
-                .clone();
-            let stroke_color_series = self
-                .render_context
-                .lock()
-                .unwrap()
-                .color_scatter_column
-                .as_ref()
-                .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
-            let fill_color_series = self
-                .render_context
-                .lock()
-                .unwrap()
-                .fill_color_scatter_column
-                .as_ref()
-                .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
-            let indices = computed_dataframe
-                .column("__FleximRowId")
-                .unwrap()
-                .iter()
-                .map(|v| v.extract::<u32>().unwrap() as u64)
-                .collect_vec();
+        };
 
-            let highlight = {
-                if let Some(state) = self.dataframe_view.table.state(ui, bag) {
-                    let state = state.lock().unwrap();
-                    let highlight = &state.highlight;
-                    Some(
-                        computed_dataframe
-                            .column("__FleximRowId")
-                            .unwrap()
-                            .iter()
-                            .map(|v| {
-                                let index = v.extract::<u32>().unwrap() as u64;
-                                highlight.contains(&index)
-                            })
-                            .collect_vec(),
-                    )
-                } else {
-                    None
-                }
-            };
-            let shapes: Result<Vec<Option<Box<dyn SpecialColumnShape>>>, FlShapeConvertError> =
-                target_series
-                    .iter()
-                    .map(|x| match special_column {
-                        FlDataFrameSpecialColumn::Rectangle => {
-                            FlDataFrameRectangle::try_from(x.clone())
-                                .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
-                        }
-                        FlDataFrameSpecialColumn::Segment => {
-                            FlDataFrameSegment::try_from(x.clone())
-                                .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
-                        }
-                        _ => Err(FlShapeConvertError::CanNotConvert),
-                    })
-                    .map(|x| {
-                        x.map(Some).or_else(|e| match e {
-                            FlShapeConvertError::NullValue => Ok(None),
-                            _ => Err(e),
+        let target_series = computed_dataframe
+            .column(self.column.as_str())
+            .unwrap()
+            .clone();
+        let stroke_color_series = self
+            .render_context
+            .lock()
+            .unwrap()
+            .color_scatter_column
+            .as_ref()
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+        let fill_color_series = self
+            .render_context
+            .lock()
+            .unwrap()
+            .fill_color_scatter_column
+            .as_ref()
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+        let indices = computed_dataframe
+            .column("__FleximRowId")
+            .unwrap()
+            .iter()
+            .map(|v| v.extract::<u32>().unwrap() as u64)
+            .collect_vec();
+
+        let highlight = {
+            if let Some(state) = self.dataframe_view.table.state(ui, bag) {
+                let state = state.lock().unwrap();
+                let highlight = &state.highlight;
+                Some(
+                    computed_dataframe
+                        .column("__FleximRowId")
+                        .unwrap()
+                        .iter()
+                        .map(|v| {
+                            let index = v.extract::<u32>().unwrap() as u64;
+                            highlight.contains(&index)
                         })
-                    })
-                    .collect();
-            let shapes = shapes?;
-            let stroke_colors = stroke_color_series.map(|color_series| {
-                color_series
-                    .iter()
-                    .map(|value| serise_value_to_color(color_series.field().as_ref(), &value))
-                    .collect_vec()
-            });
-            let fill_colors = fill_color_series.map(|color_series| {
-                color_series
-                    .iter()
-                    .map(|v| serise_value_to_color(color_series.field().as_ref(), &v))
-                    .collect_vec()
-            });
-            let label_series = self
-                .render_context
-                .lock()
-                .unwrap()
-                .label_column
-                .as_ref()
-                .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
-            let labels = label_series
-                .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
-
-            let mut hovered_index = None;
-            for (i, shape) in shapes
+                        .collect_vec(),
+                )
+            } else {
+                None
+            }
+        };
+        let shapes: Result<Vec<Option<Box<dyn SpecialColumnShape>>>, FlShapeConvertError> =
+            target_series
                 .iter()
-                .enumerate()
-                .filter_map(|(i, x)| Some((i, x.as_ref()?)))
-            {
-                let color = if let Some(colors) = &stroke_colors {
-                    colors[i]
-                } else {
-                    Color32::RED
-                };
-                let fill_color = fill_colors.as_ref().map(|colors| colors[i]);
+                .map(|x| match special_column {
+                    FlDataFrameSpecialColumn::Rectangle => {
+                        FlDataFrameRectangle::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
+                        .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    _ => Err(FlShapeConvertError::CanNotConvert),
+                })
+                .map(|x| {
+                    x.map(Some).or_else(|e| match e {
+                        FlShapeConvertError::NullValue => Ok(None),
+                        _ => Err(e),
+                    })
+                })
+                .collect();
+        let shapes = shapes?;
+        let stroke_colors = stroke_color_series.map(|color_series| {
+            color_series
+                .iter()
+                .map(|value| serise_value_to_color(color_series.field().as_ref(), &value))
+                .collect_vec()
+        });
+        let fill_colors = fill_color_series.map(|color_series| {
+            color_series
+                .iter()
+                .map(|v| serise_value_to_color(color_series.field().as_ref(), &v))
+                .collect_vec()
+        });
+        let label_series = self
+            .render_context
+            .lock()
+            .unwrap()
+            .label_column
+            .as_ref()
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+        let labels = label_series
+            .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
-                let label = labels.as_ref().map(|labels| labels[i].as_str());
-                let transparent = self.render_context.lock().unwrap().transparency;
-                let fill_transparent = self.render_context.lock().unwrap().fill_transparency;
+        let mut hovered_index = None;
+        for (i, shape) in shapes
+            .iter()
+            .enumerate()
+            .filter_map(|(i, x)| Some((i, x.as_ref()?)))
+        {
+            let color = if let Some(colors) = &stroke_colors {
+                colors[i]
+            } else {
+                Color32::RED
+            };
+            let fill_color = fill_colors.as_ref().map(|colors| colors[i]);
 
-                let thickness = if highlight.as_ref().map_or(false, |h| h[i]) {
-                    self.render_context.lock().unwrap().highlight_thickness
-                } else {
-                    self.render_context.lock().unwrap().normal_thickness
-                } as f32;
+            let label = labels.as_ref().map(|labels| labels[i].as_str());
+            let transparent = self.render_context.lock().unwrap().transparency;
+            let fill_transparent = self.render_context.lock().unwrap().fill_transparency;
 
-                let response = shape.render(
-                    ui,
-                    painter,
-                    RenderParameter {
-                        stroke_color: calc_transparent_color(color, transparent),
-                        stroke_thickness: thickness,
-                        label: label.map(|s| s.to_string()),
-                        fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
-                    },
-                    state,
-                );
+            let thickness = if highlight.as_ref().map_or(false, |h| h[i]) {
+                self.render_context.lock().unwrap().highlight_thickness
+            } else {
+                self.render_context.lock().unwrap().normal_thickness
+            } as f32;
 
-                let g = self
-                    .dataframe_view
-                    .table
-                    .state(ui, bag)
-                    .context("state not initialized")?;
+            let response = shape.render(
+                ui,
+                painter,
+                RenderParameter {
+                    stroke_color: calc_transparent_color(color, transparent),
+                    stroke_thickness: thickness,
+                    label: label.map(|s| s.to_string()),
+                    fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
+                },
+                state,
+            );
+
+            if let Some(g) = self.dataframe_view.table.state(ui, bag) {
                 let mut state = g.lock().unwrap();
                 if let Some(r) = response {
                     if r.hovered() {
@@ -634,22 +639,16 @@ impl DataRenderable for FlDataFrameViewRender {
                     });
                 }
             }
-            let g = self
-                .dataframe_view
-                .table
-                .state(ui, bag)
-                .context("state not initialized")?;
+        }
+        if let Some(g) = self.dataframe_view.table.state(ui, bag) {
             let mut state = g.lock().unwrap();
             if let Some(hi) = hovered_index {
                 state.selected.replace(hi);
             } else {
                 state.selected.take();
             }
-            Ok(())
-        } else {
-            ui.label("Loading...");
-            Ok(())
         }
+        Ok(())
     }
 
     fn config_panel(&self, ui: &mut Ui, bag: &Bag) {

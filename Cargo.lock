@@ -1651,6 +1651,8 @@ dependencies = [
  "egui_extras",
  "env_logger",
  "flexim-data-type",
+ "flexim-data-view",
+ "flexim-data-visualize",
  "flexim-storage",
  "flexim-table-widget",
  "itertools 0.12.0",

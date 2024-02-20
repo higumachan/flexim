@@ -1,8 +1,14 @@
 use flexim_data_type::{
     FlData, FlDataFrame, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
-    FlDataType, GenerationSelector,
+    FlDataType, FlImage, GenerationSelector,
 };
 
+use egui::Id;
+use egui_extras::install_image_loaders;
+use flexim_data_view::FlDataFrameView;
+use flexim_data_visualize::visualize::{
+    DataRender, FlDataFrameViewRender, FlImageRender, VisualizeState,
+};
 use flexim_storage::{Storage, StorageQuery};
 use flexim_table_widget::FlTable;
 use polars::prelude::*;
@@ -66,9 +72,21 @@ fn main() {
             FlData::DataFrame(df.clone()),
         )
         .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "image".to_string(),
+            FlData::Image(Arc::new(FlImage::new(
+                include_bytes!("../../../assets/flexim-logo-1.png").to_vec(),
+                512,
+                512,
+            ))),
+        )
+        .unwrap();
     let bag = storage.get_bag(bag_id).unwrap();
 
     eframe::run_simple_native("FlTable Example", options, move |ctx, _frame| {
+        install_image_loaders(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             let table = FlTable::new(FlDataReference::new(
                 "dataframe".to_string(),
@@ -76,7 +94,25 @@ fn main() {
                 FlDataType::DataFrame,
             ));
             let bag = bag.read().unwrap();
-            table.draw(ui, &bag);
+            let stack = vec![
+                Arc::new(DataRender::Image(FlImageRender::new(FlDataReference::new(
+                    "image".to_string(),
+                    GenerationSelector::Latest,
+                    FlDataType::Image,
+                )))),
+                Arc::new(DataRender::DataFrameView(Box::new(
+                    FlDataFrameViewRender::new(
+                        FlDataFrameView::new(FlDataReference::new(
+                            "dataframe".to_string(),
+                            GenerationSelector::Latest,
+                            FlDataType::DataFrame,
+                        )),
+                        "Face".to_string(),
+                    ),
+                ))),
+            ];
+            let mut visualize_state = VisualizeState::load(ctx, Id::new("stack"));
+            visualize_state.show(ui, &bag, &stack);
         });
     })
     .unwrap();
