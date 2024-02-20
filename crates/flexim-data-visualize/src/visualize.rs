@@ -118,7 +118,6 @@ impl VisualizeState {
         self.show_header(ui);
         let _response = ui
             .with_layout(Layout::top_down(Align::Min), |ui| {
-                dbg!(contents.len());
                 let response = {
                     if contents.len() > 1 {
                         stack_visualize(ui, bag, self, contents)
@@ -771,7 +770,7 @@ fn visualize(
 
         response
     })
-    .response
+    .inner
 }
 
 fn stack_visualize(
@@ -795,7 +794,7 @@ fn stack_visualize(
 
         response
     })
-    .response
+    .inner
 }
 
 fn draw_image(
