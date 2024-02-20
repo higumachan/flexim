@@ -3,8 +3,8 @@ use crate::cache::{Poll, VisualizedImageCache};
 use std::io::Cursor;
 
 use egui::{
-    CollapsingHeader, Color32, ComboBox, Id, Image, Painter, Pos2, Rect, Response, Sense, Slider,
-    Ui, Vec2, Widget,
+    Align, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout, Painter,
+    Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{
@@ -31,18 +31,52 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
 
+const SCROLL_SPEED: f32 = 1.0;
+const ZOOM_SPEED: f32 = 1.0;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
+    pub id: Id,
     pub scale: f32,
     pub shift: Vec2,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct InnerState {
+    scale: f32,
+    shift: Vec2,
+}
+
+impl Default for InnerState {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+            shift: Vec2::ZERO,
+        }
+    }
+}
+
 impl VisualizeState {
-    pub fn uv_rect(&self) -> Rect {
-        Rect::from_center_size(
-            Pos2::new(0.5, 0.5) + self.shift,
-            Vec2::new(1.0 / self.scale, 1.0 / self.scale),
-        )
+    pub fn load(ctx: &Context, id: Id) -> Self {
+        let inner_state =
+            ctx.data_mut(|data| data.get_persisted::<InnerState>(id).unwrap_or_default());
+        Self {
+            id,
+            scale: inner_state.scale,
+            shift: inner_state.shift,
+        }
+    }
+
+    fn store(&self, ctx: &Context) {
+        ctx.data_mut(|data| {
+            data.insert_persisted(
+                self.id,
+                InnerState {
+                    scale: self.scale,
+                    shift: self.shift,
+                },
+            )
+        });
     }
 
     pub fn is_valid(&self) -> bool {
@@ -53,14 +87,73 @@ impl VisualizeState {
             && -100000.0 <= self.shift.y
             && self.shift.y <= 100000.0
     }
-}
 
-impl Default for VisualizeState {
-    fn default() -> Self {
-        Self {
-            scale: 1.0,
-            shift: Vec2::ZERO,
+    pub fn show_header(&mut self, ui: &mut Ui) {
+        let state = self;
+        ui.with_layout(
+            Layout::left_to_right(Align::Min)
+                .with_main_align(Align::Center)
+                .with_main_wrap(true),
+            |ui| {
+                let b = ui.button("-");
+                if b.clicked() {
+                    state.scale -= 0.1;
+                }
+                let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
+                if dv.clicked() {
+                    state.scale = 1.0;
+                }
+
+                let b = ui.button("+");
+                if b.clicked() {
+                    state.scale += 0.1;
+                }
+            },
+        );
+    }
+
+    pub fn show(&mut self, ui: &mut Ui, bag: &Bag, contents: &[Arc<DataRender>]) {
+        let old_state = self.clone();
+
+        self.show_header(ui);
+        let _response = ui
+            .with_layout(Layout::top_down(Align::Min), |ui| {
+                let response = {
+                    if contents.len() > 1 {
+                        stack_visualize(ui, bag, self, contents)
+                    } else {
+                        visualize(ui, bag, self, contents[0].as_ref())
+                    }
+                };
+
+                if let Some(hover_pos) = response.hover_pos() {
+                    let hover_pos = hover_pos - response.rect.min;
+                    ui.input(|input| {
+                        // スクロール関係
+                        {
+                            let dy = input.scroll_delta.y;
+                            let dx = input.scroll_delta.x;
+                            self.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
+                        }
+                        // ズーム関係
+                        {
+                            // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
+                            let scale = input.zoom_delta() * ZOOM_SPEED;
+                            let pos = hover_pos;
+                            self.scale *= scale;
+                            self.shift = self.shift * scale
+                                + egui::vec2(-scale * pos.x + pos.x, -scale * pos.y + pos.y);
+                        }
+                    });
+                }
+
+                response
+            })
+            .inner;
+        if !self.is_valid() {
+            *self = old_state;
         }
+        self.store(ui.ctx());
     }
 }
 
@@ -665,11 +758,10 @@ impl FlDataFrameViewRender {
     }
 }
 
-pub fn visualize(
+fn visualize(
     ui: &mut Ui,
     bag: &Bag,
     visualize_state: &mut VisualizeState,
-    _name: &str,
     render: &DataRender,
 ) -> Response {
     ui.centered_and_justified(|ui| {
@@ -683,7 +775,7 @@ pub fn visualize(
     .response
 }
 
-pub fn stack_visualize(
+fn stack_visualize(
     ui: &mut Ui,
     bag: &Bag,
     visualize_state: &mut VisualizeState,
