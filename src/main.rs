@@ -6,7 +6,7 @@ use eframe::{run_native, Frame};
 use egui::ahash::{HashMap, HashMapExt};
 
 use crate::left_panel::left_panel;
-use egui::{Align, Context, DragValue, Id, Layout, Response, Ui, Widget};
+use egui::{Align, Context, Id, Layout, Response, Ui};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse};
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
@@ -15,9 +15,7 @@ use flexim_data_type::{
     FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
     FlDataType, FlImage, FlTensor2D, GenerationSelector,
 };
-use flexim_data_visualize::visualize::{
-    stack_visualize, visualize, DataRender, FlImageRender, VisualizeState,
-};
+use flexim_data_visualize::visualize::{DataRender, FlImageRender, VisualizeState};
 use flexim_font::setup_custom_fonts;
 use flexim_layout::pane::{Pane, PaneContent};
 use flexim_layout::FlLayout;
@@ -31,9 +29,6 @@ use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
 use std::sync::{Arc, RwLock};
 use tonic::transport::Server;
-
-const SCROLL_SPEED: f32 = 1.0;
-const ZOOM_SPEED: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StackId(u64);
@@ -91,95 +86,13 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
 
         match &pane.content {
             PaneContent::Visualize(content) => {
-                let mut state = ui
-                    .memory_mut(|mem| mem.data.get_persisted::<VisualizeState>(id))
-                    .unwrap_or_default();
-                let old_state = state.clone();
-
-                let _response = ui
-                    .with_layout(Layout::top_down(Align::Min), |ui| {
-                        ui.with_layout(
-                            Layout::left_to_right(Align::Min)
-                                .with_main_align(Align::Center)
-                                .with_main_wrap(true),
-                            |ui| {
-                                let b = ui.button("-");
-                                if b.clicked() {
-                                    state.scale -= 0.1;
-                                }
-                                let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
-                                if dv.clicked() {
-                                    state.scale = 1.0;
-                                }
-
-                                let b = ui.button("+");
-                                if b.clicked() {
-                                    state.scale += 0.1;
-                                }
-
-                                let b = ui.button("💾");
-                                if b.clicked() {
-                                    let mut file = std::fs::File::create("content.bin").unwrap();
-                                    let mut buf_writer = std::io::BufWriter::new(&mut file);
-
-                                    if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
-                                        bincode::serialize_into(
-                                            &mut buf_writer,
-                                            &stack_tab.contents.clone(),
-                                        )
-                                        .unwrap();
-                                    } else {
-                                        bincode::serialize_into(
-                                            &mut buf_writer,
-                                            &vec![content.clone()],
-                                        )
-                                        .unwrap();
-                                    };
-                                }
-                            },
-                        );
-
-                        let response = {
-                            let bag = self.current_bag.read().unwrap();
-                            if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
-                                stack_visualize(ui, &bag, &mut state, &stack_tab.contents)
-                            } else {
-                                visualize(ui, &bag, &mut state, &pane.name, content.as_ref())
-                            }
-                        };
-
-                        if let Some(hover_pos) = response.hover_pos() {
-                            let hover_pos = hover_pos - response.rect.min;
-                            ui.input(|input| {
-                                // スクロール関係
-                                {
-                                    let dy = input.scroll_delta.y;
-                                    let dx = input.scroll_delta.x;
-                                    state.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
-                                }
-                                // ズーム関係
-                                {
-                                    // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
-                                    let scale = input.zoom_delta() * ZOOM_SPEED;
-                                    let pos = hover_pos;
-                                    state.scale *= scale;
-                                    state.shift = state.shift * scale
-                                        + egui::vec2(
-                                            -scale * pos.x + pos.x,
-                                            -scale * pos.y + pos.y,
-                                        );
-                                }
-                            });
-                        }
-
-                        response
-                    })
-                    .inner;
-                if !state.is_valid() {
-                    state = old_state;
+                let mut state = VisualizeState::load(ui.ctx(), id);
+                let bag = self.current_bag.read().unwrap();
+                if let Some(stack_tab) = self.stack_tabs.get(&tile_id) {
+                    state.show(ui, &bag, &stack_tab.contents);
+                } else {
+                    state.show(ui, &bag, &[content.clone()]);
                 }
-                ui.memory_mut(|mem| mem.data.insert_persisted(id, state));
-
                 UiResponse::None
             }
             PaneContent::DataView(view) => {
@@ -282,14 +195,14 @@ fn main() -> Result<(), eframe::Error> {
         .insert_data(
             bag_id,
             "tall".to_string(),
-            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 1024).into(),
         )
         .unwrap();
     storage
         .insert_data(
             bag_id,
             "tall".to_string(),
-            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 1024).into(),
         )
         .unwrap();
     storage
@@ -339,7 +252,7 @@ fn main() -> Result<(), eframe::Error> {
         .insert_data(
             bag_id,
             "logo".to_string(),
-            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 512).into(),
+            FlImage::new(include_bytes!("../assets/tall.png").to_vec(), 512, 1442).into(),
         )
         .unwrap();
     storage
