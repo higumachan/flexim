@@ -4,7 +4,7 @@ use std::io::Cursor;
 
 use egui::{
     Align, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout, Painter,
-    Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
+    PointerButton, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{
@@ -125,6 +125,10 @@ impl VisualizeState {
                         visualize(ui, bag, self, contents[0].as_ref())
                     }
                 };
+
+                if response.dragged_by(PointerButton::Middle) {
+                    self.shift += response.drag_delta();
+                }
 
                 if let Some(hover_pos) = response.hover_pos() {
                     let hover_pos = hover_pos - response.rect.min;
