@@ -10,7 +10,6 @@ use flexim_data_visualize::visualize::{
     DataRender, FlDataFrameViewRender, FlImageRender, VisualizeState,
 };
 use flexim_storage::{Storage, StorageQuery};
-use flexim_table_widget::FlTable;
 use polars::prelude::*;
 use polars::series::Series;
 use std::collections::HashMap;
@@ -88,11 +87,6 @@ fn main() {
     eframe::run_simple_native("FlTable Example", options, move |ctx, _frame| {
         install_image_loaders(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            let table = FlTable::new(FlDataReference::new(
-                "dataframe".to_string(),
-                GenerationSelector::Latest,
-                FlDataType::DataFrame,
-            ));
             let bag = bag.read().unwrap();
             let stack = vec![
                 Arc::new(DataRender::Image(FlImageRender::new(FlDataReference::new(
