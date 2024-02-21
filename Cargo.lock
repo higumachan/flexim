@@ -1593,6 +1593,7 @@ dependencies = [
  "flexim-data-view",
  "flexim-storage",
  "flexim-table-widget",
+ "flexim-utility",
  "image",
  "indexmap 2.1.0",
  "itertools 0.12.0",
@@ -1604,6 +1605,7 @@ dependencies = [
  "rand",
  "scarlet",
  "serde",
+ "serde_json",
  "unwrap-ord",
 ]
 
