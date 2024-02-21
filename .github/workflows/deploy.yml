@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 毎日JST 9時に実行
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Install packager
+        run: cargo install cargo-packager
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate key
+        run: cargo packager signer generate --password '${{ secrets.CARGO_PACKAGER_PASSWORD }}' --path ./signing-key -vvv
+      - name: Packaging
+        run: cargo packager --release --private-key ./signing-key --password '${{ secrets.CARGO_PACKAGER_PASSWORD }}' --formats all -vvv
+      - name: Prepare Release Name and Tag
+        id: vars
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.vars.outputs.date }}
+          release_name: Release ${{ steps.vars.outputs.date }}
+          draft: false
+          prerelease: true
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/flexim.app
+          asset_name: flexim-${{ steps.vars.outputs.date }}
+          asset_content_type: application/octet-stream
