@@ -22,6 +22,8 @@ jobs:
         with:
           path: ~/.cargo/registry
           key: ${{ matrix.os }}-${{ matrix.version }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.version }}-cargo-registry
 
       - name: Cache Cargo index
         uses: actions/cache@v4
