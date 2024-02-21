@@ -30,12 +30,16 @@ jobs:
         with:
           path: ~/.cargo/git
           key: ${{ matrix.os }}-${{ matrix.version }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+              ${{ matrix.os }}-${{ matrix.version }}-cargo-index
 
       - name: Cache Cargo build
         uses: actions/cache@v4
         with:
           path: target
           key: ${{ matrix.os }}-${{ matrix.version }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+              ${{ matrix.os }}-${{ matrix.version }}-cargo-build
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
