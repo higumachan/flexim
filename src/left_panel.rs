@@ -7,7 +7,7 @@ use egui::{
     ScrollArea, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
-use flexim_data_type::FlDataReference;
+use flexim_data_type::{FlDataReference, FlDataType};
 use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_layout::check::check_applicable;
@@ -161,14 +161,16 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
             let bind = app.storage.get_bag(app.current_bag_id).unwrap();
             let bag = bind.read().unwrap();
             for (name, data_group) in &bag.data_groups() {
+                let icon = data_type_to_icon(data_group.first().unwrap().data.data_type());
+
                 if data_group.len() > 1 {
-                    CollapsingHeader::new(name).show(ui, |ui| {
+                    CollapsingHeader::new(format!("{} {}", icon, name)).show(ui, |ui| {
                         for &d in data_group {
                             data_list_content_view(
                                 app,
                                 ui,
                                 format!("#{}", d.generation).as_str(),
-                                format!("{} #{}", &d.name, d.generation).as_str(),
+                                format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
                                 FlDataReference::from(d.clone()),
                             );
                         }
@@ -178,8 +180,8 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
                     data_list_content_view(
                         app,
                         ui,
-                        &d.name,
-                        format!("{} #{}", &d.name, d.generation).as_str(),
+                        format!("{} {}", icon, &d.name).as_str(),
+                        format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
                         FlDataReference::from(d.clone()),
                     );
                 }
@@ -435,4 +437,12 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
 
 fn list_item_label(ui: &mut Ui, name: &str) -> Response {
     Label::new(name).truncate(true).ui(ui)
+}
+
+fn data_type_to_icon(data_type: FlDataType) -> &'static str {
+    match data_type {
+        FlDataType::Image => "🖼",
+        FlDataType::DataFrame => "📊",
+        FlDataType::Tensor => "🔢",
+    }
 }
