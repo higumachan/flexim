@@ -116,6 +116,16 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                                     if ui.button("+").clicked() {
                                         app.replace_bag_id = Some(bag.id);
                                     }
+                                    if ui.button("💾").clicked() {
+                                        if let Some(file_path) = rfd::FileDialog::new().save_file()
+                                        {
+                                            let mut buf_writer = std::io::BufWriter::new(
+                                                std::fs::File::create(file_path).unwrap(),
+                                            );
+                                            bincode::serialize_into(&mut buf_writer, bag.deref())
+                                                .unwrap();
+                                        }
+                                    }
                                 },
                             )
                         }
