@@ -39,7 +39,15 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
             if ui.button("Load Layout").clicked() {
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     let buf_reader = std::io::BufReader::new(std::fs::File::open(path).unwrap());
-                    app.layouts = serde_json::from_reader(buf_reader).unwrap();
+                    let add_layouts: Vec<FlLayout> = serde_json::from_reader(buf_reader).unwrap();
+
+                    app.layouts.extend(add_layouts);
+                    app.layouts = app
+                        .layouts
+                        .iter()
+                        .unique_by(|l| &l.name)
+                        .cloned()
+                        .collect_vec();
                 }
             }
         },
