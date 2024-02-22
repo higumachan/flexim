@@ -48,9 +48,10 @@ def init_localstorage(base_directory: Path):
     global global_client, global_server
 
     port = 50111
-    start_localstorage_server(base_directory, port)
+    start_localstorage_server(str(base_directory), port)
     channel = grpc.insecure_channel(f"localhost:{port}")
     global_client = Client(host="localhost", port=port, channel=channel)
+
 
 def create_bag(name: str) -> int:
     global global_client
