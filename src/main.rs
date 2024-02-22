@@ -6,7 +6,7 @@ use eframe::{run_native, Frame};
 use egui::ahash::{HashMap, HashMapExt};
 
 use crate::left_panel::left_panel;
-use egui::{Align, Context, Id, Layout, Response, Ui};
+use egui::{Context, Id, Response, Ui};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse};
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
@@ -367,20 +367,6 @@ fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
             log::warn!("tile not found");
         }
     }
-}
-
-fn left_and_right_layout<Ctx, LR, RR>(
-    ui: &mut Ui,
-    ctx: &mut Ctx,
-    left_content: impl FnOnce(&mut Ctx, &mut Ui) -> LR,
-    right_content: impl FnOnce(&mut Ctx, &mut Ui) -> RR,
-) {
-    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-        right_content(ctx, ui);
-        ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-            left_content(ctx, ui);
-        });
-    });
 }
 
 fn create_tree() -> egui_tiles::Tree<Pane> {

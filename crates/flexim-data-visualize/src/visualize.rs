@@ -1,10 +1,11 @@
 use crate::cache::{Poll, VisualizedImageCache};
 
 use std::io::Cursor;
+use std::ops::Deref;
 
 use egui::{
-    Align, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout, Painter,
-    PointerButton, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
+    Align, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout,
+    Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{
@@ -23,6 +24,7 @@ use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
 use flexim_storage::Bag;
+use flexim_utility::left_and_right_layout;
 use polars::datatypes::DataType;
 use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
@@ -438,6 +440,20 @@ pub struct FlDataFrameViewRenderContext {
     pub highlight_thickness: f64,
 }
 
+impl FlDataFrameViewRenderContext {
+    pub fn verification(&mut self, columns: &[&str]) {
+        if matches!(self.color_scatter_column.as_deref(), Some(c) if !columns.contains(&c)) {
+            self.color_scatter_column = None;
+        }
+        if matches!(self.fill_color_scatter_column.as_deref(), Some(c) if !columns.contains(&c)) {
+            self.fill_color_scatter_column = None;
+        }
+        if matches!(self.label_column.as_deref(), Some(c) if !columns.contains(&c)) {
+            self.label_column = None;
+        }
+    }
+}
+
 fn default_fill_transparency() -> f64 {
     0.9
 }
@@ -655,7 +671,46 @@ impl DataRenderable for FlDataFrameViewRender {
     }
 
     fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
-        ui.label("FlDataFrameView");
+        left_and_right_layout(
+            ui,
+            &mut (),
+            |_, ui| {
+                ui.label("FlDataFrameView");
+            },
+            |_, ui| {
+                if ui.button("📋").on_hover_text("Copy Config").clicked() {
+                    ui.memory_mut(|memory| {
+                        let render_context = self.render_context.lock().unwrap();
+                        memory.data.insert_temp(
+                            Id::new("config clipboard"),
+                            serde_json::to_string(render_context.deref()).unwrap(),
+                        );
+                    });
+                }
+                let enabled = ui.memory(|memory| {
+                    memory
+                        .data
+                        .get_temp::<String>(Id::new("config clipboard"))
+                        .is_some()
+                });
+                let button = Button::new("📲");
+                if ui
+                    .add_enabled(enabled, button)
+                    .on_hover_text("Paste Config")
+                    .clicked()
+                {
+                    ui.memory(|memory| {
+                        let render_context_json = memory
+                            .data
+                            .get_temp::<String>(Id::new("config clipboard"))
+                            .unwrap();
+                        let mut render_context = self.render_context.lock().unwrap();
+                        *render_context = serde_json::from_str(&render_context_json).unwrap();
+                    });
+                }
+            },
+        );
+
         CollapsingHeader::new("Config")
             .default_open(true)
             .show(ui, |ui| {
@@ -666,9 +721,11 @@ impl DataRenderable for FlDataFrameViewRender {
                     .into_iter()
                     .filter(|c| c != &self.column)
                     .collect_vec();
+
+                render_context.verification(&columns);
+
                 ui.horizontal(|ui| {
                     ui.label("Color Scatter Column");
-
                     ComboBox::from_id_source("Color Scatter Column")
                         .selected_text(render_context.color_scatter_column.as_deref().unwrap_or(""))
                         .show_ui(ui, |ui| {

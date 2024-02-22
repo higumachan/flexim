@@ -13,6 +13,7 @@ flexim-data-type.workspace = true
 flexim-data-view.workspace = true
 flexim-table-widget.workspace = true
 flexim-storage.workspace = true
+flexim-utility.workspace = true
 egui.workspace = true
 egui_tiles.workspace = true
 scarlet.workspace = true
@@ -28,7 +29,9 @@ downcast-rs.workspace = true
 log.workspace = true
 indexmap.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 puffin.workspace = true
+
 
 [dev-dependencies]
 env_logger.workspace = true
