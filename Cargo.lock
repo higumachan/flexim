@@ -1699,11 +1699,14 @@ name = "flexim_py"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "flexim-connect",
  "ndarray",
  "numpy",
  "polars",
  "pyo3",
  "serde",
+ "tokio",
+ "tonic",
 ]
 
 [[package]]

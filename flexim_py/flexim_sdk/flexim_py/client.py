@@ -1,4 +1,6 @@
 import logging
+import subprocess
+from pathlib import Path
 from typing import Any, Type, TypeVar
 
 import grpc
@@ -9,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn, Rectangle, Segment
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
 from flexim_py.utility import batched
+from flexim_py._flexim_py_lib import start_localstorage_server
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +26,31 @@ class Client(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
+class Server(BaseModel):
+    handle: int
+
+
 global_client: Client | None = None
+global_server: Server | None = None
 
 
 def init(host: str, port: int):
+    init_server(host, port)
+
+
+def init_server(host: str, port: int):
     global global_client
     channel = grpc.insecure_channel(f"{host}:{port}")
     global_client = Client(host=host, port=port, channel=channel)
+
+
+def init_localstorage(base_directory: Path):
+    global global_client, global_server
+
+    port = 50111
+    start_localstorage_server(str(base_directory), port)
+    channel = grpc.insecure_channel(f"localhost:{port}")
+    global_client = Client(host="localhost", port=port, channel=channel)
 
 
 def create_bag(name: str) -> int:
@@ -70,7 +91,7 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
 
 
 def _data_type_to_proto(
-    data: ImageData | DataFrameData | Tensor2DData,
+        data: ImageData | DataFrameData | Tensor2DData,
 ) -> connect_pb2.DataType:
     if isinstance(data, ImageData):
         return connect_pb2.DataType.Image
@@ -83,13 +104,13 @@ def _data_type_to_proto(
 
 
 def _dataframe_special_columns(
-    data: DataFrameData,
+        data: DataFrameData,
 ) -> dict[str, connect_pb2.AppendDataRequest.DataMeta.SpecialColumn]:
     return {key: _special_column_to_proto(value) for key, value in data.special_columns.items()}
 
 
 def _special_column_to_proto(
-    special_column: SpecialColumn,
+        special_column: SpecialColumn,
 ) -> connect_pb2.AppendDataRequest.DataMeta.SpecialColumn:
     match special_column:
         case SpecialColumn.Rectangle:

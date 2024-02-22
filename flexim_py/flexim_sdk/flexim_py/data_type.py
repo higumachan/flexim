@@ -1,7 +1,7 @@
 from enum import Enum
 from io import BytesIO
 from typing import Self, Literal
-from flexim_py import flexim_py
+from flexim_py import _flexim_py_lib
 
 import PIL.Image
 import pyarrow
@@ -88,4 +88,4 @@ class Tensor2DData(BaseModel):
 
     def to_bytes(self) -> bytes:
         # bytes encoded as C major
-        return _flexim_lib.tensor2d_to_bytes(self.tensor)
+        return _flexim_py_lib.tensor2d_to_bytes(self.tensor)

@@ -3,6 +3,10 @@ name = "flexim_py"
 version.workspace = true
 edition.workspace = true
 
+
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "flexim_py"
@@ -14,6 +18,9 @@ numpy = "0.20.0"
 ndarray.workspace = true
 serde.workspace = true
 bincode.workspace = true
+flexim-connect.workspace = true
+tokio.workspace = true
+tonic.workspace = true
 
 [dev-dependencies]
 polars = { workspace = true, features = ["io", "ipc", "csv"]}

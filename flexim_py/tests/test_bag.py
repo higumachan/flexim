@@ -1,5 +1,6 @@
 import subprocess
 from io import BytesIO
+from pathlib import Path
 
 import numpy as np
 import pandas
@@ -9,7 +10,7 @@ import pytest
 from PIL import Image
 
 from flexim_py.bag import Bag
-from flexim_py.client import init
+from flexim_py.client import init, init_localstorage
 from flexim_py.data_type import (
     ImageData,
     Rectangle,
@@ -88,9 +89,13 @@ test_df_with_color = pandas.DataFrame(
 )
 
 
+@pytest.fixture(autouse=True)
+def init_client():
+    init_localstorage(Path("./tmp/"))
+
+
 def test_simple_append_data():
     # Create a bag
-    init(host="localhost", port=50051)
     with Bag(name="test_bag") as bag:
         # Append data
         bag.append_data(
@@ -110,7 +115,6 @@ def test_simple_append_data():
 
 
 def test_append_data_with_null():
-    init(host="localhost", port=50051)
     with Bag(name="test_bag_with_null") as bag:
         # Append data
         bag.append_data(
@@ -126,7 +130,6 @@ def test_append_data_with_null():
 
 
 def test_append_data_with_invalid_special_column():
-    init(host="localhost", port=50051)
     with Bag(name="test_bag_with_invalid") as bag:
         # Append data
         with pytest.raises(ValueError):
@@ -143,7 +146,6 @@ def test_append_data_with_invalid_special_column():
 
 
 def test_append_tensor2d_data():
-    init(host="localhost", port=50051)
     with Bag(name="test_bag_with_tensor2d") as bag:
         # Append data
 
@@ -160,7 +162,6 @@ def test_append_tensor2d_data():
 
 
 def test_append_color_data():
-    init(host="localhost", port=50051)
     with Bag(name="test_bag_with_color") as bag:
         # Append data
         bag.append_data(
@@ -174,6 +175,8 @@ def test_append_color_data():
             ),
         )
 
+
+@pytest.mark.skip(reason="まだrustのライブラリをこちらに持って来れていないため")
 def test_dataframe_encode_and_decode():
     df = pandas.DataFrame(
         [
@@ -205,5 +208,3 @@ def test_dataframe_encode_and_decode():
     ret = subprocess.run(["cargo", "run", "--example", "decode"], input=sink.getvalue())
 
     assert ret.returncode == 0
-
-

@@ -19,7 +19,6 @@ iniconfig==2.0.0
 maturin==1.4.0
 numpy==1.26.4
     # via flexim-py
-    # via pandas
     # via pyarrow
 packaging==23.2
     # via pytest

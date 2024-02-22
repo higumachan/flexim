@@ -16,7 +16,6 @@ grpcio==1.60.1
     # via flexim-py
 numpy==1.26.4
     # via flexim-py
-    # via pandas
     # via pyarrow
 pandas==2.2.0
     # via flexim-py
