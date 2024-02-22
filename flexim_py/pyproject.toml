@@ -1,11 +1,11 @@
 [build-system]
-requires = ["maturin>=0.14,<0.15", "grpcio-tools>=1.40.0"]
+requires = ["maturin>=1.4.0,<1.5.0", "grpcio-tools>=1.40.0"]
 build-backend = "maturin"
 
 
 [project]
 name = "flexim_py"
-requires-python = ">=3.7"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -34,10 +34,10 @@ rye = { dev-dependencies = [
 
 [tool.maturin]
 python-source = "flexim_sdk"
-module-name = "flexim_py.flexim_py"
+module-name = "flexim_py._flexim_py_lib"
 
 
 [tool.ruff]
 line-length = 150
 indent-width = 4
-target-version = 'py312'
+target-version = 'py311'

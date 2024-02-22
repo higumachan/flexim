@@ -1685,7 +1685,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "flexim_py_lib"
+name = "flexim_py"
 version = "0.1.0"
 dependencies = [
  "bincode",
