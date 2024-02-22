@@ -30,6 +30,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-layout/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-storybook/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-storybook/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/flexim_py/flexim_py_lib/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />

@@ -1685,15 +1685,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "flexim_py"
+name = "flexim_py_lib"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "flexim-connect",
  "ndarray",
  "numpy",
  "polars",
  "pyo3",
  "serde",
+ "tokio",
+ "tonic",
 ]
 
 [[package]]

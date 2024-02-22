@@ -11,10 +11,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tonic::{Request, Response, Status, Streaming};
 
-#[derive(Default)]
 pub struct LocalSaveServerImpl {
     base_directory: PathBuf,
     storage: Arc<Storage>,
+}
+
+impl LocalSaveServerImpl {
+    pub fn new(base_directory: PathBuf) -> Self {
+        Self {
+            base_directory,
+            storage: Arc::new(Storage::default()),
+        }
+    }
 }
 
 #[tonic::async_trait]

@@ -8,7 +8,7 @@ edition.workspace = true
 [workspace]
 members = [
     "crates/*",
-    "flexim_py"
+    "flexim_py/flexim_py_lib"
 ]
 
 [workspace.package]
