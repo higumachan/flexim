@@ -1,4 +1,4 @@
-use crate::{insert_root_tile, left_and_right_layout, App, Managed};
+use crate::{insert_root_tile, App, Managed};
 use chrono::Local;
 use egui::collapsing_header::CollapsingState;
 use egui::menu::menu_image_button;
@@ -14,6 +14,7 @@ use flexim_layout::check::check_applicable;
 use flexim_layout::pane::{into_pane_content, Pane, PaneContent};
 use flexim_layout::FlLayout;
 use flexim_storage::{Bag, StorageQuery};
+use flexim_utility::left_and_right_layout;
 use itertools::Itertools;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};

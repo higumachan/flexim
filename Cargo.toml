@@ -46,6 +46,7 @@ flexim-connect = { path = "crates/flexim-connect" }
 flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
 flexim-layout = { path = "crates/flexim-layout" }
+flexim-utility = { path = "crates/flexim-utility" }
 num-derive = "0.4.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 env_logger = "0.10.1"
@@ -95,6 +96,7 @@ flexim-font.workspace = true
 puffin_http.workspace = true
 puffin.workspace = true
 chrono.workspace = true
+flexim-utility.workspace = true
 
 
 [package.metadata.packager]
