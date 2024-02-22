@@ -4,9 +4,8 @@ use ndarray::Array2;
 use numpy::PyReadonlyArrayDyn;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use std::cell::OnceCell;
-use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex};
+use std::collections::BTreeMap;
+use std::sync::Mutex;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 
@@ -32,11 +31,7 @@ fn _flexim_py_lib(_py: Python, m: &PyModule) -> PyResult<()> {
     }
 
     #[pyfn(m)]
-    fn start_localstorage_server<'py>(
-        _py: Python<'py>,
-        base_directory: &str,
-        port: u16,
-    ) -> PyResult<()> {
+    fn start_localstorage_server(_py: Python<'_>, base_directory: &str, port: u16) -> PyResult<()> {
         let base_directory = std::path::Path::new(base_directory);
 
         if !base_directory.exists() {
