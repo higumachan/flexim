@@ -1,10 +1,9 @@
 use crate::{insert_root_tile, App, Managed};
 use chrono::Local;
-use egui::collapsing_header::CollapsingState;
 use egui::menu::menu_image_button;
 use egui::{
     global_dark_light_mode_switch, CollapsingHeader, Id, Image, ImageButton, Label, Response,
-    ScrollArea, Ui, Vec2, Widget,
+    ScrollArea, Sense, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
 use flexim_data_type::{FlDataReference, FlDataType};
@@ -87,50 +86,44 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
             let bag_groups = app.storage.bag_groups().unwrap();
             for (bag_name, bag_group) in bag_groups {
                 if bag_group.len() > 1 {
-                    let id = ui.make_persistent_id(Id::new("left_panel_bag_group").with(&bag_name));
-                    let mut should_toggle = false;
-                    egui::collapsing_header::CollapsingState::load_with_default_open(
-                        ui.ctx(),
-                        id,
-                        false,
-                    )
-                    .show_header(ui, |ui| {
-                        if list_item_label(ui, bag_name.as_str()).clicked() {
-                            should_toggle = true
-                        }
-                    })
-                    .body(|ui| {
-                        for bag in bag_group {
-                            let bag = bag.read().unwrap();
-                            left_and_right_layout(
-                                ui,
-                                app,
-                                |_app, ui| {
-                                    ui.label(
-                                        &bag.created_at
-                                            .with_timezone(&Local)
-                                            .format("%Y-%m-%d %H:%M:%S")
-                                            .to_string(),
-                                    );
-                                },
-                                |app, ui| {
-                                    if ui.button("+").clicked() {
-                                        app.replace_bag_id = Some(bag.id);
-                                    }
-                                    if ui.button("💾").clicked() {
-                                        if let Some(file_path) = rfd::FileDialog::new().save_file()
-                                        {
-                                            let mut buf_writer = std::io::BufWriter::new(
-                                                std::fs::File::create(file_path).unwrap(),
-                                            );
-                                            bincode::serialize_into(&mut buf_writer, bag.deref())
-                                                .unwrap();
+                    CollapsingHeader::new(bag_name)
+                        .header_truncate(true)
+                        .show(ui, |ui| {
+                            for bag in bag_group {
+                                let bag = bag.read().unwrap();
+                                left_and_right_layout(
+                                    ui,
+                                    app,
+                                    |_app, ui| {
+                                        ui.label(
+                                            &bag.created_at
+                                                .with_timezone(&Local)
+                                                .format("%Y-%m-%d %H:%M:%S")
+                                                .to_string(),
+                                        );
+                                    },
+                                    |app, ui| {
+                                        if ui.button("+").clicked() {
+                                            app.replace_bag_id = Some(bag.id);
                                         }
-                                    }
-                                },
-                            )
-                        }
-                    });
+                                        if ui.button("💾").clicked() {
+                                            if let Some(file_path) =
+                                                rfd::FileDialog::new().save_file()
+                                            {
+                                                let mut buf_writer = std::io::BufWriter::new(
+                                                    std::fs::File::create(file_path).unwrap(),
+                                                );
+                                                bincode::serialize_into(
+                                                    &mut buf_writer,
+                                                    bag.deref(),
+                                                )
+                                                .unwrap();
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        });
                 } else {
                     let bag = bag_group.first().unwrap().read().unwrap();
                     left_and_right_layout(
@@ -175,17 +168,19 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
                 let icon = data_type_to_icon(data_group.first().unwrap().data.data_type());
 
                 if data_group.len() > 1 {
-                    CollapsingHeader::new(format!("{} {}", icon, name)).show(ui, |ui| {
-                        for &d in data_group {
-                            data_list_content_view(
-                                app,
-                                ui,
-                                format!("#{}", d.generation).as_str(),
-                                format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
-                                FlDataReference::from(d.clone()),
-                            );
-                        }
-                    });
+                    CollapsingHeader::new(format!("{} {}", icon, name))
+                        .header_truncate(true)
+                        .show(ui, |ui| {
+                            for &d in data_group {
+                                data_list_content_view(
+                                    app,
+                                    ui,
+                                    format!("#{}", d.generation).as_str(),
+                                    format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
+                                    FlDataReference::from(d.clone()),
+                                );
+                            }
+                        });
                 } else {
                     let &d = data_group.first().unwrap();
                     data_list_content_view(
@@ -258,49 +253,46 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
         .show(ui, |ui| {
             ui.set_width(width);
             ui.label("Data View");
+
             for m in &data_views {
-                CollapsingState::load_with_default_open(
-                    ui.ctx(),
-                    Id::new("left_panel_data_view_list").with(&m.name),
-                    true,
-                )
-                .show_header(ui, |ui| {
-                    left_and_right_layout(
-                        ui,
-                        app,
-                        |_ctx, ui| {
-                            list_item_label(ui, &m.name);
-                        },
-                        |app, ui| {
-                            let tile_visible = app.tree.tiles.is_visible(m.tile_id);
-                            if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
-                                app.tree.tiles.set_visible(m.tile_id, !tile_visible);
-                            }
-                            if ui.button("➖").clicked() {
-                                app.removing_tiles.push(m.tile_id);
-                            }
-                        },
-                    )
-                })
-                .body(|ui| {
-                    for attr in m.data.visualizeable_attributes(bag) {
-                        left_and_right_layout(
-                            ui,
-                            app,
-                            |_app, ui| list_item_label(ui, attr.as_str()),
-                            |app, ui| {
-                                if ui.button("+").clicked() {
-                                    let render = m.data.create_visualize(attr.clone());
-                                    insert_root_tile(
-                                        &mut app.tree,
-                                        format!("{} {}", attr, m.name).as_str(),
-                                        PaneContent::Visualize(render),
+                let parent_width = ui.available_width();
+                left_and_right_layout(
+                    ui,
+                    app,
+                    |app, ui| {
+                        CollapsingHeader::new(&m.name)
+                            .header_truncate(true)
+                            .show(ui, |ui| {
+                                ui.set_width(parent_width - ui.spacing().indent);
+                                for attr in m.data.visualizeable_attributes(bag) {
+                                    left_and_right_layout(
+                                        ui,
+                                        app,
+                                        |_app, ui| list_item_label(ui, attr.as_str()),
+                                        |app, ui| {
+                                            if ui.button("+").clicked() {
+                                                let render = m.data.create_visualize(attr.clone());
+                                                insert_root_tile(
+                                                    &mut app.tree,
+                                                    format!("{} {}", attr, m.name).as_str(),
+                                                    PaneContent::Visualize(render),
+                                                );
+                                            }
+                                        },
                                     );
                                 }
-                            },
-                        );
-                    }
-                });
+                            })
+                    },
+                    |app, ui| {
+                        let tile_visible = app.tree.tiles.is_visible(m.tile_id);
+                        if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
+                            app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                        }
+                        if ui.button("➖").clicked() {
+                            app.removing_tiles.push(m.tile_id);
+                        }
+                    },
+                );
             }
         });
 }
@@ -447,7 +439,7 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
 }
 
 fn list_item_label(ui: &mut Ui, name: &str) -> Response {
-    Label::new(name).truncate(true).ui(ui)
+    Label::new(name).truncate(true).sense(Sense::click()).ui(ui)
 }
 
 fn data_type_to_icon(data_type: FlDataType) -> &'static str {
