@@ -72,7 +72,10 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
                         .collect_vec();
 
                     ui.ctx().memory_mut(|mem| {
-                        mem.data.insert_persisted(layout_file_path_id, path);
+                        mem.data.insert_persisted(
+                            layout_file_path_id,
+                            path.parent().unwrap().to_owned(),
+                        );
                     });
                 }
             }
@@ -107,11 +110,11 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                 },
                 |app, ui| {
                     let bag_file_path_id = Id::new("bag_file_path");
-                    let file_path =
-                        ui.memory_mut(|mem| mem.data.get_persisted::<PathBuf>(bag_file_path_id));
 
                     if ui.button("📲").clicked() {
                         let fd = rfd::FileDialog::new();
+                        let file_path = ui
+                            .memory_mut(|mem| mem.data.get_persisted::<PathBuf>(bag_file_path_id));
                         let fd = if let Some(path) = file_path.as_ref() {
                             fd.set_directory(path)
                         } else {
@@ -126,8 +129,10 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                             }
 
                             ui.ctx().memory_mut(|mem| {
-                                mem.data
-                                    .insert_persisted(Id::new(bag_file_path_id), file_path);
+                                mem.data.insert_persisted(
+                                    bag_file_path_id,
+                                    file_path.parent().unwrap().to_owned(),
+                                );
                             });
                         }
                     }
