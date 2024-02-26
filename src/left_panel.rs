@@ -16,6 +16,7 @@ use flexim_storage::{Bag, StorageQuery};
 use flexim_utility::left_and_right_layout;
 use itertools::Itertools;
 use std::ops::{Deref, DerefMut};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
@@ -27,17 +28,39 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
                 .max_size(Vec2::new(12.0, 12.0)),
         ),
         |ui| {
+            let layout_file_path_id = Id::new("layout_file_path");
+            let path = ui
+                .ctx()
+                .memory_mut(|mem| mem.data.get_persisted::<PathBuf>(layout_file_path_id));
+
             global_dark_light_mode_switch(ui);
             if ui.button("Save Layout").clicked() {
-                if let Some(path) = rfd::FileDialog::new().save_file() {
+                let fd = rfd::FileDialog::new();
+                let fd = if let Some(path) = path.as_ref() {
+                    fd.set_directory(path)
+                } else {
+                    fd
+                };
+
+                if let Some(path) = fd.save_file() {
                     let mut buf_writer =
-                        std::io::BufWriter::new(std::fs::File::create(path).unwrap());
+                        std::io::BufWriter::new(std::fs::File::create(path.clone()).unwrap());
                     serde_json::to_writer(&mut buf_writer, &app.layouts).unwrap();
+
+                    ui.ctx().memory_mut(|mem| {
+                        mem.data.insert_persisted(layout_file_path_id, path);
+                    });
                 }
             }
             if ui.button("Load Layout").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    let buf_reader = std::io::BufReader::new(std::fs::File::open(path).unwrap());
+                let fd = rfd::FileDialog::new();
+                let fd = if let Some(path) = path.as_ref() {
+                    fd.set_directory(path)
+                } else {
+                    fd
+                };
+                if let Some(path) = fd.pick_file() {
+                    let buf_reader = std::io::BufReader::new(std::fs::File::open(&path).unwrap());
                     let add_layouts: Vec<FlLayout> = serde_json::from_reader(buf_reader).unwrap();
 
                     app.layouts.extend(add_layouts);
@@ -47,6 +70,10 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
                         .unique_by(|l| &l.name)
                         .cloned()
                         .collect_vec();
+
+                    ui.ctx().memory_mut(|mem| {
+                        mem.data.insert_persisted(layout_file_path_id, path);
+                    });
                 }
             }
         },
@@ -79,14 +106,29 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                     ui.label("Data Bag");
                 },
                 |app, ui| {
+                    let bag_file_path_id = Id::new("bag_file_path");
+                    let file_path =
+                        ui.memory_mut(|mem| mem.data.get_persisted::<PathBuf>(bag_file_path_id));
+
                     if ui.button("📲").clicked() {
-                        if let Some(file_path) = rfd::FileDialog::new().pick_file() {
+                        let fd = rfd::FileDialog::new();
+                        let fd = if let Some(path) = file_path.as_ref() {
+                            fd.set_directory(path)
+                        } else {
+                            fd
+                        };
+                        if let Some(file_path) = fd.pick_file() {
                             let buf_reader =
-                                std::io::BufReader::new(std::fs::File::open(file_path).unwrap());
+                                std::io::BufReader::new(std::fs::File::open(&file_path).unwrap());
                             let bag: Bag = bincode::deserialize_from(buf_reader).unwrap();
                             if !app.storage.load_bag(bag) {
                                 log::error!("bag already exists");
                             }
+
+                            ui.ctx().memory_mut(|mem| {
+                                mem.data
+                                    .insert_persisted(Id::new(bag_file_path_id), file_path);
+                            });
                         }
                     }
                 },
