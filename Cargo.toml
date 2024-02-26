@@ -107,8 +107,10 @@ flexim-utility.workspace = true
 
 
 [package.metadata.packager]
-before-packaging-command = "cargo build --release"
-product-name = "flexim"
-identifier = "com.higumachan.flexim"
-resources = ["Cargo.toml", "src", "crates", "assets/logo.png"]
+# before-packaging-command = "cargo build --release"
+product-name = "Flexim"
+identifier = "com.flexim.application"
+resources = ["Cargo.toml", "src", "assets/logo.png"]
 icons = ["assets/logo.png"]
+#out_dir = "/Users/yuta/ghq/github.com/higumachan/flexim/target/release"
+#binaries = [{path = "/Users/yuta/ghq/github.com/higumachan/flexim/target/release/flexim", main = true}]
