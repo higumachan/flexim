@@ -106,7 +106,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
 impl SpecialColumnShape for FlDataFrameSegment {
     fn render(
         &self,
-        _ui: &mut Ui,
+        ui: &mut Ui,
         painter: &mut Painter,
         parameter: RenderParameter,
         state: &VisualizeState,
@@ -117,13 +117,29 @@ impl SpecialColumnShape for FlDataFrameSegment {
             ..
         } = parameter;
 
-        let segmment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale
+        let segment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale
             + state.shift
             + painter.clip_rect().min.to_vec2();
-        let segmment_p2 = Pos2::new(self.x2 as f32, self.y2 as f32) * state.scale
+        let segment_p2 = Pos2::new(self.x2 as f32, self.y2 as f32) * state.scale
             + state.shift
             + painter.clip_rect().min.to_vec2();
-        painter.line_segment([segmment_p1, segmment_p2], Stroke::new(thickness, color));
-        None
+
+        let rectangle = Rect::from_min_max(segment_p1, segment_p2);
+        let response = if rectangle.width() < 1.0 || rectangle.height() < 1.0 {
+            ui.allocate_rect(rectangle, Sense::click())
+        } else {
+            let p1_rectangle = Rect::from_center_size(segment_p1, Vec2::splat(1.0));
+            let p2_rectangle = Rect::from_center_size(segment_p2, Vec2::splat(1.0));
+            let center_rectangle =
+                Rect::from_center_size((segment_p1 + segment_p2.to_vec2()) / 2.0, Vec2::splat(1.0));
+
+            ui.allocate_rect(p1_rectangle, Sense::click())
+                .union(ui.allocate_rect(p2_rectangle, Sense::click()))
+                .union(ui.allocate_rect(center_rectangle, Sense::click()))
+        };
+
+        painter.line_segment([segment_p1, segment_p2], Stroke::new(thickness, color));
+
+        Some(response)
     }
 }
