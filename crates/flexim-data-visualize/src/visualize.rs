@@ -598,6 +598,8 @@ impl DataRenderable for FlDataFrameViewRender {
             .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
         let mut hovered_index = None;
+        let mut part_ids = vec![];
+
         for (i, shape) in shapes
             .iter()
             .enumerate()
@@ -620,10 +622,12 @@ impl DataRenderable for FlDataFrameViewRender {
                 self.render_context.lock().unwrap().normal_thickness
             } as f32;
 
+            part_ids.push(self.id().with(i));
             let response = shape.render(
                 ui,
                 painter,
                 RenderParameter {
+                    id: part_ids.last().unwrap().clone(),
                     stroke_color: calc_transparent_color(color, transparent),
                     stroke_thickness: thickness,
                     label: label.map(|s| s.to_string()),
@@ -659,6 +663,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 }
             }
         }
+
         if let Some(g) = self.dataframe_view.table.state(ui, bag) {
             let mut state = g.lock().unwrap();
             if let Some(hi) = hovered_index {
