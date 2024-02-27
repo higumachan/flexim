@@ -79,13 +79,18 @@ class DataFrameData(BaseModel):
 class Tensor2DData(BaseModel):
     type: Literal["Tensor2D"] = "Tensor2D"
     tensor: npt.NDArray[np.float32]
+    offset: tuple[int, int]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def from_numpy(cls, array: npt.NDArray[np.float32]):
-        return cls(tensor=array)
+        return cls(tensor=array, offset=(0, 0))
+
+    @classmethod
+    def from_numpy_with_offset(cls, array: npt.NDArray[np.float32], offset: tuple[int, int]):
+        return cls(tensor=array, offset=offset)
 
     def to_bytes(self) -> bytes:
         # bytes encoded as C major
-        return _flexim_py_lib.tensor2d_to_bytes(self.tensor)
+        return _flexim_py_lib.tensor2d_to_bytes(self.tensor, self.offset)

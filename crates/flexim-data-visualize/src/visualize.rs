@@ -405,7 +405,11 @@ impl DataRenderable for FlTensor2DRender {
 
                 let size = Vec2::new(data.value.shape()[1] as f32, data.value.shape()[0] as f32)
                     * state.scale;
-                draw_image(painter, &image, state.shift, size, tint_color)?;
+
+                let offset = data.offset;
+                let offset = Vec2::new(offset.1 as f32, offset.0 as f32) * state.scale;
+
+                draw_image(painter, &image, state.shift + offset, size, tint_color)?;
             }
 
             Ok(())
