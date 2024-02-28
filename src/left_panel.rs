@@ -48,7 +48,10 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
                     serde_json::to_writer(&mut buf_writer, &app.layouts).unwrap();
 
                     ui.ctx().memory_mut(|mem| {
-                        mem.data.insert_persisted(layout_file_path_id, path);
+                        mem.data.insert_persisted(
+                            layout_file_path_id,
+                            path.parent().unwrap().to_path_buf(),
+                        );
                     });
                 }
             }
