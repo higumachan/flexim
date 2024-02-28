@@ -3,7 +3,6 @@ use crate::grpc::append_data_request::DataMeta;
 use crate::grpc::DataType;
 use anyhow::Context;
 use flexim_data_type::{FlData, FlDataFrame, FlDataFrameSpecialColumn, FlImage, FlTensor2D};
-use ndarray::Array2;
 use polars::prelude::{IpcReader, SerReader};
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -53,8 +52,8 @@ fn special_column_convert(
 fn tensor2d_from_bytes(buffer: Vec<u8>) -> anyhow::Result<FlTensor2D<f64>> {
     let reader = Cursor::new(buffer);
 
-    let arr: Array2<f64> =
+    let arr: FlTensor2D<f64> =
         bincode::deserialize_from(reader).context("bincode deserialize error")?;
 
-    Ok(FlTensor2D::new(arr))
+    Ok(arr)
 }

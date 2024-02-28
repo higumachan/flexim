@@ -209,12 +209,15 @@ fn main() -> Result<(), eframe::Error> {
         .insert_data(
             bag_id,
             "gauss".to_string(),
-            FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
-                // center peak gauss
-                let x = (x as f64 - 256.0) / 100.0;
-                let y = (y as f64 - 256.0) / 100.0;
-                (-(x * x + y * y) / 2.0).exp()
-            }))
+            FlTensor2D::new(
+                Array2::from_shape_fn((512, 512), |(y, x)| {
+                    // center peak gauss
+                    let x = (x as f64 - 256.0) / 100.0;
+                    let y = (y as f64 - 256.0) / 100.0;
+                    (-(x * x + y * y) / 2.0).exp()
+                }),
+                (0, 0),
+            )
             .into(),
         )
         .unwrap();
@@ -283,12 +286,15 @@ fn main() -> Result<(), eframe::Error> {
         .insert_data(
             bag_id,
             "gauss".to_string(),
-            FlTensor2D::new(Array2::from_shape_fn((512, 512), |(y, x)| {
-                // center peak gauss
-                let x = (x as f64 - 256.0) / 100.0;
-                let y = (y as f64 - 256.0) / 100.0;
-                (-(x * x + y * y) / 2.0).exp()
-            }))
+            FlTensor2D::new(
+                Array2::from_shape_fn((512, 512), |(y, x)| {
+                    // center peak gauss
+                    let x = (x as f64 - 256.0) / 100.0;
+                    let y = (y as f64 - 256.0) / 100.0;
+                    (-(x * x + y * y) / 2.0).exp()
+                }),
+                (100, 100),
+            )
             .into(),
         )
         .unwrap();

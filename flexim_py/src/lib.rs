@@ -1,5 +1,6 @@
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::local_save_server::LocalSaveServerImpl;
+use flexim_data_type::FlTensor2D;
 use ndarray::Array2;
 use numpy::PyReadonlyArrayDyn;
 use pyo3::prelude::*;
@@ -19,12 +20,15 @@ fn _flexim_py_lib(_py: Python, m: &PyModule) -> PyResult<()> {
     fn tensor2d_to_bytes<'py>(
         _py: Python<'py>,
         tensor2d: PyReadonlyArrayDyn<'py, f32>,
+        offset: (u64, u64),
     ) -> PyResult<&'py PyBytes> {
         let array: Array2<f64> = tensor2d
             .as_array()
             .mapv(f64::from)
             .into_dimensionality()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+        let array = FlTensor2D::new(array, offset);
+
         bincode::serialize(&array)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
             .map(|v| PyBytes::new(_py, &v))

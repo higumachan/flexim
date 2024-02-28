@@ -130,13 +130,16 @@ impl FlDataTrait for FlImage {
 pub struct FlTensor2D<A> {
     pub id: Id,
     pub value: Array2<A>,
+    #[serde(default)]
+    pub offset: (u64, u64),
 }
 
 impl<A> FlTensor2D<A> {
-    pub fn new(value: Array2<A>) -> Self {
+    pub fn new(value: Array2<A>, offset: (u64, u64)) -> Self {
         Self {
             id: gen_id(),
             value,
+            offset,
         }
     }
 }
