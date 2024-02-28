@@ -1,6 +1,6 @@
 use crate::visualize::VisualizeState;
 use egui::{
-    Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2,
+    Align2, Color32, FontId, Id, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2,
 };
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
 use std::fmt::Debug;
@@ -16,6 +16,7 @@ pub trait SpecialColumnShape: Debug {
 }
 
 pub struct RenderParameter {
+    pub id: Id,
     pub stroke_color: Color32,
     pub stroke_thickness: f32,
     pub fill_color: Option<Color32>,
@@ -31,6 +32,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         state: &VisualizeState,
     ) -> Option<Response> {
         let RenderParameter {
+            id,
             stroke_color: color,
             stroke_thickness: thickness,
             label,
@@ -49,32 +51,36 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
 
         let mut responses = vec![
-            ui.allocate_rect(
+            ui.interact(
                 Rect::from_x_y_ranges(
                     rect.x_range().expand(thickness),
                     Rangef::point(rect.top()).expand(thickness),
                 ),
+                id,
                 Sense::click(),
             ),
-            ui.allocate_rect(
+            ui.interact(
                 Rect::from_x_y_ranges(
                     rect.x_range().expand(thickness),
                     Rangef::point(rect.bottom()).expand(thickness),
                 ),
+                id,
                 Sense::click(),
             ),
-            ui.allocate_rect(
+            ui.interact(
                 Rect::from_x_y_ranges(
                     Rangef::point(rect.left()).expand(thickness),
                     rect.y_range().expand(thickness),
                 ),
+                id,
                 Sense::click(),
             ),
-            ui.allocate_rect(
+            ui.interact(
                 Rect::from_x_y_ranges(
                     Rangef::point(rect.right()).expand(thickness),
                     rect.y_range().expand(thickness),
                 ),
+                id,
                 Sense::click(),
             ),
         ];
@@ -95,7 +101,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
                 FontId::default(),
                 Color32::BLACK,
             );
-            responses.push(ui.allocate_rect(text_rect, Sense::click()));
+            responses.push(ui.interact(text_rect, id, Sense::click()));
         }
 
         let last = responses.pop()?;
@@ -112,6 +118,7 @@ impl SpecialColumnShape for FlDataFrameSegment {
         state: &VisualizeState,
     ) -> Option<Response> {
         let RenderParameter {
+            id,
             stroke_color: color,
             stroke_thickness: thickness,
             label,
@@ -128,15 +135,15 @@ impl SpecialColumnShape for FlDataFrameSegment {
 
         let rectangle = Rect::from_min_max(segment_p1, segment_p2);
         let response = if rectangle.width() < 1.0 || rectangle.height() < 1.0 {
-            ui.allocate_rect(rectangle, Sense::click())
+            ui.interact(rectangle, id, Sense::click())
         } else {
             let p1_rectangle = Rect::from_center_size(segment_p1, Vec2::splat(1.0));
             let p2_rectangle = Rect::from_center_size(segment_p2, Vec2::splat(1.0));
             let center_rectangle = Rect::from_center_size(center, Vec2::splat(1.0));
 
-            ui.allocate_rect(p1_rectangle, Sense::click())
-                .union(ui.allocate_rect(p2_rectangle, Sense::click()))
-                .union(ui.allocate_rect(center_rectangle, Sense::click()))
+            ui.interact(p1_rectangle, id, Sense::click())
+                .union(ui.interact(p2_rectangle, id, Sense::click()))
+                .union(ui.interact(center_rectangle, id, Sense::click()))
         };
 
         painter.line_segment([segment_p1, segment_p2], Stroke::new(thickness, color));
@@ -157,7 +164,7 @@ impl SpecialColumnShape for FlDataFrameSegment {
                 FontId::default(),
                 Color32::BLACK,
             );
-            response | (ui.allocate_rect(text_rect, Sense::click()))
+            response | (ui.interact(text_rect, id, Sense::click()))
         } else {
             response
         };
