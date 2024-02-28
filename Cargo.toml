@@ -28,10 +28,10 @@ tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
-egui = "0.25.0"
-egui_extras = { version = "0.25.0", features = ["image", "svg"] }
-eframe = "0.25.0"
-egui_tiles = "0.6.0"
+egui = "0.26.2"
+egui_extras = { version = "0.26.2", features = ["image", "svg"] }
+eframe = "0.26.2"
+egui_tiles = { git = "https://github.com/rerun-io/egui_tiles.git", rev = "5245a28" }
 image = { version = "0.24", features = ["png", "jpeg"] }
 ndarray = { version = "0.15.6", features = ["serde"] }
 serde = { version = "1.0.130", features = ["derive"] }
@@ -66,9 +66,9 @@ rstest = "0.18.2"
 
 
 [patch.crates-io]
-egui = { git = "https://github.com/higumachan/egui.git", rev = "24a9c9957c2ce4295500aefb3986c8484a9816fc" }
-egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "24a9c9957c2ce4295500aefb3986c8484a9816fc" }
-eframe = { git = "https://github.com/higumachan/egui.git", rev = "24a9c9957c2ce4295500aefb3986c8484a9816fc" }
+egui = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
+egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
+eframe = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
 
 
 [lints]

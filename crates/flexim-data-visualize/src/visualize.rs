@@ -128,17 +128,17 @@ impl VisualizeState {
                     }
                 };
 
-                if response.inner.dragged_by(PointerButton::Middle) {
-                    self.shift += response.inner.drag_delta();
+                if response.dragged_by(PointerButton::Middle) {
+                    self.shift += response.drag_delta();
                 }
 
-                if let Some(hover_pos) = response.outer.hover_pos() {
-                    let hover_pos = hover_pos - response.inner.rect.min;
+                if let Some(hover_pos) = response.hover_pos() {
+                    let hover_pos = hover_pos - response.rect.min;
                     ui.input(|input| {
                         // スクロール関係
                         {
-                            let dy = input.scroll_delta.y;
-                            let dx = input.scroll_delta.x;
+                            let dy = input.raw_scroll_delta.y;
+                            let dx = input.raw_scroll_delta.x;
                             self.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
                         }
                         // ズーム関係
@@ -821,17 +821,12 @@ impl FlDataFrameViewRender {
     }
 }
 
-struct VisualizeResponse {
-    outer: Response,
-    inner: Response,
-}
-
 fn visualize(
     ui: &mut Ui,
     bag: &Bag,
     visualize_state: &mut VisualizeState,
     render: &DataRender,
-) -> VisualizeResponse {
+) -> Response {
     let responses = ui.centered_and_justified(|ui| {
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
         render
@@ -841,10 +836,7 @@ fn visualize(
         response
     });
 
-    VisualizeResponse {
-        outer: responses.response,
-        inner: responses.inner,
-    }
+    responses.inner
 }
 
 fn stack_visualize(
@@ -852,7 +844,7 @@ fn stack_visualize(
     bag: &Bag,
     visualize_state: &mut VisualizeState,
     stack: &[Arc<DataRender>],
-) -> VisualizeResponse {
+) -> Response {
     assert_ne!(stack.len(), 0);
     let responses = ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
@@ -869,10 +861,7 @@ fn stack_visualize(
         response
     });
 
-    VisualizeResponse {
-        outer: responses.response,
-        inner: responses.inner,
-    }
+    responses.inner
 }
 
 fn draw_image(
