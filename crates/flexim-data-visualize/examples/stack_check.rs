@@ -35,15 +35,15 @@ fn main() -> eframe::Result<()> {
         .insert_data(
             bag_id,
             "tensor".to_string(),
-            FlData::Tensor(Arc::new(FlTensor2D::new(Array2::from_shape_fn(
-                (512, 512),
-                |(y, x)| {
+            FlData::Tensor(Arc::new(FlTensor2D::new(
+                Array2::from_shape_fn((512, 512), |(y, x)| {
                     // center peak gauss
                     let x = (x as f64 - 256.0) / 100.0;
                     let y = (y as f64 - 256.0) / 100.0;
                     (-(x * x + y * y) / 2.0).exp()
-                },
-            )))),
+                }),
+                (0, 0),
+            ))),
         )
         .unwrap();
     let bag = storage.get_bag(bag_id).unwrap();

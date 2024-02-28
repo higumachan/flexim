@@ -19,6 +19,7 @@ ndarray.workspace = true
 serde.workspace = true
 bincode.workspace = true
 flexim-connect.workspace = true
+flexim-data-type.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 
