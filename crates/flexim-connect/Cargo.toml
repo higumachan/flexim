@@ -9,7 +9,6 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-serde.workspace = true
 tonic.workspace = true
 prost.workspace = true
 tokio.workspace = true

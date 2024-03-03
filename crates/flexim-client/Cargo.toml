@@ -10,9 +10,7 @@ flexim-connect.workspace = true
 tonic.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
-serde.workspace = true
 polars.workspace = true
-serde_json.workspace = true
 flexim-data-type.workspace = true
 itertools.workspace = true
 

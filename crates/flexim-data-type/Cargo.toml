@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 image.workspace = true
 ndarray.workspace = true
-serde.workspace = true
+serde = "1"
 polars.workspace = true
 rand.workspace = true
 anyhow.workspace = true
