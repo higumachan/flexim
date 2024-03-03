@@ -21,6 +21,7 @@ use tonic::transport::{Channel, Server};
 pub struct FleximClient {
     inner_client: FleximConnectClient<Channel>,
     runtime: tokio::runtime::Runtime,
+    global_bag: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -310,8 +311,21 @@ fn connect_to_server(port: u16) -> anyhow::Result<()> {
         .set(Mutex::new(FleximClient {
             inner_client: FleximConnectClient::new(channel),
             runtime,
+            global_bag: None,
         }))
         .map_err(|_| anyhow::anyhow!("Failed to set client"))?;
+
+    Ok(())
+}
+
+pub fn set_global_bag(id: u64) -> anyhow::Result<()> {
+    let mut client = CLIENT
+        .get()
+        .context("Client not initialized")?
+        .lock()
+        .unwrap();
+
+    client.global_bag = Some(id);
 
     Ok(())
 }
@@ -329,6 +343,7 @@ pub fn create_bag(name: &str) -> anyhow::Result<u64> {
     let FleximClient {
         runtime,
         inner_client,
+        ..
     } = client.deref_mut();
 
     let response = runtime
@@ -336,6 +351,18 @@ pub fn create_bag(name: &str) -> anyhow::Result<u64> {
         .context("Failed to create bag")?;
 
     Ok(response.into_inner().id)
+}
+
+pub fn append_data_into_global_bag(name: &str, data: Data) -> anyhow::Result<()> {
+    let bag_id = CLIENT
+        .get()
+        .context("Client not initialized")?
+        .lock()
+        .unwrap()
+        .global_bag
+        .context("Global bag not set")?;
+
+    append_data(bag_id, name, data)
 }
 
 pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
@@ -385,6 +412,7 @@ pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
     let FleximClient {
         runtime,
         inner_client,
+        ..
     } = client.deref_mut();
 
     runtime.block_on(async { inner_client.append_data(tokio_stream::iter(messages)).await })?;
