@@ -4,7 +4,7 @@ use flexim_connect::grpc::flexim_connect_client::FleximConnectClient;
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::grpc::AppendDataRequest;
 use flexim_connect::local_save_server::LocalSaveServerImpl;
-use flexim_data_type::{FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment};
+pub use flexim_data_type::{FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment};
 use itertools::Itertools;
 use polars::frame::row::Row;
 use polars::prelude::*;
