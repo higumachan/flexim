@@ -9,7 +9,6 @@ edition.workspace = true
 flexim-connect.workspace = true
 tonic.workspace = true
 anyhow = { version = "1"}
-
 tokio.workspace = true
 polars.workspace = true
 flexim-data-type.workspace = true
