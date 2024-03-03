@@ -103,9 +103,9 @@ impl From<&DataValue> for DataType {
                 Field::new("y2", DataType::Float64),
             ]),
             DataValue::Color(_) => DataType::Struct(vec![
-                Field::new("r", DataType::UInt8),
-                Field::new("g", DataType::UInt8),
-                Field::new("b", DataType::UInt8),
+                Field::new("r", DataType::Float64),
+                Field::new("g", DataType::Float64),
+                Field::new("b", DataType::Float64),
             ]),
             DataValue::Normal(value) => value.into(),
         }
@@ -150,9 +150,9 @@ impl From<DataValue> for AnyValue<'static> {
                     AnyValue::Float32(value.b),
                 ],
                 vec![
-                    Field::new("r", DataType::Float32),
-                    Field::new("g", DataType::Float32),
-                    Field::new("b", DataType::Float32),
+                    Field::new("r", DataType::Float64),
+                    Field::new("g", DataType::Float64),
+                    Field::new("b", DataType::Float64),
                 ],
             ))),
             DataValue::Normal(value) => value,
@@ -394,11 +394,12 @@ pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::*;
 
     #[test]
     fn it_works() {
-        init_localstorage("/tmp/test").unwrap();
+        // init_localstorage("/tmp/test").unwrap();
+        init_server().unwrap();
 
         let bag_id = create_bag("test_from_rust").unwrap();
         let mut row_data = RowData::new();
@@ -414,6 +415,14 @@ mod tests {
                     x2: 100.0,
                     y2: 100.0,
                 },
+            )
+            .add_column(
+                "Color",
+                FlDataFrameColor {
+                    r: 255.0,
+                    g: 0.0,
+                    b: 0.0,
+                },
             );
 
         row_data
@@ -427,6 +436,14 @@ mod tests {
                     y1: 200.0,
                     x2: 300.0,
                     y2: 300.0,
+                },
+            )
+            .add_column(
+                "Color",
+                FlDataFrameColor {
+                    r: 0.0,
+                    g: 255.0,
+                    b: 0.0,
                 },
             );
         append_data(bag_id, "test_data", Data::DataRows(row_data)).unwrap();
