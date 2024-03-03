@@ -1623,6 +1623,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "flexim-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flexim-connect",
+ "flexim-data-type",
+ "itertools 0.12.0",
+ "polars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tonic",
+]
+
+[[package]]
 name = "flexim-connect"
 version = "0.1.0"
 dependencies = [
