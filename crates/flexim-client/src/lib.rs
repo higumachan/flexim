@@ -248,7 +248,11 @@ static CLIENT: OnceLock<Mutex<FleximClient>> = OnceLock::new();
 static SERVER_RUNTIMES: Mutex<BTreeMap<u16, Runtime>> = Mutex::new(BTreeMap::new());
 
 pub fn init_server() -> anyhow::Result<()> {
-    connect_to_server(50051)
+    if CLIENT.get().is_none() {
+        connect_to_server(50051)
+    } else {
+        Ok(())
+    }
 }
 
 pub fn init_localstorage(base_directory: impl AsRef<Path>) -> anyhow::Result<()> {
