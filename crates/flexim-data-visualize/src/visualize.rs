@@ -39,21 +39,42 @@ const ZOOM_SPEED: f32 = 1.0;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
     pub id: Id,
-    pub scale: f32,
+    pub current_scale: f32,
     pub shift: Vec2,
+    pub origin: Origin,
+}
+
+impl VisualizeState {
+    pub fn scale(&self) -> Vec2 {
+        let y = match self.origin {
+            Origin::TopLeft => 1.0,
+            Origin::BottomLeft => -1.0,
+        };
+
+        Vec2::new(self.current_scale, self.current_scale * y)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub enum Origin {
+    #[default]
+    TopLeft,
+    BottomLeft,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InnerState {
-    scale: f32,
+    current_scale: f32,
     shift: Vec2,
+    origin: Origin,
 }
 
 impl Default for InnerState {
     fn default() -> Self {
         Self {
-            scale: 1.0,
+            current_scale: 1.0,
             shift: Vec2::ZERO,
+            origin: Origin::default(),
         }
     }
 }
@@ -64,8 +85,9 @@ impl VisualizeState {
             ctx.data_mut(|data| data.get_persisted::<InnerState>(id).unwrap_or_default());
         Self {
             id,
-            scale: inner_state.scale,
+            current_scale: inner_state.current_scale,
             shift: inner_state.shift,
+            origin: inner_state.origin,
         }
     }
 
@@ -74,16 +96,17 @@ impl VisualizeState {
             data.insert_persisted(
                 self.id,
                 InnerState {
-                    scale: self.scale,
+                    current_scale: self.current_scale,
                     shift: self.shift,
+                    origin: self.origin,
                 },
             )
         });
     }
 
     pub fn is_valid(&self) -> bool {
-        0.0 <= self.scale
-            && self.scale <= 10.0
+        0.0 <= self.current_scale
+            && self.current_scale <= 10.0
             && -100000.0 <= self.shift.x
             && self.shift.x <= 100000.0
             && -100000.0 <= self.shift.y
@@ -99,16 +122,28 @@ impl VisualizeState {
             |ui| {
                 let b = ui.button("-");
                 if b.clicked() {
-                    state.scale -= 0.1;
+                    state.current_scale -= 0.1;
                 }
-                let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
+                let dv = DragValue::new(&mut state.current_scale).speed(0.1).ui(ui);
                 if dv.clicked() {
-                    state.scale = 1.0;
+                    state.current_scale = 1.0;
                 }
 
                 let b = ui.button("+");
                 if b.clicked() {
-                    state.scale += 0.1;
+                    state.current_scale += 0.1;
+                }
+                if ui
+                    .button(match state.origin {
+                        Origin::TopLeft => "左上",
+                        Origin::BottomLeft => "左下",
+                    })
+                    .clicked()
+                {
+                    state.origin = match state.origin {
+                        Origin::TopLeft => Origin::BottomLeft,
+                        Origin::BottomLeft => Origin::TopLeft,
+                    };
                 }
             },
         );
@@ -146,7 +181,7 @@ impl VisualizeState {
                             // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
                             let scale = input.zoom_delta() * ZOOM_SPEED;
                             let pos = hover_pos;
-                            self.scale *= scale;
+                            self.current_scale *= scale;
                             self.shift = self.shift * scale
                                 + egui::vec2(-scale * pos.x + pos.x, -scale * pos.y + pos.y);
                         }
@@ -273,7 +308,7 @@ impl DataRenderable for FlImageRender {
         if let FlData::Image(data) = data {
             let image = Image::from_bytes(format!("bytes://{}.png", data.id), data.value.clone());
 
-            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale;
+            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale();
             draw_image(painter, &image, state.shift, size, Color32::WHITE)
         } else {
             Err(anyhow::anyhow!(
@@ -404,10 +439,10 @@ impl DataRenderable for FlTensor2DRender {
                 );
 
                 let size = Vec2::new(data.value.shape()[1] as f32, data.value.shape()[0] as f32)
-                    * state.scale;
+                    * state.scale();
 
                 let offset = data.offset;
-                let offset = Vec2::new(offset.1 as f32, offset.0 as f32) * state.scale;
+                let offset = Vec2::new(offset.1 as f32, offset.0 as f32) * state.scale();
 
                 draw_image(painter, &image, state.shift + offset, size, tint_color)?;
             }

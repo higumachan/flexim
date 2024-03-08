@@ -1,7 +1,5 @@
 use crate::visualize::VisualizeState;
-use egui::{
-    Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2,
-};
+use egui::{Align2, Color32, FontId, Painter, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2};
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
 use std::fmt::Debug;
 
@@ -37,11 +35,11 @@ impl SpecialColumnShape for FlDataFrameRectangle {
             fill_color,
         } = parameter;
 
-        let rect = Rect::from_min_max(
+        let rect = Rect::from_two_pos(
             painter.clip_rect().min
-                + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale + state.shift),
+                + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale() + state.shift),
             painter.clip_rect().min
-                + (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale + state.shift),
+                + (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale() + state.shift),
         );
         if let Some(fill_color) = fill_color {
             painter.rect_filled(rect, 0.0, fill_color);
@@ -118,10 +116,10 @@ impl SpecialColumnShape for FlDataFrameSegment {
             ..
         } = parameter;
 
-        let segment_p1 = Pos2::new(self.x1 as f32, self.y1 as f32) * state.scale
+        let segment_p1 = (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale()).to_pos2()
             + state.shift
             + painter.clip_rect().min.to_vec2();
-        let segment_p2 = Pos2::new(self.x2 as f32, self.y2 as f32) * state.scale
+        let segment_p2 = (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale()).to_pos2()
             + state.shift
             + painter.clip_rect().min.to_vec2();
         let center = (segment_p1 + segment_p2.to_vec2()) / 2.0;
