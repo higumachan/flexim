@@ -13,7 +13,7 @@ use std::io::Cursor;
 use std::ops::DerefMut;
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 use tokio::runtime::Runtime;
 use tonic::codegen::tokio_stream;
 use tonic::transport::{Channel, Server};
@@ -161,16 +161,12 @@ impl From<DataValue> for AnyValue<'static> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RowData {
     rows: Vec<HashMap<String, DataValue>>,
 }
 
 impl RowData {
-    pub fn new() -> Self {
-        Self { rows: Vec::new() }
-    }
-
     pub fn add_row<'a, 'b>(&'a mut self) -> RowBuilder<'a>
     where
         'a: 'b,
@@ -434,7 +430,7 @@ mod tests {
         init_server().unwrap();
 
         let bag_id = create_bag("test_from_rust").unwrap();
-        let mut row_data = RowData::new();
+        let mut row_data = RowData::default();
         row_data
             .add_row()
             .add_column("Name", "nadeko".to_string())
