@@ -37,7 +37,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
             fill_color,
         } = parameter;
 
-        let rect = Rect::from_min_max(
+        let rect = Rect::from_two_pos(
             painter.clip_rect().min
                 + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale() + state.shift),
             painter.clip_rect().min
