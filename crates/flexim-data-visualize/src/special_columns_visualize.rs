@@ -1,7 +1,5 @@
 use crate::visualize::VisualizeState;
-use egui::{
-    Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2,
-};
+use egui::{Align2, Color32, FontId, Painter, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2};
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
 use std::fmt::Debug;
 
