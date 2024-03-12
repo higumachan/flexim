@@ -1,7 +1,12 @@
 use crate::visualize::VisualizeState;
-use egui::{Align2, Color32, FontId, Painter, Rangef, Rect, Response, Sense, Stroke, Ui, Vec2};
+use egui::epaint::PathShape;
+use egui::{
+    Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
+};
+use enum_iterator::Sequence;
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
-use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display, Formatter};
 
 pub trait SpecialColumnShape: Debug {
     fn render(
@@ -13,10 +18,28 @@ pub trait SpecialColumnShape: Debug {
     ) -> Option<Response>;
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Sequence)]
+pub enum EdgeAccent {
+    #[default]
+    None,
+    Arrow,
+}
+
+impl Display for EdgeAccent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Arrow => write!(f, "Arrow"),
+        }
+    }
+}
+
 pub struct RenderParameter {
     pub stroke_color: Color32,
     pub stroke_thickness: f32,
     pub fill_color: Option<Color32>,
+    pub edge_accent_start: EdgeAccent,
+    pub edge_accent_end: EdgeAccent,
     pub label: Option<String>,
 }
 
@@ -33,6 +56,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
             stroke_thickness: thickness,
             label,
             fill_color,
+            ..
         } = parameter;
 
         let rect = Rect::from_two_pos(
@@ -113,6 +137,8 @@ impl SpecialColumnShape for FlDataFrameSegment {
             stroke_color: color,
             stroke_thickness: thickness,
             label,
+            edge_accent_start,
+            edge_accent_end,
             ..
         } = parameter;
 
@@ -139,6 +165,21 @@ impl SpecialColumnShape for FlDataFrameSegment {
 
         painter.line_segment([segment_p1, segment_p2], Stroke::new(thickness, color));
 
+        match edge_accent_start {
+            EdgeAccent::Arrow => {
+                let v = (segment_p2 - segment_p1).normalized();
+                painter.add(arrow_head_shape(segment_p1, v, color));
+            }
+            EdgeAccent::None => {}
+        }
+        match edge_accent_end {
+            EdgeAccent::Arrow => {
+                let v = (segment_p1 - segment_p2).normalized();
+                painter.add(arrow_head_shape(segment_p2, v, color));
+            }
+            EdgeAccent::None => {}
+        }
+
         let response = if let Some(label) = label {
             let text_rect = painter.text(
                 center,
@@ -162,4 +203,25 @@ impl SpecialColumnShape for FlDataFrameSegment {
 
         Some(response)
     }
+}
+
+fn arrow_head_shape(point: Pos2, back_vector: Vec2, fill_color: Color32) -> Shape {
+    let v = back_vector.normalized();
+    let v1 = Vec2::new(
+        v.x * f32::cos(std::f32::consts::FRAC_PI_4) - v.y * f32::sin(std::f32::consts::FRAC_PI_4),
+        v.x * f32::sin(std::f32::consts::FRAC_PI_4) + v.y * f32::cos(std::f32::consts::FRAC_PI_4),
+    );
+    let p1 = point + (v1 * 5.0);
+    // rotate -45 degree
+    let v2 = Vec2::new(
+        v.x * f32::cos(-std::f32::consts::FRAC_PI_4) - v.y * f32::sin(-std::f32::consts::FRAC_PI_4),
+        v.x * f32::sin(-std::f32::consts::FRAC_PI_4) + v.y * f32::cos(-std::f32::consts::FRAC_PI_4),
+    );
+    let p2 = point + (v2 * 5.0);
+
+    Shape::Path(PathShape::convex_polygon(
+        vec![point, p2, p1],
+        fill_color,
+        Stroke::new(0.0, Color32::default()),
+    ))
 }

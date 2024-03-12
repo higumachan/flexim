@@ -17,12 +17,13 @@ use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 
 use crate::pallet::pallet;
-use crate::special_columns_visualize::{RenderParameter, SpecialColumnShape};
+use crate::special_columns_visualize::{EdgeAccent, RenderParameter, SpecialColumnShape};
 use anyhow::Context as _;
 
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
+use enum_iterator::all;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
 use polars::datatypes::DataType;
@@ -477,6 +478,10 @@ pub struct FlDataFrameViewRenderContext {
     pub fill_transparency: f64,
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
+    #[serde(default)]
+    pub edge_accent_start: EdgeAccent,
+    #[serde(default)]
+    pub edge_accent_end: EdgeAccent,
 }
 
 impl FlDataFrameViewRenderContext {
@@ -507,6 +512,8 @@ impl Default for FlDataFrameViewRenderContext {
             fill_transparency: 0.9,
             normal_thickness: 1.0,
             highlight_thickness: 3.0,
+            edge_accent_start: EdgeAccent::None,
+            edge_accent_end: EdgeAccent::None,
         }
     }
 }
@@ -659,6 +666,8 @@ impl DataRenderable for FlDataFrameViewRender {
                 self.render_context.lock().unwrap().normal_thickness
             } as f32;
 
+            let edge_accent_start = self.render_context.lock().unwrap().edge_accent_start;
+            let edge_accent_end = self.render_context.lock().unwrap().edge_accent_end;
             let response = shape.render(
                 ui,
                 painter,
@@ -667,6 +676,8 @@ impl DataRenderable for FlDataFrameViewRender {
                     stroke_thickness: thickness,
                     label: label.map(|s| s.to_string()),
                     fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
+                    edge_accent_start,
+                    edge_accent_end,
                 },
                 state,
             );
@@ -819,6 +830,31 @@ impl DataRenderable for FlDataFrameViewRender {
                                     &mut render_context.label_column,
                                     Some(column.to_string()),
                                     column,
+                                );
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Edge Accent");
+                    ComboBox::from_id_source("Edge Accent Start")
+                        .selected_text(render_context.edge_accent_start.to_string())
+                        .show_ui(ui, |ui| {
+                            for edge_accent in all::<EdgeAccent>() {
+                                ui.selectable_value(
+                                    &mut render_context.edge_accent_start,
+                                    edge_accent,
+                                    edge_accent.to_string(),
+                                );
+                            }
+                        });
+                    ComboBox::from_id_source("Edge Accent End")
+                        .selected_text(render_context.edge_accent_end.to_string())
+                        .show_ui(ui, |ui| {
+                            for edge_accent in all::<EdgeAccent>() {
+                                ui.selectable_value(
+                                    &mut render_context.edge_accent_end,
+                                    edge_accent,
+                                    edge_accent.to_string(),
                                 );
                             }
                         });
