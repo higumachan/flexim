@@ -168,6 +168,11 @@ impl FlTable {
                                         dataframe.column(c).unwrap().get(row_idx).unwrap(),
                                     ) {
                                         color_column(&mut row, color);
+                                    } else {
+                                        let c = dataframe.column(c).unwrap().get(row_idx).unwrap();
+                                        row.col(|ui| {
+                                            Label::new(format!("Invalid color: {:?}", c)).ui(ui);
+                                        });
                                     }
                                 }
                                 _ => {
