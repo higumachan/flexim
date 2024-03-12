@@ -38,7 +38,8 @@ pub struct RenderParameter {
     pub stroke_color: Color32,
     pub stroke_thickness: f32,
     pub fill_color: Option<Color32>,
-    pub edge_accent: EdgeAccent,
+    pub edge_accent_start: EdgeAccent,
+    pub edge_accent_end: EdgeAccent,
     pub label: Option<String>,
 }
 
@@ -136,7 +137,8 @@ impl SpecialColumnShape for FlDataFrameSegment {
             stroke_color: color,
             stroke_thickness: thickness,
             label,
-            edge_accent,
+            edge_accent_start,
+            edge_accent_end,
             ..
         } = parameter;
 
@@ -163,7 +165,14 @@ impl SpecialColumnShape for FlDataFrameSegment {
 
         painter.line_segment([segment_p1, segment_p2], Stroke::new(thickness, color));
 
-        match edge_accent {
+        match edge_accent_start {
+            EdgeAccent::Arrow => {
+                let v = (segment_p2 - segment_p1).normalized();
+                painter.add(arrow_head_shape(segment_p1, v, color));
+            }
+            EdgeAccent::None => {}
+        }
+        match edge_accent_end {
             EdgeAccent::Arrow => {
                 let v = (segment_p1 - segment_p2).normalized();
                 painter.add(arrow_head_shape(segment_p2, v, color));

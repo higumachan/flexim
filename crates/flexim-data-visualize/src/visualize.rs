@@ -478,7 +478,9 @@ pub struct FlDataFrameViewRenderContext {
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
     #[serde(default)]
-    pub edge_accent: EdgeAccent,
+    pub edge_accent_start: EdgeAccent,
+    #[serde(default)]
+    pub edge_accent_end: EdgeAccent,
 }
 
 impl FlDataFrameViewRenderContext {
@@ -509,7 +511,8 @@ impl Default for FlDataFrameViewRenderContext {
             fill_transparency: 0.9,
             normal_thickness: 1.0,
             highlight_thickness: 3.0,
-            edge_accent: EdgeAccent::None,
+            edge_accent_start: EdgeAccent::None,
+            edge_accent_end: EdgeAccent::None,
         }
     }
 }
@@ -662,6 +665,8 @@ impl DataRenderable for FlDataFrameViewRender {
                 self.render_context.lock().unwrap().normal_thickness
             } as f32;
 
+            let edge_accent_start = self.render_context.lock().unwrap().edge_accent_start;
+            let edge_accent_end = self.render_context.lock().unwrap().edge_accent_end;
             let response = shape.render(
                 ui,
                 painter,
@@ -670,7 +675,8 @@ impl DataRenderable for FlDataFrameViewRender {
                     stroke_thickness: thickness,
                     label: label.map(|s| s.to_string()),
                     fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
-                    edge_accent: self.render_context.lock().unwrap().edge_accent,
+                    edge_accent_start,
+                    edge_accent_end,
                 },
                 state,
             );
@@ -829,18 +835,34 @@ impl DataRenderable for FlDataFrameViewRender {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Edge Accent");
-                    ComboBox::from_id_source("Edge Accent").show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut render_context.edge_accent,
-                            EdgeAccent::None,
-                            "None",
-                        );
-                        ui.selectable_value(
-                            &mut render_context.edge_accent,
-                            EdgeAccent::Arrow,
-                            "Arrow",
-                        );
-                    });
+                    ComboBox::from_id_source("Edge Accent Start")
+                        .selected_text(render_context.edge_accent_start.to_string())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut render_context.edge_accent_start,
+                                EdgeAccent::None,
+                                "None",
+                            );
+                            ui.selectable_value(
+                                &mut render_context.edge_accent_start,
+                                EdgeAccent::Arrow,
+                                "Arrow",
+                            );
+                        });
+                    ComboBox::from_id_source("Edge Accent End")
+                        .selected_text(render_context.edge_accent_end.to_string())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut render_context.edge_accent_end,
+                                EdgeAccent::None,
+                                "None",
+                            );
+                            ui.selectable_value(
+                                &mut render_context.edge_accent_end,
+                                EdgeAccent::Arrow,
+                                "Arrow",
+                            );
+                        });
                 });
                 ui.horizontal(|ui| {
                     ui.label("Transparency");
