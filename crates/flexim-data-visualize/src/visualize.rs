@@ -17,7 +17,7 @@ use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 
 use crate::pallet::pallet;
-use crate::special_columns_visualize::{RenderParameter, SpecialColumnShape};
+use crate::special_columns_visualize::{EdgeAccent, RenderParameter, SpecialColumnShape};
 use anyhow::Context as _;
 
 use egui::load::TexturePoll;
@@ -477,6 +477,8 @@ pub struct FlDataFrameViewRenderContext {
     pub fill_transparency: f64,
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
+    #[serde(default)]
+    pub edge_accent: EdgeAccent,
 }
 
 impl FlDataFrameViewRenderContext {
@@ -507,6 +509,7 @@ impl Default for FlDataFrameViewRenderContext {
             fill_transparency: 0.9,
             normal_thickness: 1.0,
             highlight_thickness: 3.0,
+            edge_accent: EdgeAccent::None,
         }
     }
 }
@@ -667,6 +670,7 @@ impl DataRenderable for FlDataFrameViewRender {
                     stroke_thickness: thickness,
                     label: label.map(|s| s.to_string()),
                     fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
+                    edge_accent: self.render_context.lock().unwrap().edge_accent,
                 },
                 state,
             );
@@ -822,6 +826,21 @@ impl DataRenderable for FlDataFrameViewRender {
                                 );
                             }
                         });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Edge Accent");
+                    ComboBox::from_id_source("Edge Accent").show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut render_context.edge_accent,
+                            EdgeAccent::None,
+                            "None",
+                        );
+                        ui.selectable_value(
+                            &mut render_context.edge_accent,
+                            EdgeAccent::Arrow,
+                            "Arrow",
+                        );
+                    });
                 });
                 ui.horizontal(|ui| {
                     ui.label("Transparency");
