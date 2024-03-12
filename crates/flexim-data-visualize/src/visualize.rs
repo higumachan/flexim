@@ -978,8 +978,12 @@ fn serise_value_to_color(field: &Field, value: &AnyValue) -> Color32 {
     match &field.dtype {
         DataType::Struct(inner_field) => {
             if FlDataFrameColor::validate_fields(inner_field) {
-                let color = FlDataFrameColor::try_from(value.clone()).unwrap();
-                Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8)
+                if let Ok(color) = FlDataFrameColor::try_from(value.clone()) {
+                    Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8)
+                } else {
+                    log::warn!("failed to convert to FlDataFrameColor: {:?}", value);
+                    Color32::RED
+                }
             } else {
                 Color32::RED
             }

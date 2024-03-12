@@ -1,6 +1,7 @@
 import subprocess
 from io import BytesIO
 from pathlib import Path
+from tempfile import mkdtemp
 
 import numpy as np
 import pandas
@@ -91,7 +92,7 @@ test_df_with_color = pandas.DataFrame(
 
 @pytest.fixture(autouse=True)
 def init_client():
-    init_localstorage(Path("./tmp/"))
+    init_localstorage(Path(mkdtemp()))
 
 
 def test_simple_append_data():

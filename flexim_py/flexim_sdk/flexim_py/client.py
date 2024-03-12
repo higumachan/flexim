@@ -8,7 +8,7 @@ import pydantic
 from grpc import Channel
 from pydantic import BaseModel, ConfigDict
 
-from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn, Rectangle, Segment
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn, Rectangle, Segment, Color
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
 from flexim_py.utility import batched
 from flexim_py._flexim_py_lib import start_localstorage_server
@@ -69,7 +69,6 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
         raise ValueError(f"Data is not valid")
 
     data_bytes = data.to_bytes()
-
 
     stub = connect_pb2_grpc.FleximConnectStub(global_client.channel)
 
@@ -143,6 +142,8 @@ def _validate_value(value: Any, special_column: SpecialColumn) -> bool:
             return _validate_value_with_type(value, Rectangle)
         case SpecialColumn.Segment:
             return _validate_value_with_type(value, Segment)
+        case SpecialColumn.Color:
+            return _validate_value_with_type(value, Color)
 
 
 def _validate_data(data: ImageData | DataFrameData | Tensor2DData):
