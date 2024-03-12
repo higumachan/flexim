@@ -31,6 +31,7 @@ indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 puffin.workspace = true
+enum-iterator.workspace = true
 
 
 [dev-dependencies]

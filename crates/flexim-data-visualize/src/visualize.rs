@@ -23,6 +23,7 @@ use anyhow::Context as _;
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
+use enum_iterator::all;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
 use polars::datatypes::DataType;
@@ -838,30 +839,24 @@ impl DataRenderable for FlDataFrameViewRender {
                     ComboBox::from_id_source("Edge Accent Start")
                         .selected_text(render_context.edge_accent_start.to_string())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut render_context.edge_accent_start,
-                                EdgeAccent::None,
-                                "None",
-                            );
-                            ui.selectable_value(
-                                &mut render_context.edge_accent_start,
-                                EdgeAccent::Arrow,
-                                "Arrow",
-                            );
+                            for edge_accent in all::<EdgeAccent>() {
+                                ui.selectable_value(
+                                    &mut render_context.edge_accent_start,
+                                    edge_accent,
+                                    edge_accent.to_string(),
+                                );
+                            }
                         });
                     ComboBox::from_id_source("Edge Accent End")
                         .selected_text(render_context.edge_accent_end.to_string())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut render_context.edge_accent_end,
-                                EdgeAccent::None,
-                                "None",
-                            );
-                            ui.selectable_value(
-                                &mut render_context.edge_accent_end,
-                                EdgeAccent::Arrow,
-                                "Arrow",
-                            );
+                            for edge_accent in all::<EdgeAccent>() {
+                                ui.selectable_value(
+                                    &mut render_context.edge_accent_end,
+                                    edge_accent,
+                                    edge_accent.to_string(),
+                                );
+                            }
                         });
                 });
                 ui.horizontal(|ui| {

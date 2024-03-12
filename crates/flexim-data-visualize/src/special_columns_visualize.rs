@@ -1,9 +1,9 @@
 use crate::visualize::VisualizeState;
 use egui::epaint::PathShape;
-use egui::CursorIcon::Default;
 use egui::{
     Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
 };
+use enum_iterator::Sequence;
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
@@ -18,7 +18,7 @@ pub trait SpecialColumnShape: Debug {
     ) -> Option<Response>;
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Sequence)]
 pub enum EdgeAccent {
     #[default]
     None,
