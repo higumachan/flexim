@@ -34,9 +34,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
 
-const SCROLL_SPEED: f32 = 1.0;
-const ZOOM_SPEED: f32 = 1.0;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
     pub id: Id,
@@ -81,6 +78,11 @@ impl Default for InnerState {
 }
 
 impl VisualizeState {
+    const ZOOM_UPPER_LIMIT: f32 = 20.0;
+    const ZOOM_LOWER_LIMIT: f32 = 0.1;
+    const ZOOM_SPEED: f32 = 1.0;
+    const SCROLL_SPEED: f32 = 1.0;
+
     pub fn load(ctx: &Context, id: Id) -> Self {
         let inner_state =
             ctx.data_mut(|data| data.get_persisted::<InnerState>(id).unwrap_or_default());
@@ -106,8 +108,8 @@ impl VisualizeState {
     }
 
     pub fn is_valid(&self) -> bool {
-        0.0 <= self.current_scale
-            && self.current_scale <= 10.0
+        Self::ZOOM_LOWER_LIMIT <= self.current_scale
+            && self.current_scale <= Self::ZOOM_UPPER_LIMIT
             && -100000.0 <= self.shift.x
             && self.shift.x <= 100000.0
             && -100000.0 <= self.shift.y
@@ -175,12 +177,12 @@ impl VisualizeState {
                         {
                             let dy = input.raw_scroll_delta.y;
                             let dx = input.raw_scroll_delta.x;
-                            self.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
+                            self.shift += egui::vec2(dx, dy) * Self::SCROLL_SPEED;
                         }
                         // ズーム関係
                         {
                             // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
-                            let scale = input.zoom_delta() * ZOOM_SPEED;
+                            let scale = input.zoom_delta() * Self::ZOOM_SPEED;
                             let pos = hover_pos;
                             self.current_scale *= scale;
                             self.shift = self.shift * scale
