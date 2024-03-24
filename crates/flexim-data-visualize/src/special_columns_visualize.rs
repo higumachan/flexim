@@ -5,7 +5,6 @@ use egui::{
 };
 use enum_iterator::Sequence;
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
-use image::imageops::tile;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
