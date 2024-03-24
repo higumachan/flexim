@@ -9,12 +9,11 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-serde.workspace = true
 tonic.workspace = true
 prost.workspace = true
 tokio.workspace = true
 polars = { workspace = true, features = ["io", "ipc"] }
-anyhow.workspace = true
+anyhow = { version = "1"}
 bincode.workspace = true
 ndarray.workspace = true
 flexim-data-type.workspace = true
