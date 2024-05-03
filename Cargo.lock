@@ -1658,6 +1658,7 @@ dependencies = [
  "egui_extras",
  "egui_tiles",
  "env_logger",
+ "flexim-config",
  "flexim-connect",
  "flexim-data-type",
  "flexim-data-view",
@@ -1679,6 +1680,14 @@ dependencies = [
  "serde_json",
  "tokio",
  "tonic",
+]
+
+[[package]]
+name = "flexim-config"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde",
 ]
 
 [[package]]
@@ -1736,6 +1745,7 @@ dependencies = [
  "egui_tiles",
  "enum-iterator",
  "env_logger",
+ "flexim-config",
  "flexim-data-type",
  "flexim-data-view",
  "flexim-storage",

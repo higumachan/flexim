@@ -24,6 +24,7 @@ use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
 use enum_iterator::all;
+use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
 use polars::datatypes::DataType;
@@ -78,11 +79,6 @@ impl Default for InnerState {
 }
 
 impl VisualizeState {
-    const ZOOM_UPPER_LIMIT: f32 = 20.0;
-    const ZOOM_LOWER_LIMIT: f32 = 0.1;
-    const ZOOM_SPEED: f32 = 1.0;
-    const SCROLL_SPEED: f32 = 1.0;
-
     pub fn load(ctx: &Context, id: Id) -> Self {
         let inner_state =
             ctx.data_mut(|data| data.get_persisted::<InnerState>(id).unwrap_or_default());
@@ -107,9 +103,10 @@ impl VisualizeState {
         });
     }
 
-    pub fn is_valid(&self) -> bool {
-        Self::ZOOM_LOWER_LIMIT <= self.current_scale
-            && self.current_scale <= Self::ZOOM_UPPER_LIMIT
+    pub fn is_valid(&self, ui: &mut Ui) -> bool {
+        let config = Config::get_global(ui);
+        config.zoom_lower_limit <= self.current_scale
+            && self.current_scale <= config.zoom_upper_limit
             && -100000.0 <= self.shift.x
             && self.shift.x <= 100000.0
             && -100000.0 <= self.shift.y
@@ -154,6 +151,7 @@ impl VisualizeState {
 
     pub fn show(&mut self, ui: &mut Ui, bag: &Bag, contents: &[Arc<DataRender>]) {
         let old_state = self.clone();
+        let config = Config::get_global(ui);
 
         self.show_header(ui);
         let _response = ui
@@ -177,12 +175,12 @@ impl VisualizeState {
                         {
                             let dy = input.raw_scroll_delta.y;
                             let dx = input.raw_scroll_delta.x;
-                            self.shift += egui::vec2(dx, dy) * Self::SCROLL_SPEED;
+                            self.shift += egui::vec2(dx, dy) * config.scroll_speed;
                         }
                         // ズーム関係
                         {
                             // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
-                            let scale = input.zoom_delta() * Self::ZOOM_SPEED;
+                            let scale = input.zoom_delta() * config.zoom_speed;
                             let pos = hover_pos;
                             self.current_scale *= scale;
                             self.shift = self.shift * scale
@@ -194,7 +192,7 @@ impl VisualizeState {
                 response
             })
             .inner;
-        if !self.is_valid() {
+        if !self.is_valid(ui) {
             *self = old_state;
         }
         self.store(ui.ctx());

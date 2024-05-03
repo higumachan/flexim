@@ -32,6 +32,7 @@ serde.workspace = true
 serde_json.workspace = true
 puffin.workspace = true
 enum-iterator.workspace = true
+flexim-config.workspace = true
 
 
 [dev-dependencies]

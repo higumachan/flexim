@@ -7,6 +7,7 @@ use egui::{
     ScrollArea, Sense, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
+use flexim_config::ConfigWindow;
 use flexim_data_type::{FlDataReference, FlDataType};
 use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
@@ -82,6 +83,10 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
                         );
                     });
                 }
+            }
+
+            if ui.button("Config").clicked() {
+                ConfigWindow::open(ui.ctx());
             }
         },
     );
