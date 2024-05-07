@@ -6,7 +6,7 @@ use eframe::{run_native, Frame};
 use egui::ahash::{HashMap, HashMapExt};
 
 use crate::left_panel::left_panel;
-use egui::{Context, Id, Response, Ui};
+use egui::{Context, Id, Response, Ui, ViewportCommand};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse};
 use flexim_config::ConfigWindow;
@@ -162,7 +162,7 @@ impl eframe::App for App {
             });
             ConfigWindow::show(ctx)
         }
-        end_of_frame(self);
+        end_of_frame(ctx, self);
     }
 }
 
@@ -338,7 +338,7 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-fn end_of_frame(app: &mut App) {
+fn end_of_frame(ctx: &Context, app: &mut App) {
     for &tile_id in &app.removing_tiles {
         app.tree.tiles.remove(tile_id);
         if app.current_tile_id == Some(tile_id) {
@@ -357,6 +357,15 @@ fn end_of_frame(app: &mut App) {
         app.current_tile_id = None;
         app.current_bag_id = bag_id;
         app.replace_bag_id = None;
+        let bag = app.storage.get_bag(bag_id).unwrap();
+        let bag = bag.read().unwrap();
+        let bag_name = bag.name.as_str();
+        let create_at = bag.created_at.format("%Y-%m-%d %H:%M:%S").to_string();
+
+        ctx.send_viewport_cmd(ViewportCommand::Title(format!(
+            "Flexim - {} {}",
+            bag_name, create_at
+        )));
     }
 }
 
