@@ -14,4 +14,5 @@ flexim-data-type.workspace = true
 rand.workspace = true
 egui.workspace = true
 polars.workspace = true
-serde = { version = "1.0.193", features = ["derive"] }
+serde.workspace = true
+itertools.workspace = true
