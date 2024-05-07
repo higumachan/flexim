@@ -1,7 +1,8 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
-use egui::{ScrollArea, Ui};
+use egui::ahash::HashMap;
+use egui::{CollapsingHeader, ScrollArea, Ui};
 use flexim_data_type::{FlDataFrame, FlDataReference};
-use flexim_data_view::{FlDataFrameView, Id};
+use flexim_data_view::{FlDataFrameView, Id, ShowColumns};
 use flexim_storage::Bag;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -41,6 +42,12 @@ impl DataView {
             Self::FlDataFrameView(v) => v.table.data_reference.clone(),
         }
     }
+
+    pub fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
+        match self {
+            Self::FlDataFrameView(v) => v.config_panel(ui, bag),
+        }
+    }
 }
 
 pub trait DataViewable {
@@ -48,6 +55,7 @@ pub trait DataViewable {
     fn draw(&self, ui: &mut Ui, bag: &Bag);
     fn visualizeable_attributes(&self, bag: &Bag) -> Vec<String>;
     fn create_visualize(&self, attribute: String) -> Arc<DataRender>;
+    fn config_panel(&self, ui: &mut Ui, bag: &Bag);
 }
 
 impl DataViewable for FlDataFrameView {
@@ -63,7 +71,9 @@ impl DataViewable for FlDataFrameView {
             .min_scrolled_width(ui.available_width())
             .drag_to_scroll(true)
             .show(ui, |ui| {
-                self.table.draw(ui, bag);
+                let view_context = self.view_context.lock().unwrap();
+
+                self.table.draw(ui, bag, &view_context.clone().into());
             });
     }
 
@@ -88,5 +98,50 @@ impl DataViewable for FlDataFrameView {
 
     fn create_visualize(&self, attribute: String) -> Arc<DataRender> {
         Arc::new(FlDataFrameViewRender::new(self.clone(), attribute).into())
+    }
+
+    fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
+        ui.label("DataFrame");
+        CollapsingHeader::new("Config")
+            .default_open(true)
+            .show(ui, |ui| {
+                let dataframe = self.table.dataframe(bag).expect("DataFrame not found");
+                let column_names = dataframe.value.get_column_names();
+
+                let mut view_context = self.view_context.lock().unwrap();
+                for (i, column_name) in column_names.iter().enumerate() {
+                    let mut checked = match &view_context.show_columns {
+                        ShowColumns::All => true,
+                        ShowColumns::Some(columns) => {
+                            columns.contains_key(&column_name.to_string())
+                        }
+                    };
+                    if ui.checkbox(&mut checked, *column_name).changed() {
+                        if checked {
+                            match &mut view_context.show_columns {
+                                ShowColumns::All => {}
+                                ShowColumns::Some(columns) => {
+                                    columns.insert(column_name.to_string(), i);
+                                }
+                            }
+                        } else {
+                            match &mut view_context.show_columns {
+                                ShowColumns::All => {
+                                    let mut all_columns: HashMap<_, _> = column_names
+                                        .iter()
+                                        .enumerate()
+                                        .map(|(v, k)| (k.to_string(), v))
+                                        .collect();
+                                    all_columns.remove(*column_name);
+                                    view_context.show_columns = ShowColumns::Some(all_columns);
+                                }
+                                ShowColumns::Some(columns) => {
+                                    columns.remove(&column_name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            });
     }
 }

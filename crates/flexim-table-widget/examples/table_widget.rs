@@ -2,7 +2,7 @@ use flexim_data_type::{
     FlData, FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn,
     FlDataReference, FlDataType, GenerationSelector,
 };
-use flexim_table_widget::FlTable;
+use flexim_table_widget::{FlTable, FlTableDrawContext};
 
 use flexim_storage::{Storage, StorageQuery};
 use polars::prelude::*;
@@ -140,7 +140,7 @@ fn main() {
                 FlDataType::DataFrame,
             ));
             let bag = bag.read().unwrap();
-            table.draw(ui, &bag);
+            table.draw(ui, &bag, &FlTableDrawContext::default());
         });
     })
     .unwrap();

@@ -1728,6 +1728,7 @@ dependencies = [
  "egui",
  "flexim-data-type",
  "flexim-table-widget",
+ "itertools 0.12.0",
  "polars",
  "rand",
  "serde",

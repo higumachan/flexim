@@ -364,12 +364,27 @@ fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     puffin::profile_function!();
     if let Some(tile_id) = app.current_tile_id {
         if let Some(tile) = app.tree.tiles.get(tile_id) {
-            if let Tile::Pane(Pane {
-                content: PaneContent::Visualize(data),
-                ..
-            }) = tile
-            {
-                data.config_panel(ui, bag);
+            // if let Tile::Pane(Pane {
+            //     content: PaneContent::Visualize(data),
+            //     ..
+            // }) = tile
+            // {
+            //     data.config_panel(ui, bag);
+            // }
+            match tile {
+                Tile::Pane(Pane {
+                    content: PaneContent::Visualize(data),
+                    ..
+                }) => {
+                    data.config_panel(ui, bag);
+                }
+                Tile::Pane(Pane {
+                    content: PaneContent::DataView(data),
+                    ..
+                }) => {
+                    data.config_panel(ui, bag);
+                }
+                _ => {}
             }
         } else {
             log::warn!("tile not found");
