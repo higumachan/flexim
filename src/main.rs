@@ -9,6 +9,7 @@ use crate::left_panel::left_panel;
 use egui::{Context, Id, Response, Ui};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse};
+use flexim_config::ConfigWindow;
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
@@ -159,6 +160,7 @@ impl eframe::App for App {
                 };
                 self.tree.ui(&mut behavior, ui);
             });
+            ConfigWindow::show(ctx)
         }
         end_of_frame(self);
     }
