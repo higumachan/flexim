@@ -30,6 +30,6 @@ mod tests {
         // FIXME: 現時点では後方互換性は強く意識していないのでこのテストが落ちた場合は状況を確認した上でファイルを修正するのでも良い場合があります。
         let layout_file = include_bytes!("../../../assets/test_data/layout/test-layout.json");
 
-        let layout: Vec<FlLayout> = serde_json::from_slice(layout_file).unwrap();
+        let _layout: Vec<FlLayout> = serde_json::from_slice(layout_file).unwrap();
     }
 }

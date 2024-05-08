@@ -2,7 +2,7 @@ use crate::visualize::{DataRender, FlDataFrameViewRender};
 use anyhow::Context;
 use egui::ahash::HashMap;
 use egui::{CollapsingHeader, ScrollArea, Ui};
-use flexim_data_type::{FlDataFrame, FlDataReference, FlObject};
+use flexim_data_type::{FlDataFrame, FlDataReference};
 use flexim_data_view::object::FlObjectView;
 use flexim_data_view::{FlDataFrameView, Id, ShowColumns};
 use flexim_storage::Bag;
@@ -175,15 +175,15 @@ impl DataViewable for FlObjectView {
         egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code.as_str(), "json");
     }
 
-    fn visualizeable_attributes(&self, bag: &Bag) -> Vec<String> {
+    fn visualizeable_attributes(&self, _bag: &Bag) -> Vec<String> {
         vec![]
     }
 
-    fn create_visualize(&self, attribute: String) -> Arc<DataRender> {
+    fn create_visualize(&self, _attribute: String) -> Arc<DataRender> {
         unreachable!()
     }
 
-    fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
+    fn config_panel(&self, _ui: &mut Ui, _bag: &Bag) {
         // empty implementation
     }
 }

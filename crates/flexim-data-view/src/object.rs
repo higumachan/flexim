@@ -1,8 +1,6 @@
-use crate::{gen_id, FlDataFrameViewContext, Id};
-use flexim_data_type::{FlDataReference, FlObject};
-use flexim_table_widget::FlTable;
+use crate::{gen_id, Id};
+use flexim_data_type::{FlDataReference};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlObjectView {
