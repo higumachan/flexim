@@ -13,16 +13,18 @@ pub type Id = u64;
 pub struct FlDataFrameView {
     pub id: Id,
     pub table: FlTable,
+    #[serde(default)]
     pub view_context: Arc<Mutex<FlDataFrameViewContext>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum ShowColumns {
+    #[default]
     All,
     Some(HashMap<String, usize>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FlDataFrameViewContext {
     pub show_columns: ShowColumns,
 }
