@@ -10,6 +10,7 @@ impl DataVisualizable for FlData {
             FlData::Image(_) => true,
             FlData::Tensor(_) => true,
             FlData::DataFrame(_) => false,
+            FlData::Object(_) => false,
         }
     }
 }

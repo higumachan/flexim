@@ -21,6 +21,7 @@ pub enum FlDataType {
     Image,
     Tensor,
     DataFrame,
+    Object,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +29,7 @@ pub enum FlData {
     Image(Arc<FlImage>),
     Tensor(Arc<FlTensor2D<f64>>),
     DataFrame(Arc<FlDataFrame>),
+    Object(Arc<FlObject>),
 }
 
 impl FlData {
@@ -36,6 +38,7 @@ impl FlData {
             Self::Image(v) => v.id(),
             Self::Tensor(v) => v.id(),
             Self::DataFrame(v) => v.id(),
+            Self::Object(v) => v.id(),
         }
     }
 
@@ -44,6 +47,7 @@ impl FlData {
             Self::Image(_) => FlDataType::Image,
             Self::Tensor(_) => FlDataType::Tensor,
             Self::DataFrame(_) => FlDataType::DataFrame,
+            Self::Object(_) => FlDataType::Object,
         }
     }
 
@@ -64,6 +68,13 @@ impl FlData {
     pub fn as_data_frame(&self) -> Option<Arc<FlDataFrame>> {
         match self {
             Self::DataFrame(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_object(&self) -> Option<Arc<FlObject>> {
+        match self {
+            Self::Object(v) => Some(v.clone()),
             _ => None,
         }
     }
@@ -525,6 +536,32 @@ impl FlDataReference {
             generation,
             data_type,
         }
+    }
+}
+
+/// A generic object(Json object) that can be used to store any data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlObject {
+    pub id: Id,
+    pub value: serde_json::Value,
+}
+
+impl From<FlObject> for FlData {
+    fn from(value: FlObject) -> Self {
+        Self::Object(Arc::new(value))
+    }
+}
+
+impl FlObject {
+    pub fn new(value: serde_json::Value) -> Self {
+        Self {
+            id: gen_id(),
+            value,
+        }
+    }
+
+    pub fn id(&self) -> Id {
+        self.id
     }
 }
 

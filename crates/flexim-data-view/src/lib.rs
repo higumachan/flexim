@@ -1,3 +1,5 @@
+pub mod object;
+
 use egui::ahash::HashMap;
 use flexim_data_type::{FlData, FlDataReference};
 use flexim_table_widget::{FlTable, FlTableDrawContext};
@@ -65,7 +67,7 @@ pub trait DataViewCreatable {
 
 impl DataViewCreatable for FlData {
     fn data_view_creatable(&self) -> bool {
-        matches!(self, FlData::DataFrame(_))
+        matches!(self, FlData::DataFrame(_) | FlData::Object(_))
     }
 }
 

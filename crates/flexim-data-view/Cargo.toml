@@ -13,6 +13,7 @@ flexim-table-widget.workspace = true
 flexim-data-type.workspace = true
 rand.workspace = true
 egui.workspace = true
+egui_extras.workspace = true
 polars.workspace = true
 serde.workspace = true
 itertools.workspace = true

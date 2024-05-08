@@ -14,7 +14,7 @@ use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
     FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
-    FlDataType, FlImage, FlTensor2D, GenerationSelector,
+    FlDataType, FlImage, FlObject, FlTensor2D, GenerationSelector,
 };
 use flexim_data_visualize::visualize::{DataRender, FlImageRender, VisualizeState};
 use flexim_font::setup_custom_fonts;
@@ -26,6 +26,7 @@ use ndarray::Array2;
 use polars::datatypes::StructChunked;
 use polars::prelude::{CsvReader, IntoSeries, NamedFrom, SerReader, Series};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
 use std::sync::{Arc, RwLock};
@@ -231,6 +232,13 @@ fn main() -> Result<(), eframe::Error> {
             bag_id,
             "long_tabledata".to_string(),
             load_long_sample_data().into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "sample_object".to_string(),
+            load_object_sample_data().into(),
         )
         .unwrap();
 
@@ -606,6 +614,14 @@ fn load_long_sample_data2() -> FlDataFrame {
         .into_iter()
         .collect(),
     )
+}
+
+fn load_object_sample_data() -> FlObject {
+    let data = Vec::from(include_bytes!("../assets/object_sample.json"));
+
+    let data: Value = serde_json::from_slice(&data).unwrap();
+
+    FlObject::new(data)
 }
 
 fn read_rectangle(s: &Series, name: &str) -> Series {
