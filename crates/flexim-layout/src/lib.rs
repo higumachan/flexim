@@ -21,4 +21,13 @@ impl FlLayout {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_deserializing_previously_layout_file() {
+        let layout_file = include_bytes!("../../../assets/test_data/layout/test-layout.json");
+
+        let layout: Vec<FlLayout> = serde_json::from_slice(layout_file).unwrap();
+    }
+}
