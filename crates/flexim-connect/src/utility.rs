@@ -2,8 +2,11 @@ use crate::grpc::append_data_request::data_meta::SpecialColumn;
 use crate::grpc::append_data_request::DataMeta;
 use crate::grpc::DataType;
 use anyhow::Context;
-use flexim_data_type::{FlData, FlDataFrame, FlDataFrameSpecialColumn, FlImage, FlTensor2D};
+use flexim_data_type::{
+    FlData, FlDataFrame, FlDataFrameSpecialColumn, FlImage, FlObject, FlTensor2D,
+};
 use polars::prelude::{IpcReader, SerReader};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::Arc;
@@ -19,6 +22,7 @@ pub(crate) fn protobuf_data_type_to_fl_data(
             buffer,
         )?)),
         DataType::Tensor2D => FlData::Tensor(Arc::new(tensor2d_from_bytes(buffer)?)),
+        DataType::Object => FlData::Object(Arc::new(object_from_bytes(buffer)?)),
     })
 }
 
@@ -56,4 +60,12 @@ fn tensor2d_from_bytes(buffer: Vec<u8>) -> anyhow::Result<FlTensor2D<f64>> {
         bincode::deserialize_from(reader).context("bincode deserialize error")?;
 
     Ok(arr)
+}
+
+fn object_from_bytes(buffer: Vec<u8>) -> anyhow::Result<FlObject> {
+    let reader = Cursor::new(buffer);
+
+    let obj: Value = serde_json::from_reader(reader).context("serde_json deserialize error")?;
+
+    Ok(FlObject::new(obj))
 }

@@ -9,6 +9,7 @@ import pyarrow
 import pyarrow.ipc
 import pytest
 from PIL import Image
+from pydantic import BaseModel
 
 from flexim_py.bag import Bag
 from flexim_py.client import init, init_localstorage
@@ -17,7 +18,7 @@ from flexim_py.data_type import (
     Rectangle,
     DataFrameData,
     Segment,
-    SpecialColumn, Tensor2DData, Color,
+    SpecialColumn, Tensor2DData, Color, ObjectData,
 )
 
 test_df = pandas.DataFrame(
@@ -61,7 +62,6 @@ test_df_with_null = pandas.DataFrame(
     ]
 )
 
-
 test_df_with_invalid = pandas.DataFrame(
     [
         {"a": 1, "b": 2, "c": None, "d": None},
@@ -80,19 +80,22 @@ test_df_with_invalid = pandas.DataFrame(
     ]
 )
 
-
 test_df_with_color = pandas.DataFrame(
     [
-        {"a": 1, "color": Color(r=255, g=0, b=0).model_dump(), "rect": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
-        {"a": 2, "color": Color(r=0, g=255, b=0).model_dump(), "rect": Rectangle(x1=200.0, y1=100.0, x2=300.0, y2=200.0).model_dump()},
-        {"a": 3, "color": Color(r=0, g=0, b=255).model_dump() , "rect": Rectangle(x1=100.0, y1=400.0, x2=200.0, y2=500.0).model_dump()},
+        {"a": 1, "color": Color(r=255, g=0, b=0).model_dump(),
+         "rect": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump()},
+        {"a": 2, "color": Color(r=0, g=255, b=0).model_dump(),
+         "rect": Rectangle(x1=200.0, y1=100.0, x2=300.0, y2=200.0).model_dump()},
+        {"a": 3, "color": Color(r=0, g=0, b=255).model_dump(),
+         "rect": Rectangle(x1=100.0, y1=400.0, x2=200.0, y2=500.0).model_dump()},
     ]
 )
 
 
 @pytest.fixture(autouse=True)
 def init_client():
-    init_localstorage(Path(mkdtemp()))
+    # init_localstorage(Path(mkdtemp()))
+    init("localhost", 50051)
 
 
 def test_simple_append_data():
@@ -150,7 +153,8 @@ def test_append_tensor2d_data():
     with Bag(name="test_bag_with_tensor2d") as bag:
         # Append data
 
-        gauss = np.fromfunction(lambda y, x: np.exp(-((x - 256.0) / 100.0) ** 2 - ((y - 256.0) / 100.0) ** 2), (512, 512), dtype=np.float32)
+        gauss = np.fromfunction(lambda y, x: np.exp(-((x - 256.0) / 100.0) ** 2 - ((y - 256.0) / 100.0) ** 2),
+                                (512, 512), dtype=np.float32)
 
         print(gauss)
 
@@ -209,3 +213,33 @@ def test_dataframe_encode_and_decode():
     ret = subprocess.run(["cargo", "run", "--example", "decode"], input=sink.getvalue())
 
     assert ret.returncode == 0
+
+
+def test_object():
+    test_dict = {
+        "a": 1,
+        "b": 2,
+        "c": Rectangle(x1=100.0, y1=100.0, x2=200.0, y2=200.0).model_dump(),
+    }
+
+    class TestPydanticModel(BaseModel):
+        a: int
+        b: int
+        c: Rectangle
+
+    pydantic_model = TestPydanticModel.model_validate(test_dict)
+
+    with Bag(name="test_bag_with_object") as bag:
+        bag.append_data(
+            "python-object-data",
+            ObjectData.from_object(
+                test_dict,
+            ),
+        )
+
+        bag.append_data(
+            "python-object-data",
+            ObjectData.from_pydantic(
+                pydantic_model,
+            ),
+        )
