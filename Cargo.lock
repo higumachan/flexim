@@ -1788,6 +1788,7 @@ dependencies = [
  "flexim-storage",
  "rstest",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

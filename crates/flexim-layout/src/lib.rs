@@ -21,4 +21,15 @@ impl FlLayout {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_deserializing_previously_layout_file() {
+        // これが落ちる場合には、assets/test_data/layout/test-layout.json の内容を確認してください。
+        // FIXME: 現時点では後方互換性は強く意識していないのでこのテストが落ちた場合は状況を確認した上でファイルを修正するのでも良い場合があります。
+        let layout_file = include_bytes!("../../../assets/test_data/layout/test-layout.json");
+
+        let layout: Vec<FlLayout> = serde_json::from_slice(layout_file).unwrap();
+    }
+}
