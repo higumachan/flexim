@@ -21,17 +21,17 @@ dbg_macro = "warn"
 
 [workspace.dependencies]
 tracing = { version = "0.1.40" }
-tracing-subscriber = { version = "0.3.18"}
+tracing-subscriber = { version = "0.3.18" }
 tonic = "0.10.2"
 tonic-build = "0.10.2"
 tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
-egui = "0.26.2"
-egui_extras = { version = "0.26.2", features = ["image", "svg"] }
-eframe = "0.26.2"
-egui_tiles = { git = "https://github.com/rerun-io/egui_tiles.git", rev = "5245a28" }
+egui = "0.27.2"
+egui_extras = { version = "0.27.2", features = ["image", "svg", "syntect"] }
+eframe = "0.27.2"
+egui_tiles = "0.8.0"
 image = { version = "0.24", features = ["png", "jpeg"] }
 ndarray = { version = "0.15.6", features = ["serde"] }
 serde = { version = "1.0.130", features = ["derive"] }
@@ -47,6 +47,7 @@ flexim-storage = { path = "crates/flexim-storage" }
 flexim-font = { path = "crates/flexim-font" }
 flexim-layout = { path = "crates/flexim-layout" }
 flexim-utility = { path = "crates/flexim-utility" }
+flexim-config = { path = "crates/flexim-config" }
 num-derive = "0.4.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 env_logger = "0.10.1"
@@ -63,12 +64,13 @@ puffin = "0.19.0"
 puffin_http = "0.16.0"
 rfd = "0.13.0"
 rstest = "0.18.2"
+enum-iterator = "2.0.0"
 
 
 [patch.crates-io]
-egui = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
-egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
-eframe = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
+egui = { git = "https://github.com/higumachan/egui.git", rev = "01e5523c969e9eafb8929e03ef01b66cc5c28d13" }
+#egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
+#eframe = { git = "https://github.com/higumachan/egui.git", rev = "fbce3658dcd3e8d2544901d0391daba7006d8e69" }
 
 
 [lints]
@@ -104,6 +106,7 @@ puffin_http.workspace = true
 puffin.workspace = true
 chrono.workspace = true
 flexim-utility.workspace = true
+flexim-config.workspace = true
 
 
 [package.metadata.packager]

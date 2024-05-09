@@ -1,11 +1,13 @@
 use crate::{insert_root_tile, App, Managed};
 use chrono::Local;
 use egui::menu::menu_image_button;
+use egui::scroll_area::ScrollBarVisibility;
 use egui::{
     global_dark_light_mode_switch, CollapsingHeader, Id, Image, ImageButton, Label, Response,
     ScrollArea, Sense, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
+use flexim_config::ConfigWindow;
 use flexim_data_type::{FlDataReference, FlDataType};
 use flexim_data_view::DataViewCreatable;
 use flexim_data_visualize::data_visualizable::DataVisualizable;
@@ -82,6 +84,10 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
                     });
                 }
             }
+
+            if ui.button("Config").clicked() {
+                ConfigWindow::open(ui.ctx());
+            }
         },
     );
     data_bag_list_view(app, ui);
@@ -97,160 +103,144 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
 
 fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
     let width = ui.available_width();
-    ScrollArea::vertical()
-        .id_source("data_bag_list")
-        .max_height(ui.available_height() / 3.0)
-        .vscroll(true)
-        .drag_to_scroll(true)
-        .enable_scrolling(true)
-        .show(ui, |ui| {
-            ui.set_width(width);
-            left_and_right_layout(
-                ui,
-                app,
-                |_app, ui| {
-                    ui.label("Data Bag");
-                },
-                |app, ui| {
-                    let bag_file_path_id = Id::new("bag_file_path");
+    default_scroll_area(ui, "data_bag_list").show(ui, |ui| {
+        ui.set_width(width);
+        left_and_right_layout(
+            ui,
+            app,
+            |_app, ui| {
+                ui.label("Data Bag");
+            },
+            |app, ui| {
+                let bag_file_path_id = Id::new("bag_file_path");
 
-                    if ui.button("📲").clicked() {
-                        let fd = rfd::FileDialog::new();
-                        let file_path = ui
-                            .memory_mut(|mem| mem.data.get_persisted::<PathBuf>(bag_file_path_id));
-                        let fd = if let Some(path) = file_path.as_ref() {
-                            fd.set_directory(path)
-                        } else {
-                            fd
-                        };
-                        if let Some(file_path) = fd.pick_file() {
-                            let buf_reader =
-                                std::io::BufReader::new(std::fs::File::open(&file_path).unwrap());
-                            let bag: Bag = bincode::deserialize_from(buf_reader).unwrap();
-                            if !app.storage.load_bag(bag) {
-                                log::error!("bag already exists");
-                            }
-
-                            ui.ctx().memory_mut(|mem| {
-                                mem.data.insert_persisted(
-                                    bag_file_path_id,
-                                    file_path.parent().unwrap().to_owned(),
-                                );
-                            });
+                if ui.button("📲").clicked() {
+                    let fd = rfd::FileDialog::new();
+                    let file_path =
+                        ui.memory_mut(|mem| mem.data.get_persisted::<PathBuf>(bag_file_path_id));
+                    let fd = if let Some(path) = file_path.as_ref() {
+                        fd.set_directory(path)
+                    } else {
+                        fd
+                    };
+                    if let Some(file_path) = fd.pick_file() {
+                        let buf_reader =
+                            std::io::BufReader::new(std::fs::File::open(&file_path).unwrap());
+                        let bag: Bag = bincode::deserialize_from(buf_reader).unwrap();
+                        if !app.storage.load_bag(bag) {
+                            log::error!("bag already exists");
                         }
-                    }
-                },
-            );
-            let bag_groups = app.storage.bag_groups().unwrap();
-            for (bag_name, bag_group) in bag_groups {
-                if bag_group.len() > 1 {
-                    CollapsingHeader::new(bag_name)
-                        .header_truncate(true)
-                        .show(ui, |ui| {
-                            for bag in bag_group {
-                                let bag = bag.read().unwrap();
-                                left_and_right_layout(
-                                    ui,
-                                    app,
-                                    |_app, ui| {
-                                        ui.label(
-                                            &bag.created_at
-                                                .with_timezone(&Local)
-                                                .format("%Y-%m-%d %H:%M:%S")
-                                                .to_string(),
-                                        );
-                                    },
-                                    |app, ui| {
-                                        if ui.button("+").clicked() {
-                                            app.replace_bag_id = Some(bag.id);
-                                        }
-                                        if ui.button("💾").clicked() {
-                                            if let Some(file_path) =
-                                                rfd::FileDialog::new().save_file()
-                                            {
-                                                let mut buf_writer = std::io::BufWriter::new(
-                                                    std::fs::File::create(file_path).unwrap(),
-                                                );
-                                                bincode::serialize_into(
-                                                    &mut buf_writer,
-                                                    bag.deref(),
-                                                )
-                                                .unwrap();
-                                            }
-                                        }
-                                    },
-                                )
-                            }
+
+                        ui.ctx().memory_mut(|mem| {
+                            mem.data.insert_persisted(
+                                bag_file_path_id,
+                                file_path.parent().unwrap().to_owned(),
+                            );
                         });
-                } else {
-                    let bag = bag_group.first().unwrap().read().unwrap();
-                    left_and_right_layout(
-                        ui,
-                        app,
-                        |_app, ui| {
-                            Label::new(bag_name).truncate(true).ui(ui);
-                        },
-                        |app, ui| {
-                            if ui.button("+").clicked() {
-                                app.replace_bag_id = Some(bag.id);
-                            }
-                            if ui.button("💾").clicked() {
-                                if let Some(file_path) = rfd::FileDialog::new().save_file() {
-                                    let mut buf_writer = std::io::BufWriter::new(
-                                        std::fs::File::create(file_path).unwrap(),
-                                    );
-                                    bincode::serialize_into(&mut buf_writer, bag.deref()).unwrap();
-                                }
-                            }
-                        },
-                    )
+                    }
                 }
+            },
+        );
+        let bag_groups = app.storage.bag_groups().unwrap();
+        for (bag_name, bag_group) in bag_groups {
+            if bag_group.len() > 1 {
+                CollapsingHeader::new(bag_name)
+                    .header_truncate(true)
+                    .show(ui, |ui| {
+                        for bag in bag_group {
+                            let bag = bag.read().unwrap();
+                            left_and_right_layout(
+                                ui,
+                                app,
+                                |_app, ui| {
+                                    ui.label(
+                                        &bag.created_at
+                                            .with_timezone(&Local)
+                                            .format("%Y-%m-%d %H:%M:%S")
+                                            .to_string(),
+                                    );
+                                },
+                                |app, ui| {
+                                    if ui.button("+").clicked() {
+                                        app.replace_bag_id = Some(bag.id);
+                                    }
+                                    if ui.button("💾").clicked() {
+                                        if let Some(file_path) = rfd::FileDialog::new().save_file()
+                                        {
+                                            let mut buf_writer = std::io::BufWriter::new(
+                                                std::fs::File::create(file_path).unwrap(),
+                                            );
+                                            bincode::serialize_into(&mut buf_writer, bag.deref())
+                                                .unwrap();
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    });
+            } else {
+                let bag = bag_group.first().unwrap().read().unwrap();
+                left_and_right_layout(
+                    ui,
+                    app,
+                    |_app, ui| {
+                        Label::new(bag_name).truncate(true).ui(ui);
+                    },
+                    |app, ui| {
+                        if ui.button("+").clicked() {
+                            app.replace_bag_id = Some(bag.id);
+                        }
+                        if ui.button("💾").clicked() {
+                            if let Some(file_path) = rfd::FileDialog::new().save_file() {
+                                let mut buf_writer = std::io::BufWriter::new(
+                                    std::fs::File::create(file_path).unwrap(),
+                                );
+                                bincode::serialize_into(&mut buf_writer, bag.deref()).unwrap();
+                            }
+                        }
+                    },
+                )
             }
-        });
+        }
+    });
 }
 
 fn data_list_view(app: &mut App, ui: &mut Ui) {
     let width = ui.available_width();
-    ScrollArea::vertical()
-        .id_source("data_list")
-        .max_height(ui.available_height() / 3.0)
-        .vscroll(true)
-        .drag_to_scroll(true)
-        .enable_scrolling(true)
-        .show(ui, |ui| {
-            ui.set_width(width);
-            ui.label("Data");
-            let bind = app.storage.get_bag(app.current_bag_id).unwrap();
-            let bag = bind.read().unwrap();
-            for (name, data_group) in &bag.data_groups() {
-                let icon = data_type_to_icon(data_group.first().unwrap().data.data_type());
+    default_scroll_area(ui, "data_list").show(ui, |ui| {
+        ui.set_width(width);
+        ui.label("Data");
+        let bind = app.storage.get_bag(app.current_bag_id).unwrap();
+        let bag = bind.read().unwrap();
+        for (name, data_group) in &bag.data_groups() {
+            let icon = data_type_to_icon(data_group.first().unwrap().data.data_type());
 
-                if data_group.len() > 1 {
-                    CollapsingHeader::new(format!("{} {}", icon, name))
-                        .header_truncate(true)
-                        .show(ui, |ui| {
-                            for &d in data_group {
-                                data_list_content_view(
-                                    app,
-                                    ui,
-                                    format!("#{}", d.generation).as_str(),
-                                    format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
-                                    FlDataReference::from(d.clone()),
-                                );
-                            }
-                        });
-                } else {
-                    let &d = data_group.first().unwrap();
-                    data_list_content_view(
-                        app,
-                        ui,
-                        format!("{} {}", icon, &d.name).as_str(),
-                        format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
-                        FlDataReference::from(d.clone()),
-                    );
-                }
+            if data_group.len() > 1 {
+                CollapsingHeader::new(format!("{} {}", icon, name))
+                    .header_truncate(true)
+                    .show(ui, |ui| {
+                        for &d in data_group {
+                            data_list_content_view(
+                                app,
+                                ui,
+                                format!("#{}", d.generation).as_str(),
+                                format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
+                                FlDataReference::from(d.clone()),
+                            );
+                        }
+                    });
+            } else {
+                let &d = data_group.first().unwrap();
+                data_list_content_view(
+                    app,
+                    ui,
+                    format!("{} {}", icon, &d.name).as_str(),
+                    format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
+                    FlDataReference::from(d.clone()),
+                );
             }
-        });
+        }
+    });
 }
 
 #[allow(clippy::collapsible_if)]
@@ -302,57 +292,51 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
         })
         .collect_vec();
 
-    ScrollArea::vertical()
-        .id_source("data_view_list")
-        .max_height(ui.available_height() / 3.0)
-        .vscroll(true)
-        .drag_to_scroll(true)
-        .enable_scrolling(true)
-        .show(ui, |ui| {
-            ui.set_width(width);
-            ui.label("Data View");
+    default_scroll_area(ui, "data_view_list").show(ui, |ui| {
+        ui.set_width(width);
+        ui.label("Data View");
 
-            for m in &data_views {
-                let parent_width = ui.available_width();
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |app, ui| {
-                        CollapsingHeader::new(&m.name)
-                            .header_truncate(true)
-                            .show(ui, |ui| {
-                                ui.set_width(parent_width - ui.spacing().indent);
-                                for attr in m.data.visualizeable_attributes(bag) {
-                                    left_and_right_layout(
-                                        ui,
-                                        app,
-                                        |_app, ui| list_item_label(ui, attr.as_str()),
-                                        |app, ui| {
-                                            if ui.button("+").clicked() {
-                                                let render = m.data.create_visualize(attr.clone());
-                                                insert_root_tile(
-                                                    &mut app.tree,
-                                                    format!("{} {}", attr, m.name).as_str(),
-                                                    PaneContent::Visualize(render),
-                                                );
-                                            }
-                                        },
-                                    );
-                                }
-                            })
-                    },
-                    |app, ui| {
-                        let tile_visible = app.tree.tiles.is_visible(m.tile_id);
-                        if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
-                            app.tree.tiles.set_visible(m.tile_id, !tile_visible);
-                        }
-                        if ui.button("➖").clicked() {
-                            app.removing_tiles.push(m.tile_id);
-                        }
-                    },
-                );
-            }
-        });
+        for m in &data_views {
+            let parent_width = ui.available_width();
+            left_and_right_layout(
+                ui,
+                app,
+                |app, ui| {
+                    CollapsingHeader::new(&m.name)
+                        .header_truncate(true)
+                        .show(ui, |ui| {
+                            ui.set_width(parent_width - ui.spacing().indent);
+                            for attr in m.data.visualizeable_attributes(bag) {
+                                left_and_right_layout(
+                                    ui,
+                                    app,
+                                    |_app, ui| list_item_label(ui, attr.as_str()),
+                                    |app, ui| {
+                                        if ui.button("+").clicked() {
+                                            let render = m.data.create_visualize(attr.clone());
+                                            insert_root_tile(
+                                                &mut app.tree,
+                                                format!("{} {}", attr, m.name).as_str(),
+                                                PaneContent::Visualize(render),
+                                            );
+                                        }
+                                    },
+                                );
+                            }
+                        })
+                },
+                |app, ui| {
+                    let tile_visible = app.tree.tiles.is_visible(m.tile_id);
+                    if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
+                        app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                    }
+                    if ui.button("➖").clicked() {
+                        app.removing_tiles.push(m.tile_id);
+                    }
+                },
+            );
+        }
+    });
 }
 
 fn visualize_list_view(app: &mut App, ui: &mut Ui) {
@@ -370,93 +354,81 @@ fn visualize_list_view(app: &mut App, ui: &mut Ui) {
         })
         .collect_vec();
 
-    ScrollArea::vertical()
-        .id_source("visualize list")
-        .max_height(ui.available_height() / 3.0)
-        .vscroll(true)
-        .drag_to_scroll(true)
-        .enable_scrolling(true)
-        .show(ui, |ui| {
-            ui.set_width(width);
-            ui.label("Data Visualize");
-            for m in visualizes {
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |_app, ui| {
-                        list_item_label(ui, &m.name);
-                    },
-                    |app, ui| {
-                        let tile_visible = app.tree.tiles.is_visible(m.tile_id);
-                        if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
-                            app.tree.tiles.set_visible(m.tile_id, !tile_visible);
-                        }
-                        if ui.button("➖").clicked() {
-                            app.removing_tiles.push(m.tile_id);
-                        }
-                    },
-                );
-            }
-        });
+    default_scroll_area(ui, "visualize list").show(ui, |ui| {
+        ui.set_width(width);
+        ui.label("Data Visualize");
+        for m in visualizes {
+            left_and_right_layout(
+                ui,
+                app,
+                |_app, ui| {
+                    list_item_label(ui, &m.name);
+                },
+                |app, ui| {
+                    let tile_visible = app.tree.tiles.is_visible(m.tile_id);
+                    if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
+                        app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                    }
+                    if ui.button("➖").clicked() {
+                        app.removing_tiles.push(m.tile_id);
+                    }
+                },
+            );
+        }
+    });
 }
 
 fn layout_list_view(app: &mut App, ui: &mut Ui) {
     let width = ui.available_width();
-    ScrollArea::vertical()
-        .id_source("layout_list_view")
-        .max_height(ui.available_height() / 3.0)
-        .vscroll(true)
-        .drag_to_scroll(true)
-        .enable_scrolling(true)
-        .show(ui, |ui| {
-            ui.set_width(width);
+    default_scroll_area(ui, "layout_list_view").show(ui, |ui| {
+        ui.set_width(width);
+        left_and_right_layout(
+            ui,
+            &mut (),
+            |_, ui| ui.label("Layout"),
+            |_, ui| {
+                let button = ui.button("💾");
+                if button.clicked() {
+                    ui.ctx().memory_mut(|mem| {
+                        mem.data.insert_temp(Id::new("layout save dialog"), true);
+                    })
+                }
+                button
+            },
+        );
+        let mut remove_layout_id = None;
+        for l in &app.layouts {
             left_and_right_layout(
                 ui,
-                &mut (),
-                |_, ui| ui.label("Layout"),
-                |_, ui| {
-                    let button = ui.button("💾");
-                    if button.clicked() {
-                        ui.ctx().memory_mut(|mem| {
-                            mem.data.insert_temp(Id::new("layout save dialog"), true);
-                        })
+                &mut app.tree,
+                |_app, ui| {
+                    list_item_label(ui, &l.name);
+                },
+                |tree, ui| {
+                    if check_applicable(
+                        &app.storage
+                            .get_bag(app.current_bag_id)
+                            .unwrap()
+                            .read()
+                            .unwrap(),
+                        l,
+                    ) {
+                        if ui.button("📲").clicked() {
+                            *tree = l.tree.clone();
+                        }
+                    } else {
+                        ui.button("🚫").on_hover_text("Not applicable");
                     }
-                    button
+                    if ui.button("➖").clicked() {
+                        remove_layout_id.replace(l.id);
+                    }
                 },
             );
-            let mut remove_layout_id = None;
-            for l in &app.layouts {
-                left_and_right_layout(
-                    ui,
-                    &mut app.tree,
-                    |_app, ui| {
-                        list_item_label(ui, &l.name);
-                    },
-                    |tree, ui| {
-                        if check_applicable(
-                            &app.storage
-                                .get_bag(app.current_bag_id)
-                                .unwrap()
-                                .read()
-                                .unwrap(),
-                            l,
-                        ) {
-                            if ui.button("📲").clicked() {
-                                *tree = l.tree.clone();
-                            }
-                        } else {
-                            ui.button("🚫").on_hover_text("Not applicable");
-                        }
-                        if ui.button("➖").clicked() {
-                            remove_layout_id.replace(l.id);
-                        }
-                    },
-                );
-            }
-            if let Some(id) = remove_layout_id {
-                app.layouts.retain(|l| l.id != id);
-            }
-        });
+        }
+        if let Some(id) = remove_layout_id {
+            app.layouts.retain(|l| l.id != id);
+        }
+    });
     let mut layout_save_dialog = ui
         .ctx()
         .memory(|mem| mem.data.get_temp(Id::new("layout save dialog")))
@@ -505,5 +477,16 @@ fn data_type_to_icon(data_type: FlDataType) -> &'static str {
         FlDataType::Image => "🖼",
         FlDataType::DataFrame => "📊",
         FlDataType::Tensor => "🔢",
+        FlDataType::Object => "🔵",
     }
+}
+
+fn default_scroll_area(ui: &mut Ui, id: &str) -> ScrollArea {
+    ScrollArea::vertical()
+        .id_source(id)
+        .max_height(ui.available_height() / 5.0)
+        .vscroll(true)
+        .drag_to_scroll(true)
+        .enable_scrolling(true)
+        .scroll_bar_visibility(ScrollBarVisibility::AlwaysHidden)
 }

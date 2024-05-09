@@ -17,6 +17,7 @@ enum DataType {
   Image = 0;
   Tensor2D = 1;
   DataFrame = 2;
+  Object = 3;
 }
 
 message AppendDataRequest {

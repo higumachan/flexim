@@ -19,6 +19,7 @@ ndarray.workspace = true
 flexim-data-type.workspace = true
 flexim-storage.workspace = true
 num-derive.workspace = true
+serde_json.workspace = true
 
 [build-dependencies]
 tonic-build.workspace = true

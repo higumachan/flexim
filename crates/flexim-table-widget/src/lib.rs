@@ -24,6 +24,18 @@ pub struct FlTable {
     pub data_reference: FlDataReference,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub enum ShowColumns {
+    #[default]
+    All,
+    Some(Vec<String>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FlTableDrawContext {
+    pub show_columns: ShowColumns,
+}
+
 impl FlTable {
     pub fn data_id(&self, bag: &Bag) -> anyhow::Result<Id> {
         let data = bag
@@ -55,7 +67,7 @@ impl FlTable {
             .context("Mismatched data type")
     }
 
-    pub fn draw(&self, ui: &mut Ui, bag: &Bag) {
+    pub fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
         puffin::profile_function!();
         let dataframe = bag
             .data_by_reference(&self.data_reference)
@@ -93,8 +105,20 @@ impl FlTable {
         }
 
         let special_columns = &dataframe.special_columns;
-        let dataframe = dataframe.value.clone();
-        let columns = dataframe.get_column_names();
+        let columns = match &draw_context.show_columns {
+            ShowColumns::All => dataframe
+                .value
+                .get_column_names()
+                .iter()
+                .map(|t| t.to_string())
+                .collect(),
+            ShowColumns::Some(columns) => columns.clone(),
+        };
+
+        if columns.is_empty() {
+            return;
+        }
+
         let dataframe = ui.ctx().memory_mut(|mem| {
             let cache = mem.caches.cache::<FilteredDataFrameCache>();
             cache.get(self.data_id(bag).unwrap()).unwrap()
@@ -131,7 +155,7 @@ impl FlTable {
                     for col in &columns {
                         header.col(|ui| {
                             Label::new(col.to_string()).truncate(true).ui(ui);
-                            let filter = state.filters.get_mut(&col.to_string()).unwrap();
+                            let filter = state.filters.get_mut(col).unwrap();
                             Checkbox::new(&mut filter.allow_null_value, "Allow Null").ui(ui);
                             filter.draw(Id::new(self.id).with(col), ui);
                         });
@@ -168,6 +192,11 @@ impl FlTable {
                                         dataframe.column(c).unwrap().get(row_idx).unwrap(),
                                     ) {
                                         color_column(&mut row, color);
+                                    } else {
+                                        let c = dataframe.column(c).unwrap().get(row_idx).unwrap();
+                                        row.col(|ui| {
+                                            Label::new(format!("Invalid color: {:?}", c)).ui(ui);
+                                        });
                                     }
                                 }
                                 _ => {

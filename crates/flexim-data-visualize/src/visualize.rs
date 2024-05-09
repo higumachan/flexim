@@ -17,12 +17,14 @@ use image::{DynamicImage, ImageBuffer, Rgb};
 use itertools::Itertools;
 
 use crate::pallet::pallet;
-use crate::special_columns_visualize::{RenderParameter, SpecialColumnShape};
+use crate::special_columns_visualize::{EdgeAccent, RenderParameter, SpecialColumnShape};
 use anyhow::Context as _;
 
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
+use enum_iterator::all;
+use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
 use polars::datatypes::DataType;
@@ -33,27 +35,45 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
 
-const SCROLL_SPEED: f32 = 1.0;
-const ZOOM_SPEED: f32 = 1.0;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
     pub id: Id,
-    pub scale: f32,
+    pub current_scale: f32,
     pub shift: Vec2,
+    pub origin: Origin,
+}
+
+impl VisualizeState {
+    pub fn scale(&self) -> Vec2 {
+        let y = match self.origin {
+            Origin::TopLeft => 1.0,
+            Origin::BottomLeft => -1.0,
+        };
+
+        Vec2::new(self.current_scale, self.current_scale * y)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub enum Origin {
+    #[default]
+    TopLeft,
+    BottomLeft,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InnerState {
-    scale: f32,
+    current_scale: f32,
     shift: Vec2,
+    origin: Origin,
 }
 
 impl Default for InnerState {
     fn default() -> Self {
         Self {
-            scale: 1.0,
+            current_scale: 1.0,
             shift: Vec2::ZERO,
+            origin: Origin::default(),
         }
     }
 }
@@ -64,8 +84,9 @@ impl VisualizeState {
             ctx.data_mut(|data| data.get_persisted::<InnerState>(id).unwrap_or_default());
         Self {
             id,
-            scale: inner_state.scale,
+            current_scale: inner_state.current_scale,
             shift: inner_state.shift,
+            origin: inner_state.origin,
         }
     }
 
@@ -74,16 +95,18 @@ impl VisualizeState {
             data.insert_persisted(
                 self.id,
                 InnerState {
-                    scale: self.scale,
+                    current_scale: self.current_scale,
                     shift: self.shift,
+                    origin: self.origin,
                 },
             )
         });
     }
 
-    pub fn is_valid(&self) -> bool {
-        0.0 <= self.scale
-            && self.scale <= 10.0
+    pub fn is_valid(&self, ui: &mut Ui) -> bool {
+        let config = Config::get_global(ui);
+        config.zoom_lower_limit <= self.current_scale
+            && self.current_scale <= config.zoom_upper_limit
             && -100000.0 <= self.shift.x
             && self.shift.x <= 100000.0
             && -100000.0 <= self.shift.y
@@ -99,16 +122,28 @@ impl VisualizeState {
             |ui| {
                 let b = ui.button("-");
                 if b.clicked() {
-                    state.scale -= 0.1;
+                    state.current_scale -= 0.1;
                 }
-                let dv = DragValue::new(&mut state.scale).speed(0.1).ui(ui);
+                let dv = DragValue::new(&mut state.current_scale).speed(0.1).ui(ui);
                 if dv.clicked() {
-                    state.scale = 1.0;
+                    state.current_scale = 1.0;
                 }
 
                 let b = ui.button("+");
                 if b.clicked() {
-                    state.scale += 0.1;
+                    state.current_scale += 0.1;
+                }
+                if ui
+                    .button(match state.origin {
+                        Origin::TopLeft => "左上",
+                        Origin::BottomLeft => "左下",
+                    })
+                    .clicked()
+                {
+                    state.origin = match state.origin {
+                        Origin::TopLeft => Origin::BottomLeft,
+                        Origin::BottomLeft => Origin::TopLeft,
+                    };
                 }
             },
         );
@@ -116,6 +151,7 @@ impl VisualizeState {
 
     pub fn show(&mut self, ui: &mut Ui, bag: &Bag, contents: &[Arc<DataRender>]) {
         let old_state = self.clone();
+        let config = Config::get_global(ui);
 
         self.show_header(ui);
         let _response = ui
@@ -139,14 +175,14 @@ impl VisualizeState {
                         {
                             let dy = input.raw_scroll_delta.y;
                             let dx = input.raw_scroll_delta.x;
-                            self.shift += egui::vec2(dx, dy) * SCROLL_SPEED;
+                            self.shift += egui::vec2(dx, dy) * config.scroll_speed;
                         }
                         // ズーム関係
                         {
                             // https://chat.openai.com/share/e/c46c2795-a9e4-4f23-b04c-fa0b0e8ab818
-                            let scale = input.zoom_delta() * ZOOM_SPEED;
+                            let scale = input.zoom_delta() * config.zoom_speed;
                             let pos = hover_pos;
-                            self.scale *= scale;
+                            self.current_scale *= scale;
                             self.shift = self.shift * scale
                                 + egui::vec2(-scale * pos.x + pos.x, -scale * pos.y + pos.y);
                         }
@@ -156,7 +192,7 @@ impl VisualizeState {
                 response
             })
             .inner;
-        if !self.is_valid() {
+        if !self.is_valid(ui) {
             *self = old_state;
         }
         self.store(ui.ctx());
@@ -273,7 +309,7 @@ impl DataRenderable for FlImageRender {
         if let FlData::Image(data) = data {
             let image = Image::from_bytes(format!("bytes://{}.png", data.id), data.value.clone());
 
-            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale;
+            let size = Vec2::new(data.width as f32, data.height as f32) * state.scale();
             draw_image(painter, &image, state.shift, size, Color32::WHITE)
         } else {
             Err(anyhow::anyhow!(
@@ -404,10 +440,10 @@ impl DataRenderable for FlTensor2DRender {
                 );
 
                 let size = Vec2::new(data.value.shape()[1] as f32, data.value.shape()[0] as f32)
-                    * state.scale;
+                    * state.scale();
 
                 let offset = data.offset;
-                let offset = Vec2::new(offset.1 as f32, offset.0 as f32) * state.scale;
+                let offset = Vec2::new(offset.1 as f32, offset.0 as f32) * state.scale();
 
                 draw_image(painter, &image, state.shift + offset, size, tint_color)?;
             }
@@ -442,6 +478,10 @@ pub struct FlDataFrameViewRenderContext {
     pub fill_transparency: f64,
     pub normal_thickness: f64,
     pub highlight_thickness: f64,
+    #[serde(default)]
+    pub edge_accent_start: EdgeAccent,
+    #[serde(default)]
+    pub edge_accent_end: EdgeAccent,
 }
 
 impl FlDataFrameViewRenderContext {
@@ -472,6 +512,8 @@ impl Default for FlDataFrameViewRenderContext {
             fill_transparency: 0.9,
             normal_thickness: 1.0,
             highlight_thickness: 3.0,
+            edge_accent_start: EdgeAccent::None,
+            edge_accent_end: EdgeAccent::None,
         }
     }
 }
@@ -624,6 +666,8 @@ impl DataRenderable for FlDataFrameViewRender {
                 self.render_context.lock().unwrap().normal_thickness
             } as f32;
 
+            let edge_accent_start = self.render_context.lock().unwrap().edge_accent_start;
+            let edge_accent_end = self.render_context.lock().unwrap().edge_accent_end;
             let response = shape.render(
                 ui,
                 painter,
@@ -632,6 +676,8 @@ impl DataRenderable for FlDataFrameViewRender {
                     stroke_thickness: thickness,
                     label: label.map(|s| s.to_string()),
                     fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
+                    edge_accent_start,
+                    edge_accent_end,
                 },
                 state,
             );
@@ -789,6 +835,31 @@ impl DataRenderable for FlDataFrameViewRender {
                         });
                 });
                 ui.horizontal(|ui| {
+                    ui.label("Edge Accent");
+                    ComboBox::from_id_source("Edge Accent Start")
+                        .selected_text(render_context.edge_accent_start.to_string())
+                        .show_ui(ui, |ui| {
+                            for edge_accent in all::<EdgeAccent>() {
+                                ui.selectable_value(
+                                    &mut render_context.edge_accent_start,
+                                    edge_accent,
+                                    edge_accent.to_string(),
+                                );
+                            }
+                        });
+                    ComboBox::from_id_source("Edge Accent End")
+                        .selected_text(render_context.edge_accent_end.to_string())
+                        .show_ui(ui, |ui| {
+                            for edge_accent in all::<EdgeAccent>() {
+                                ui.selectable_value(
+                                    &mut render_context.edge_accent_end,
+                                    edge_accent,
+                                    edge_accent.to_string(),
+                                );
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
                     ui.label("Transparency");
                     Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
                 });
@@ -907,8 +978,12 @@ fn serise_value_to_color(field: &Field, value: &AnyValue) -> Color32 {
     match &field.dtype {
         DataType::Struct(inner_field) => {
             if FlDataFrameColor::validate_fields(inner_field) {
-                let color = FlDataFrameColor::try_from(value.clone()).unwrap();
-                Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8)
+                if let Ok(color) = FlDataFrameColor::try_from(value.clone()) {
+                    Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8)
+                } else {
+                    log::warn!("failed to convert to FlDataFrameColor: {:?}", value);
+                    Color32::RED
+                }
             } else {
                 Color32::RED
             }

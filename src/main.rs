@@ -6,14 +6,15 @@ use eframe::{run_native, Frame};
 use egui::ahash::{HashMap, HashMapExt};
 
 use crate::left_panel::left_panel;
-use egui::{Context, Id, Response, Ui};
+use egui::{Context, Id, Response, Ui, ViewportCommand};
 use egui_extras::install_image_loaders;
 use egui_tiles::{Container, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse};
+use flexim_config::ConfigWindow;
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
     FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
-    FlDataType, FlImage, FlTensor2D, GenerationSelector,
+    FlDataType, FlImage, FlObject, FlTensor2D, GenerationSelector,
 };
 use flexim_data_visualize::visualize::{DataRender, FlImageRender, VisualizeState};
 use flexim_font::setup_custom_fonts;
@@ -25,6 +26,7 @@ use ndarray::Array2;
 use polars::datatypes::StructChunked;
 use polars::prelude::{CsvReader, IntoSeries, NamedFrom, SerReader, Series};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
 use std::sync::{Arc, RwLock};
@@ -159,8 +161,9 @@ impl eframe::App for App {
                 };
                 self.tree.ui(&mut behavior, ui);
             });
+            ConfigWindow::show(ctx)
         }
-        end_of_frame(self);
+        end_of_frame(ctx, self);
     }
 }
 
@@ -229,6 +232,13 @@ fn main() -> Result<(), eframe::Error> {
             bag_id,
             "long_tabledata".to_string(),
             load_long_sample_data().into(),
+        )
+        .unwrap();
+    storage
+        .insert_data(
+            bag_id,
+            "sample_object".to_string(),
+            load_object_sample_data().into(),
         )
         .unwrap();
 
@@ -336,7 +346,7 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-fn end_of_frame(app: &mut App) {
+fn end_of_frame(ctx: &Context, app: &mut App) {
     for &tile_id in &app.removing_tiles {
         app.tree.tiles.remove(tile_id);
         if app.current_tile_id == Some(tile_id) {
@@ -355,6 +365,15 @@ fn end_of_frame(app: &mut App) {
         app.current_tile_id = None;
         app.current_bag_id = bag_id;
         app.replace_bag_id = None;
+        let bag = app.storage.get_bag(bag_id).unwrap();
+        let bag = bag.read().unwrap();
+        let bag_name = bag.name.as_str();
+        let create_at = bag.created_at.format("%Y-%m-%d %H:%M:%S").to_string();
+
+        ctx.send_viewport_cmd(ViewportCommand::Title(format!(
+            "Flexim - {} {}",
+            bag_name, create_at
+        )));
     }
 }
 
@@ -362,12 +381,27 @@ fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
     puffin::profile_function!();
     if let Some(tile_id) = app.current_tile_id {
         if let Some(tile) = app.tree.tiles.get(tile_id) {
-            if let Tile::Pane(Pane {
-                content: PaneContent::Visualize(data),
-                ..
-            }) = tile
-            {
-                data.config_panel(ui, bag);
+            // if let Tile::Pane(Pane {
+            //     content: PaneContent::Visualize(data),
+            //     ..
+            // }) = tile
+            // {
+            //     data.config_panel(ui, bag);
+            // }
+            match tile {
+                Tile::Pane(Pane {
+                    content: PaneContent::Visualize(data),
+                    ..
+                }) => {
+                    data.config_panel(ui, bag);
+                }
+                Tile::Pane(Pane {
+                    content: PaneContent::DataView(data),
+                    ..
+                }) => {
+                    data.config_panel(ui, bag);
+                }
+                _ => {}
             }
         } else {
             log::warn!("tile not found");
@@ -580,6 +614,14 @@ fn load_long_sample_data2() -> FlDataFrame {
         .into_iter()
         .collect(),
     )
+}
+
+fn load_object_sample_data() -> FlObject {
+    let data = Vec::from(include_bytes!("../assets/object_sample.json"));
+
+    let data: Value = serde_json::from_slice(&data).unwrap();
+
+    FlObject::new(data)
 }
 
 fn read_rectangle(s: &Series, name: &str) -> Series {
