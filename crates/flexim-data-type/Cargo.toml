@@ -14,5 +14,6 @@ ndarray.workspace = true
 serde = "1"
 polars.workspace = true
 rand.workspace = true
-anyhow = { version = "1"}
+anyhow = { version = "1" }
 thiserror = { version = "1", features = [] }
+serde_json = "1"
