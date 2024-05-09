@@ -8,6 +8,7 @@ pub use flexim_data_type::{FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSe
 use itertools::Itertools;
 use polars::frame::row::Row;
 use polars::prelude::*;
+use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Cursor;
 use std::ops::DerefMut;
@@ -238,6 +239,16 @@ impl<'a> Drop for RowBuilder<'a> {
 
 pub enum Data {
     DataRows(RowData),
+    DataObject(Value),
+}
+
+impl From<&Data> for flexim_connect::grpc::DataType {
+    fn from(value: &Data) -> Self {
+        match value {
+            Data::DataRows(ref _row_data) => flexim_connect::grpc::DataType::DataFrame,
+            Data::DataObject(ref _value) => flexim_connect::grpc::DataType::Object,
+        }
+    }
 }
 
 static CLIENT: OnceLock<Mutex<FleximClient>> = OnceLock::new();
@@ -366,6 +377,7 @@ pub fn append_data_into_global_bag(name: &str, data: Data) -> anyhow::Result<()>
 }
 
 pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
+    let data_type = flexim_connect::grpc::DataType::from(&data);
     let (data_bytes, special_columns) = match data {
         Data::DataRows(row_data) => (
             row_data.to_bytes()?,
@@ -379,6 +391,10 @@ pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
                 })
                 .collect_vec(),
         ),
+        Data::DataObject(ref value) => {
+            let data_bytes = serde_json::to_vec(&value)?;
+            (data_bytes, vec![])
+        }
     };
 
     let mut client = CLIENT
@@ -393,7 +409,7 @@ pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
                 flexim_connect::grpc::append_data_request::DataMeta {
                     bag_id,
                     name: name.to_string(),
-                    data_type: flexim_connect::grpc::DataType::DataFrame.into(),
+                    data_type: data_type.into(),
                     special_columns: special_columns
                         .into_iter()
                         .map(|(k, s)| (k, GrpcSpecialColumn::from(s).into()))
@@ -422,7 +438,9 @@ pub fn append_data(bag_id: u64, name: &str, data: Data) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::Data::DataObject;
     use crate::*;
+    use serde_json::json;
 
     #[test]
     fn it_works() {
@@ -475,5 +493,28 @@ mod tests {
                 },
             );
         append_data(bag_id, "test_data", Data::DataRows(row_data)).unwrap();
+
+        append_data(
+            bag_id,
+            "test_object",
+            DataObject(json! {
+                {
+                    "name": "nadeko",
+                    "age": 14,
+                    "face": {
+                        "x1": 0.0,
+                        "y1": 0.0,
+                        "x2": 100.0,
+                        "y2": 100.0
+                    },
+                    "color": {
+                        "r": 255.0,
+                        "g": 0.0,
+                        "b": 0.0
+                    }
+                }
+            }),
+        )
+        .unwrap();
     }
 }
