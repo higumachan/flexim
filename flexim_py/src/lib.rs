@@ -14,14 +14,14 @@ static SERVER_RUNTIMES: Mutex<BTreeMap<u16, Runtime>> = Mutex::new(BTreeMap::new
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn _flexim_py_lib(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _flexim_py_lib(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     /// Pythonのndarrayを受け取りその内容をndarrayとして解釈できるバイト列に変換する
     #[pyfn(m)]
     fn tensor2d_to_bytes<'py>(
         _py: Python<'py>,
         tensor2d: PyReadonlyArrayDyn<'py, f32>,
         offset: (u64, u64),
-    ) -> PyResult<&'py PyBytes> {
+    ) -> PyResult<Bound<'py, PyBytes>> {
         let array: Array2<f64> = tensor2d
             .as_array()
             .mapv(f64::from)
@@ -31,7 +31,7 @@ fn _flexim_py_lib(_py: Python, m: &PyModule) -> PyResult<()> {
 
         bincode::serialize(&array)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
-            .map(|v| PyBytes::new(_py, &v))
+            .map(|v| PyBytes::new_bound(_py, &v))
     }
 
     #[pyfn(m)]

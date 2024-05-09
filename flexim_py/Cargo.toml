@@ -13,8 +13,8 @@ name = "flexim_py"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.20.2", features = ["extension-module"] }
-numpy = "0.20.0"
+pyo3 = { version = "0.21.2", features = ["extension-module"] }
+numpy = "0.21.0"
 ndarray.workspace = true
 serde.workspace = true
 bincode.workspace = true
@@ -24,4 +24,4 @@ tokio.workspace = true
 tonic.workspace = true
 
 [dev-dependencies]
-polars = { workspace = true, features = ["io", "ipc", "csv"]}
+polars = { workspace = true, features = ["io", "ipc", "csv"] }
