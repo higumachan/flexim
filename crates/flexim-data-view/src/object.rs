@@ -1,5 +1,5 @@
 use crate::{gen_id, Id};
-use flexim_data_type::{FlDataReference};
+use flexim_data_type::FlDataReference;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
