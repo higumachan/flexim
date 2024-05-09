@@ -13,13 +13,13 @@ tonic.workspace = true
 prost.workspace = true
 tokio.workspace = true
 polars = { workspace = true, features = ["io", "ipc"] }
-anyhow = { version = "1"}
+anyhow = { version = "1" }
 bincode.workspace = true
 ndarray.workspace = true
 flexim-data-type.workspace = true
 flexim-storage.workspace = true
 num-derive.workspace = true
-serde_json.workspace = true
+serde_json = { version = "1" }
 
 [build-dependencies]
 tonic-build.workspace = true
