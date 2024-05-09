@@ -426,8 +426,8 @@ mod tests {
 
     #[test]
     fn it_works() {
-        // init_localstorage("/tmp/test").unwrap();
-        init_server().unwrap();
+        init_localstorage("/tmp/test").unwrap();
+        // init_server().unwrap();
 
         let bag_id = create_bag("test_from_rust").unwrap();
         let mut row_data = RowData::default();
