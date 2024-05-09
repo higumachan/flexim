@@ -6,6 +6,7 @@ use flexim_connect::grpc::AppendDataRequest;
 use flexim_connect::local_save_server::LocalSaveServerImpl;
 pub use flexim_data_type::{FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment};
 use itertools::Itertools;
+use polars::export::serde::Serialize;
 use polars::frame::row::Row;
 use polars::prelude::*;
 use serde_json::Value;
@@ -240,6 +241,12 @@ impl<'a> Drop for RowBuilder<'a> {
 pub enum Data {
     DataRows(RowData),
     DataObject(Value),
+}
+
+impl Data {
+    pub fn from_serialize<T: Serialize>(value: T) -> anyhow::Result<Self> {
+        Ok(Data::DataObject(serde_json::to_value(value)?))
+    }
 }
 
 impl From<&Data> for flexim_connect::grpc::DataType {
