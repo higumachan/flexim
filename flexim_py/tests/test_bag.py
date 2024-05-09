@@ -94,8 +94,8 @@ test_df_with_color = pandas.DataFrame(
 
 @pytest.fixture(autouse=True)
 def init_client():
-    # init_localstorage(Path(mkdtemp()))
-    init("localhost", 50051)
+    init_localstorage(Path(mkdtemp()))
+    # init("localhost", 50051)
 
 
 def test_simple_append_data():
