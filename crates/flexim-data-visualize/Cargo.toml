@@ -16,6 +16,7 @@ flexim-storage.workspace = true
 flexim-utility.workspace = true
 egui.workspace = true
 egui_tiles.workspace = true
+egui_extras.workspace = true
 scarlet.workspace = true
 ndarray.workspace = true
 image.workspace = true
@@ -38,4 +39,3 @@ flexim-config.workspace = true
 [dev-dependencies]
 env_logger.workspace = true
 eframe.workspace = true
-egui_extras.workspace = true

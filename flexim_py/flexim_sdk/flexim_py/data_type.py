@@ -1,6 +1,7 @@
+import json
 from enum import Enum
 from io import BytesIO
-from typing import Self, Literal
+from typing import Self, Literal, Any
 from flexim_py import _flexim_py_lib
 
 import PIL.Image
@@ -35,6 +36,7 @@ class Color(BaseModel):
     r: float
     g: float
     b: float
+
 
 class ImageData(BaseModel):
     type: Literal["Image"] = "Image"
@@ -94,3 +96,22 @@ class Tensor2DData(BaseModel):
     def to_bytes(self) -> bytes:
         # bytes encoded as C major
         return _flexim_py_lib.tensor2d_to_bytes(self.tensor, self.offset)
+
+
+class ObjectData(BaseModel):
+    type: Literal["Object"] = "Object"
+    object: object
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @classmethod
+    def from_object(cls, obj: Any):
+        return cls(object=obj)
+
+    @classmethod
+    def from_pydantic(cls, obj: BaseModel):
+        return cls(object=obj.model_dump())
+
+    def to_bytes(self) -> bytes:
+        # bytes encoded as json
+        return json.dumps(self.object).encode("utf-8")

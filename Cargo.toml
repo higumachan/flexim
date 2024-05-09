@@ -29,7 +29,7 @@ prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
 egui = "0.27.2"
-egui_extras = { version = "0.27.2", features = ["image", "svg"] }
+egui_extras = { version = "0.27.2", features = ["image", "svg", "syntect"] }
 eframe = "0.27.2"
 egui_tiles = "0.8.0"
 image = { version = "0.24", features = ["png", "jpeg"] }

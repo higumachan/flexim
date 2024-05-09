@@ -8,7 +8,8 @@ import pydantic
 from grpc import Channel
 from pydantic import BaseModel, ConfigDict
 
-from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn, Rectangle, Segment, Color
+from flexim_py.data_type import ImageData, DataFrameData, Tensor2DData, SpecialColumn, Rectangle, Segment, Color, \
+    ObjectData
 from flexim_py.pb import connect_pb2, connect_pb2_grpc
 from flexim_py.utility import batched
 from flexim_py._flexim_py_lib import start_localstorage_server
@@ -83,14 +84,15 @@ def append_data(bag_id: int, name: str, data: ImageData | DataFrameData | Tensor
                 ),
             )
         ]
-        + [connect_pb2.AppendDataRequest(data_bytes=bytes(list(chunked_data))) for chunked_data in batched(data_bytes, CHUNK_SIZE)]
+        + [connect_pb2.AppendDataRequest(data_bytes=bytes(list(chunked_data))) for chunked_data in
+           batched(data_bytes, CHUNK_SIZE)]
     )
 
     _response: connect_pb2.AppendDataResponse = stub.AppendData(data_iter)
 
 
 def _data_type_to_proto(
-        data: ImageData | DataFrameData | Tensor2DData,
+        data: ImageData | DataFrameData | Tensor2DData | ObjectData,
 ) -> connect_pb2.DataType:
     if isinstance(data, ImageData):
         return connect_pb2.DataType.Image
@@ -98,6 +100,8 @@ def _data_type_to_proto(
         return connect_pb2.DataType.DataFrame
     elif isinstance(data, Tensor2DData):
         return connect_pb2.DataType.Tensor2D
+    elif isinstance(data, ObjectData):
+        return connect_pb2.DataType.Object
     else:
         raise RuntimeError(f"Unknown data type {type(data)}")
 
@@ -155,5 +159,7 @@ def _validate_data(data: ImageData | DataFrameData | Tensor2DData):
             return data.dataframe[key].map(lambda value: _validate_value(value, sp_value)).all()
     elif data.type == "Tensor2D":
         return data.tensor.ndim == 2
+    elif data.type == "Object":
+        return True
     else:
         return False

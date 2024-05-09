@@ -1,4 +1,5 @@
 use flexim_data_type::{FlDataReference, FlDataType};
+use flexim_data_view::object::FlObjectView;
 use flexim_data_view::FlDataFrameView;
 use flexim_data_visualize::data_view::DataView;
 use flexim_data_visualize::visualize::{DataRender, FlImageRender, FlTensor2DRender};
@@ -42,6 +43,9 @@ pub fn into_pane_content(fl_data_reference: FlDataReference) -> anyhow::Result<P
         ))),
         FlDataType::DataFrame => Ok(PaneContent::DataView(Arc::new(DataView::FlDataFrameView(
             FlDataFrameView::new(fl_data_reference),
+        )))),
+        FlDataType::Object => Ok(PaneContent::DataView(Arc::new(DataView::FlObjectView(
+            FlObjectView::new(fl_data_reference),
         )))),
     }
 }

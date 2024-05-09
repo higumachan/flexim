@@ -477,6 +477,7 @@ fn data_type_to_icon(data_type: FlDataType) -> &'static str {
         FlDataType::Image => "🖼",
         FlDataType::DataFrame => "📊",
         FlDataType::Tensor => "🔢",
+        FlDataType::Object => "🔵",
     }
 }
 

@@ -1,0 +1,7 @@
+{
+  "id": 12345,
+  "name": "My First Project",
+  "description": "This is my first project",
+  "created_at": "2016-01-01T00:00:00Z",
+  "floating_value": 1.2345
+}
