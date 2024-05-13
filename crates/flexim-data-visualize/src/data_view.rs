@@ -172,7 +172,12 @@ impl DataViewable for FlObjectView {
             .expect("Failed to serialize object");
 
         let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
-        egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code.as_str(), "json");
+        ScrollArea::both()
+            .auto_shrink(false)
+            .max_width(f32::INFINITY)
+            .show(ui, |ui| {
+                egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code.as_str(), "json");
+            });
     }
 
     fn visualizeable_attributes(&self, _bag: &Bag) -> Vec<String> {
