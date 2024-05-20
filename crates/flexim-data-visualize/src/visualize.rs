@@ -154,6 +154,7 @@ impl VisualizeState {
         let config = Config::get_global(ui);
 
         self.show_header(ui);
+
         let _response = ui
             .with_layout(Layout::top_down(Align::Min), |ui| {
                 let response = {
@@ -723,7 +724,7 @@ impl DataRenderable for FlDataFrameViewRender {
     fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
         left_and_right_layout(
             ui,
-            &mut (),
+            (),
             |_, ui| {
                 ui.label("FlDataFrameView");
             },
