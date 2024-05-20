@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use tonic::transport::Server;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -125,15 +125,34 @@ impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
     }
 }
 
-struct App {
+pub enum UpdateAppEvent {
+    ClearBags,
+    SwitchBag(BagId),
+    InsertTile { title: String, content: PaneContent },
+    RemoveTile(TileId),
+    UpdateTileVisibility(TileId, bool),
+    SwitchLayout(FlLayout),
+    RemoveLayout(Id),
+    SaveLayout(FlLayout),
+}
+
+pub struct App {
     pub tree: Tree<Pane>,
     pub storage: Arc<Storage>,
-    pub current_bag_id: BagId,
+    pub current_bag_id: Option<BagId>,
     pub current_tile_id: Option<TileId>,
     pub layouts: Vec<FlLayout>,
-    removing_tiles: Vec<TileId>,
-    replace_bag_id: Option<BagId>,
+    events: Arc<Mutex<Vec<UpdateAppEvent>>>,
     panel_context: HashMap<BagId, Tree<Pane>>,
+}
+
+impl App {
+    pub fn send_event(&self, event: UpdateAppEvent) {
+        self.events.lock().unwrap().push(event);
+    }
+    pub fn current_bag(&self) -> Option<Arc<RwLock<Bag>>> {
+        self.storage.get_bag(self.current_bag_id?).ok()
+    }
 }
 
 impl eframe::App for App {
@@ -142,24 +161,21 @@ impl eframe::App for App {
         puffin::profile_scope!("frame");
         {
             egui::SidePanel::left("data viewer").show(ctx, |ui| {
-                let bag = self.storage.get_bag(self.current_bag_id).unwrap();
-                let bag = bag.read().unwrap();
-                left_panel(self, ui, &bag);
+                left_panel(self, ui);
             });
             egui::SidePanel::right("visualize viewer").show(ctx, |ui| {
-                let bag = self.storage.get_bag(self.current_bag_id).unwrap();
-                let bag = bag.read().unwrap();
-                right_panel(self, ui, &bag);
+                right_panel(self, ui);
             });
             egui::CentralPanel::default().show(ctx, |ui| {
                 puffin::profile_scope!("center panel");
-                let current_bag = self.storage.get_bag(self.current_bag_id).unwrap();
-                let mut behavior = TreeBehavior {
-                    current_bag,
-                    stack_tabs: collect_stack_tabs(ui, &self.tree),
-                    current_tile_id: &mut self.current_tile_id,
-                };
-                self.tree.ui(&mut behavior, ui);
+                if let Some(current_bag) = self.current_bag() {
+                    let mut behavior = TreeBehavior {
+                        current_bag,
+                        stack_tabs: collect_stack_tabs(ui, &self.tree),
+                        current_tile_id: &mut self.current_tile_id,
+                    };
+                    self.tree.ui(&mut behavior, ui);
+                }
             });
             ConfigWindow::show(ctx)
         }
@@ -328,11 +344,10 @@ fn main() -> Result<(), eframe::Error> {
         tree,
         storage,
         layouts: vec![],
-        current_bag_id: bag_id,
-        removing_tiles: vec![],
-        replace_bag_id: None,
+        current_bag_id: Some(bag_id),
         panel_context: HashMap::new(),
         current_tile_id: None,
+        events: Arc::new(Mutex::new(vec![])),
     };
 
     run_native(
@@ -347,65 +362,94 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 fn end_of_frame(ctx: &Context, app: &mut App) {
-    for &tile_id in &app.removing_tiles {
-        app.tree.tiles.remove(tile_id);
-        if app.current_tile_id == Some(tile_id) {
-            app.current_tile_id = None;
-        }
-    }
-    app.removing_tiles.clear();
-    if let Some(bag_id) = app.replace_bag_id {
-        let panel = std::mem::replace(
-            &mut app.tree,
-            app.panel_context
-                .remove(&bag_id)
-                .unwrap_or_else(|| Tree::empty(bag_id.into_inner().to_string())),
-        );
-        app.panel_context.insert(app.current_bag_id, panel);
-        app.current_tile_id = None;
-        app.current_bag_id = bag_id;
-        app.replace_bag_id = None;
-        let bag = app.storage.get_bag(bag_id).unwrap();
-        let bag = bag.read().unwrap();
-        let bag_name = bag.name.as_str();
-        let create_at = bag.created_at.format("%Y-%m-%d %H:%M:%S").to_string();
+    let mut events = app.events.lock().unwrap();
+    for event in events.drain(0..) {
+        match event {
+            UpdateAppEvent::ClearBags => {
+                app.storage.clear_bags();
+                app.current_bag_id = None;
+            }
+            UpdateAppEvent::SwitchBag(new_bag_id) => {
+                if let Some(current_bag_id) = app.current_bag_id {
+                    if new_bag_id == current_bag_id {
+                        return;
+                    }
 
-        ctx.send_viewport_cmd(ViewportCommand::Title(format!(
-            "Flexim - {} {}",
-            bag_name, create_at
-        )));
+                    let panel = std::mem::replace(
+                        &mut app.tree,
+                        app.panel_context.remove(&new_bag_id).unwrap_or_else(|| {
+                            Tree::empty(current_bag_id.into_inner().to_string())
+                        }),
+                    );
+                    app.panel_context.insert(current_bag_id, panel);
+                }
+
+                app.current_bag_id = Some(new_bag_id);
+
+                let bag = app.storage.get_bag(new_bag_id).unwrap();
+                let bag = bag.read().unwrap();
+                let bag_name = bag.name.as_str();
+                let create_at = bag.created_at.format("%Y-%m-%d %H:%M:%S").to_string();
+
+                ctx.send_viewport_cmd(ViewportCommand::Title(format!(
+                    "Flexim - {} {}",
+                    bag_name, create_at
+                )));
+            }
+            UpdateAppEvent::InsertTile { content, title } => {
+                let tile_id = insert_root_tile(&mut app.tree, &title, content);
+                app.current_tile_id = Some(tile_id);
+            }
+            UpdateAppEvent::RemoveTile(tile_id) => {
+                app.tree.tiles.remove(tile_id);
+                if app.current_tile_id == Some(tile_id) {
+                    app.current_tile_id = None;
+                }
+            }
+            UpdateAppEvent::UpdateTileVisibility(tile_id, visible) => {
+                app.tree.tiles.set_visible(tile_id, visible);
+            }
+            UpdateAppEvent::SwitchLayout(layout) => {
+                app.layouts.push(layout);
+            }
+            UpdateAppEvent::RemoveLayout(id) => {
+                app.layouts.retain(|l| l.id != id);
+            }
+            UpdateAppEvent::SaveLayout(layout) => {
+                app.layouts.push(layout);
+            }
+        }
     }
 }
 
-fn right_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
+fn right_panel(app: &mut App, ui: &mut Ui) {
     puffin::profile_function!();
-    if let Some(tile_id) = app.current_tile_id {
-        if let Some(tile) = app.tree.tiles.get(tile_id) {
-            // if let Tile::Pane(Pane {
-            //     content: PaneContent::Visualize(data),
-            //     ..
-            // }) = tile
-            // {
-            //     data.config_panel(ui, bag);
-            // }
-            match tile {
-                Tile::Pane(Pane {
-                    content: PaneContent::Visualize(data),
-                    ..
-                }) => {
-                    data.config_panel(ui, bag);
+
+    if let Some(bag) = app.current_bag() {
+        let bag = bag.read().unwrap();
+        if let Some(tile_id) = app.current_tile_id {
+            if let Some(tile) = app.tree.tiles.get(tile_id) {
+                match tile {
+                    Tile::Pane(Pane {
+                        content: PaneContent::Visualize(data),
+                        ..
+                    }) => {
+                        data.config_panel(ui, &bag);
+                    }
+                    Tile::Pane(Pane {
+                        content: PaneContent::DataView(data),
+                        ..
+                    }) => {
+                        data.config_panel(ui, &bag);
+                    }
+                    _ => {}
                 }
-                Tile::Pane(Pane {
-                    content: PaneContent::DataView(data),
-                    ..
-                }) => {
-                    data.config_panel(ui, bag);
-                }
-                _ => {}
+            } else {
+                log::warn!("tile not found");
             }
-        } else {
-            log::warn!("tile not found");
         }
+    } else {
+        ui.label("No bag selected");
     }
 }
 

@@ -122,6 +122,11 @@ impl Storage {
         id
     }
 
+    pub fn clear_bags(&self) {
+        let mut bags = self.bags.write().unwrap();
+        bags.clear();
+    }
+
     pub fn insert_data(&self, bag_id: BagId, name: String, data: FlData) -> anyhow::Result<()> {
         log::info!("insert_data: bag_id={:?}, name={}", bag_id, name);
 

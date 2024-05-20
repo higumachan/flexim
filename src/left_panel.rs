@@ -1,4 +1,4 @@
-use crate::{insert_root_tile, App, Managed};
+use crate::{insert_root_tile, App, Managed, UpdateAppEvent};
 use chrono::Local;
 use egui::menu::menu_image_button;
 use egui::scroll_area::ScrollBarVisibility;
@@ -21,7 +21,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
+pub fn left_panel(app: &mut App, ui: &mut Ui) {
     puffin::profile_function!();
     menu_image_button(
         ui,
@@ -88,20 +88,24 @@ pub fn left_panel(app: &mut App, ui: &mut Ui, bag: &Bag) {
             if ui.button("Config").clicked() {
                 ConfigWindow::open(ui.ctx());
             }
+
+            if ui.button("Clear Bags").clicked() {
+                app.storage.clear_bags();
+            }
         },
     );
     data_bag_list_view(app, ui);
     ui.separator();
     data_list_view(app, ui);
     ui.separator();
-    data_view_list_view(app, ui, bag);
+    data_view_list_view(app, ui);
     ui.separator();
     visualize_list_view(app, ui);
     ui.separator();
     layout_list_view(app, ui);
 }
 
-fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
+fn data_bag_list_view(app: &App, ui: &mut Ui) {
     let width = ui.available_width();
     default_scroll_area(ui, "data_bag_list").show(ui, |ui| {
         ui.set_width(width);
@@ -162,7 +166,7 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                                 },
                                 |app, ui| {
                                     if ui.button("+").clicked() {
-                                        app.replace_bag_id = Some(bag.id);
+                                        app.send_event(UpdateAppEvent::SwitchBag(bag.id));
                                     }
                                     if ui.button("💾").clicked() {
                                         if let Some(file_path) = rfd::FileDialog::new().save_file()
@@ -188,7 +192,7 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
                     },
                     |app, ui| {
                         if ui.button("+").clicked() {
-                            app.replace_bag_id = Some(bag.id);
+                            app.send_event(UpdateAppEvent::SwitchBag(bag.id));
                         }
                         if ui.button("💾").clicked() {
                             if let Some(file_path) = rfd::FileDialog::new().save_file() {
@@ -205,39 +209,42 @@ fn data_bag_list_view(app: &mut App, ui: &mut Ui) {
     });
 }
 
-fn data_list_view(app: &mut App, ui: &mut Ui) {
+fn data_list_view(app: &App, ui: &mut Ui) {
     let width = ui.available_width();
     default_scroll_area(ui, "data_list").show(ui, |ui| {
         ui.set_width(width);
         ui.label("Data");
-        let bind = app.storage.get_bag(app.current_bag_id).unwrap();
-        let bag = bind.read().unwrap();
-        for (name, data_group) in &bag.data_groups() {
-            let icon = data_type_to_icon(data_group.first().unwrap().data.data_type());
+        if let Some(bind) = app.current_bag() {
+            let bag = bind.read().unwrap();
+            for (name, data_group) in &bag.data_groups() {
+                let icon = data_type_to_icon(data_group.first().unwrap().data.data_type());
 
-            if data_group.len() > 1 {
-                CollapsingHeader::new(format!("{} {}", icon, name))
-                    .header_truncate(true)
-                    .show(ui, |ui| {
-                        for &d in data_group {
-                            data_list_content_view(
-                                app,
-                                ui,
-                                format!("#{}", d.generation).as_str(),
-                                format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
-                                FlDataReference::from(d.clone()),
-                            );
-                        }
-                    });
-            } else {
-                let &d = data_group.first().unwrap();
-                data_list_content_view(
-                    app,
-                    ui,
-                    format!("{} {}", icon, &d.name).as_str(),
-                    format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
-                    FlDataReference::from(d.clone()),
-                );
+                if data_group.len() > 1 {
+                    CollapsingHeader::new(format!("{} {}", icon, name))
+                        .header_truncate(true)
+                        .show(ui, |ui| {
+                            for &d in data_group {
+                                data_list_content_view(
+                                    app,
+                                    ui,
+                                    format!("#{}", d.generation).as_str(),
+                                    format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
+                                    FlDataReference::from(d.clone()),
+                                    true,
+                                );
+                            }
+                        });
+                } else {
+                    let &d = data_group.first().unwrap();
+                    data_list_content_view(
+                        app,
+                        ui,
+                        format!("{} {}", icon, &d.name).as_str(),
+                        format!("{} {} #{}", icon, &d.name, d.generation).as_str(),
+                        FlDataReference::from(d.clone()),
+                        true,
+                    );
+                }
             }
         }
     });
@@ -245,39 +252,34 @@ fn data_list_view(app: &mut App, ui: &mut Ui) {
 
 #[allow(clippy::collapsible_if)]
 fn data_list_content_view(
-    app: &mut App,
+    app: &App,
     ui: &mut Ui,
     display_label: &str,
     title: &str,
     data_ref: FlDataReference,
+    visible: bool,
 ) {
-    let data = app
-        .storage
-        .get_bag(app.current_bag_id)
-        .unwrap()
-        .read()
-        .unwrap()
-        .data_by_reference(&data_ref)
-        .unwrap();
-
     left_and_right_layout(
         ui,
         app,
-        |_app, ui| {
+        |_, ui| {
             list_item_label(ui, display_label);
         },
         |app, ui| {
-            if data.is_visualizable() || data.data_view_creatable() {
+            if visible {
                 if ui.button("+").clicked() {
                     let content = into_pane_content(data_ref).unwrap();
-                    let _tile_id = insert_root_tile(&mut app.tree, title, content.clone());
+                    app.send_event(UpdateAppEvent::InsertTile {
+                        title: title.to_string(),
+                        content,
+                    });
                 }
             }
         },
     )
 }
 
-fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
+fn data_view_list_view(app: &App, ui: &mut Ui) {
     let width = ui.available_width();
     let data_views = app
         .tree
@@ -306,32 +308,37 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
                         .header_truncate(true)
                         .show(ui, |ui| {
                             ui.set_width(parent_width - ui.spacing().indent);
-                            for attr in m.data.visualizeable_attributes(bag) {
-                                left_and_right_layout(
-                                    ui,
-                                    app,
-                                    |_app, ui| list_item_label(ui, attr.as_str()),
-                                    |app, ui| {
-                                        if ui.button("+").clicked() {
-                                            let render = m.data.create_visualize(attr.clone());
-                                            insert_root_tile(
-                                                &mut app.tree,
-                                                format!("{} {}", attr, m.name).as_str(),
-                                                PaneContent::Visualize(render),
-                                            );
-                                        }
-                                    },
-                                );
+                            if let Some(bag) = app.current_bag() {
+                                let bag = bag.read().unwrap();
+                                for attr in m.data.visualizeable_attributes(&bag) {
+                                    left_and_right_layout(
+                                        ui,
+                                        app,
+                                        |_app, ui| list_item_label(ui, attr.as_str()),
+                                        |app, ui| {
+                                            if ui.button("+").clicked() {
+                                                let render = m.data.create_visualize(attr.clone());
+                                                app.send_event(UpdateAppEvent::InsertTile {
+                                                    title: format!("{} {}", attr, m.name),
+                                                    content: PaneContent::Visualize(render),
+                                                });
+                                            }
+                                        },
+                                    );
+                                }
                             }
                         })
                 },
                 |app, ui| {
                     let tile_visible = app.tree.tiles.is_visible(m.tile_id);
                     if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
-                        app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                        app.send_event(UpdateAppEvent::UpdateTileVisibility(
+                            m.tile_id,
+                            !tile_visible,
+                        ));
                     }
                     if ui.button("➖").clicked() {
-                        app.removing_tiles.push(m.tile_id);
+                        app.send_event(UpdateAppEvent::RemoveTile(m.tile_id));
                     }
                 },
             );
@@ -339,7 +346,7 @@ fn data_view_list_view(app: &mut App, ui: &mut Ui, bag: &Bag) {
     });
 }
 
-fn visualize_list_view(app: &mut App, ui: &mut Ui) {
+fn visualize_list_view(app: &App, ui: &mut Ui) {
     let width = ui.available_width();
     let visualizes = app
         .tree
@@ -367,10 +374,13 @@ fn visualize_list_view(app: &mut App, ui: &mut Ui) {
                 |app, ui| {
                     let tile_visible = app.tree.tiles.is_visible(m.tile_id);
                     if ui.button(if tile_visible { "👁" } else { "‿" }).clicked() {
-                        app.tree.tiles.set_visible(m.tile_id, !tile_visible);
+                        app.send_event(UpdateAppEvent::UpdateTileVisibility(
+                            m.tile_id,
+                            !tile_visible,
+                        ));
                     }
                     if ui.button("➖").clicked() {
-                        app.removing_tiles.push(m.tile_id);
+                        app.send_event(UpdateAppEvent::RemoveTile(m.tile_id));
                     }
                 },
             );
@@ -378,13 +388,13 @@ fn visualize_list_view(app: &mut App, ui: &mut Ui) {
     });
 }
 
-fn layout_list_view(app: &mut App, ui: &mut Ui) {
+fn layout_list_view(app: &App, ui: &mut Ui) {
     let width = ui.available_width();
     default_scroll_area(ui, "layout_list_view").show(ui, |ui| {
         ui.set_width(width);
         left_and_right_layout(
             ui,
-            &mut (),
+            (),
             |_, ui| ui.label("Layout"),
             |_, ui| {
                 let button = ui.button("💾");
@@ -396,37 +406,33 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
                 button
             },
         );
-        let mut remove_layout_id = None;
         for l in &app.layouts {
             left_and_right_layout(
                 ui,
-                &mut app.tree,
+                app,
                 |_app, ui| {
                     list_item_label(ui, &l.name);
                 },
-                |tree, ui| {
-                    if check_applicable(
-                        &app.storage
-                            .get_bag(app.current_bag_id)
-                            .unwrap()
-                            .read()
-                            .unwrap(),
-                        l,
-                    ) {
-                        if ui.button("📲").clicked() {
-                            *tree = l.tree.clone();
+                |app, ui| {
+                    if let Some(current_bag) = app.current_bag_id {
+                        if check_applicable(
+                            &app.storage.get_bag(current_bag).unwrap().read().unwrap(),
+                            l,
+                        ) {
+                            if ui.button("📲").clicked() {
+                                app.send_event(UpdateAppEvent::SwitchLayout(l.clone()));
+                            }
+                        } else {
+                            ui.button("🚫").on_hover_text("Not applicable");
+                        }
+                        if ui.button("➖").clicked() {
+                            app.send_event(UpdateAppEvent::RemoveLayout(l.id));
                         }
                     } else {
-                        ui.button("🚫").on_hover_text("Not applicable");
-                    }
-                    if ui.button("➖").clicked() {
-                        remove_layout_id.replace(l.id);
+                        ui.button("🚫").on_hover_text("No bag selected");
                     }
                 },
             );
-        }
-        if let Some(id) = remove_layout_id {
-            app.layouts.retain(|l| l.id != id);
         }
     });
     let mut layout_save_dialog = ui
@@ -449,10 +455,10 @@ fn layout_list_view(app: &mut App, ui: &mut Ui) {
             let layout_name = layout_name.clone();
             if ui.button("Save").clicked() {
                 saved = true;
-                app.layouts.push(FlLayout::new(
+                app.send_event(UpdateAppEvent::SaveLayout(FlLayout::new(
                     layout_name.lock().unwrap().clone(),
                     app.tree.clone(),
-                ))
+                )));
             }
         });
     if saved {
