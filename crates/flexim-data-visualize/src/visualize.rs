@@ -4,8 +4,8 @@ use std::io::Cursor;
 use std::ops::Deref;
 
 use egui::{
-    Align, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, LayerId,
-    Layout, Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2, Widget,
+    Align, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout,
+    Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
 };
 
 use flexim_data_type::{
@@ -23,7 +23,6 @@ use anyhow::Context as _;
 use egui::load::TexturePoll;
 use flexim_table_widget::cache::DataFramePoll;
 
-use egui::emath::RectTransform;
 use enum_iterator::all;
 use flexim_config::Config;
 use flexim_storage::Bag;
@@ -156,8 +155,6 @@ impl VisualizeState {
 
         self.show_header(ui);
 
-        let view_port_size = ui.available_size();
-        let rect = ui.cursor();
         let _response = ui
             .with_layout(Layout::top_down(Align::Min), |ui| {
                 let response = {
@@ -269,34 +266,6 @@ impl DataRender {
             DataRender::DataFrameView(render) => render.config_panel(ui, bag),
         }
     }
-
-    pub fn absolute_content_rectangles(&self, bag: &Bag) -> anyhow::Result<Vec<Rect>> {
-        match self {
-            DataRender::Image(render) => render.absolute_content_rectangles(bag),
-            DataRender::Tensor2D(render) => render.absolute_content_rectangles(bag),
-            DataRender::DataFrameView(render) => render.absolute_content_rectangles(bag),
-        }
-    }
-
-    pub fn render_minimap(
-        &self,
-        bag: &Bag,
-        painter: &mut Painter,
-        content_wrapper: &Rect,
-        view_port_rect: &Rect,
-    ) -> anyhow::Result<()> {
-        match self {
-            Self::Image(render) => {
-                render.render_minimap(bag, painter, content_wrapper, view_port_rect)
-            }
-            Self::Tensor2D(render) => {
-                render.render_minimap(bag, painter, content_wrapper, view_port_rect)
-            }
-            Self::DataFrameView(render) => {
-                render.render_minimap(bag, painter, content_wrapper, view_port_rect)
-            }
-        }
-    }
 }
 
 pub trait DataRenderable {
@@ -310,14 +279,6 @@ pub trait DataRenderable {
         state: &VisualizeState,
     ) -> anyhow::Result<()>;
     fn config_panel(&self, ui: &mut Ui, bag: &Bag);
-    fn absolute_content_rectangles(&self, bag: &Bag) -> anyhow::Result<Vec<Rect>>;
-    fn render_minimap(
-        &self,
-        bag: &Bag,
-        painter: &mut Painter,
-        content_wrapper: &Rect,
-        view_port_rect: &Rect,
-    ) -> anyhow::Result<()>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -360,42 +321,6 @@ impl DataRenderable for FlImageRender {
 
     fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlImage");
-    }
-
-    fn absolute_content_rectangles(&self, bag: &Bag) -> anyhow::Result<Vec<Rect>> {
-        let data = bag.data_by_reference(&self.content)?;
-        let width = data.as_image().unwrap().width as f32;
-        let height = data.as_image().unwrap().height as f32;
-        Ok(vec![Rect::from_min_size(
-            Pos2::ZERO,
-            Vec2::new(width, height),
-        )])
-    }
-
-    fn render_minimap(
-        &self,
-        bag: &Bag,
-        painter: &mut Painter,
-        content_wrapper: &Rect,
-        view_port_rect: &Rect,
-    ) -> anyhow::Result<()> {
-        let transform =
-            RectTransform::from_to(dbg!(content_wrapper.clone()), dbg!(painter.clip_rect()));
-        let image = bag
-            .data_by_reference(&self.content)?
-            .as_image()
-            .context("not image")?;
-
-        dbg!(image.width, image.height);
-        painter.rect_stroke(
-            dbg!(transform.transform_rect(Rect::from_min_size(
-                Pos2::ZERO,
-                Vec2::new(image.width as f32, image.height as f32),
-            ))),
-            0.0,
-            Stroke::new(5.0, Color32::BLUE),
-        );
-        Ok(())
     }
 }
 
@@ -541,20 +466,6 @@ impl DataRenderable for FlTensor2DRender {
                 Slider::new(&mut render_context.transparency, 0.0..=1.0).ui(ui);
             });
         });
-    }
-
-    fn absolute_content_rectangles(&self, bag: &Bag) -> anyhow::Result<Vec<Rect>> {
-        todo!()
-    }
-
-    fn render_minimap(
-        &self,
-        bag: &Bag,
-        painter: &mut Painter,
-        content_wrapper: &Rect,
-        view_port_rect: &Rect,
-    ) -> anyhow::Result<()> {
-        todo!()
     }
 }
 
@@ -966,20 +877,6 @@ impl DataRenderable for FlDataFrameViewRender {
                     Slider::new(&mut render_context.normal_thickness, 0.0..=10.0).ui(ui);
                 });
             });
-    }
-
-    fn absolute_content_rectangles(&self, bag: &Bag) -> anyhow::Result<Vec<Rect>> {
-        todo!()
-    }
-
-    fn render_minimap(
-        &self,
-        bag: &Bag,
-        painter: &mut Painter,
-        content_wrapper: &Rect,
-        view_port_rect: &Rect,
-    ) -> anyhow::Result<()> {
-        todo!()
     }
 }
 

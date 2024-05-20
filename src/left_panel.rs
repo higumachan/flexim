@@ -1,4 +1,4 @@
-use crate::{insert_root_tile, App, Managed, UpdateAppEvent};
+use crate::{App, Managed, UpdateAppEvent};
 use chrono::Local;
 use egui::menu::menu_image_button;
 use egui::scroll_area::ScrollBarVisibility;
@@ -9,8 +9,6 @@ use egui::{
 use egui_tiles::Tile;
 use flexim_config::ConfigWindow;
 use flexim_data_type::{FlDataReference, FlDataType};
-use flexim_data_view::DataViewCreatable;
-use flexim_data_visualize::data_visualizable::DataVisualizable;
 use flexim_layout::check::check_applicable;
 use flexim_layout::pane::{into_pane_content, Pane, PaneContent};
 use flexim_layout::FlLayout;
