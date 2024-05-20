@@ -339,6 +339,10 @@ fn main() -> Result<(), eframe::Error> {
         )
         .unwrap();
 
+    let _ = storage.create_bag("group/bag1".to_string());
+    let _ = storage.create_bag("group/bag2".to_string());
+    let _ = storage.create_bag("group/bag2".to_string());
+
     let tree = create_tree();
     let app = App {
         tree,

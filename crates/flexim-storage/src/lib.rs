@@ -89,7 +89,8 @@ pub struct Storage {
     bags: RwLock<HashMap<BagId, Arc<RwLock<Bag>>>>,
 }
 
-type BagGroups = BTreeMap<String, Vec<Arc<RwLock<Bag>>>>;
+type BagVersions = BTreeMap<String, Vec<Arc<RwLock<Bag>>>>;
+type BagGroups = BTreeMap<String, BagVersions>;
 
 impl Storage {
     pub fn load_bag(&self, bag: Bag) -> bool {
@@ -146,15 +147,32 @@ impl Storage {
 
     pub fn bag_groups(&self) -> anyhow::Result<BagGroups> {
         let bags = self.bags.read().unwrap();
-        let mut bag_groups = BTreeMap::new();
+        let mut bag_versions = BTreeMap::new();
 
         for bag in bags.values() {
             let bag_guard = bag.read().unwrap();
-            let bag_groups = bag_groups.entry(bag_guard.name.clone()).or_insert(vec![]);
-            bag_groups.push(bag.clone());
+            let versions = bag_versions.entry(bag_guard.name.clone()).or_insert(vec![]);
+            versions.push(bag.clone());
         }
-        for bag_groups in bag_groups.values_mut() {
+        for bag_groups in bag_versions.values_mut() {
             bag_groups.sort_by_key(|bag| bag.read().unwrap().created_at);
+        }
+
+        let mut bag_groups = BTreeMap::new();
+
+        for (name, bag_version) in bag_versions {
+            let (group_key, bag_name) = if name.contains('/') {
+                let mut parts = name.splitn(2, '/');
+                (
+                    parts.next().unwrap().to_string(),
+                    parts.next().unwrap().to_string(),
+                )
+            } else {
+                (name.to_string(), name.to_string())
+            };
+
+            let bag_versions = bag_groups.entry(group_key).or_insert(BTreeMap::new());
+            bag_versions.insert(bag_name, bag_version);
         }
 
         Ok(bag_groups)

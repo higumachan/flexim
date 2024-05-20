@@ -15,7 +15,7 @@ use flexim_layout::FlLayout;
 use flexim_storage::{Bag, StorageQuery};
 use flexim_utility::left_and_right_layout;
 use itertools::Itertools;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -144,67 +144,84 @@ fn data_bag_list_view(app: &App, ui: &mut Ui) {
             },
         );
         let bag_groups = app.storage.bag_groups().unwrap();
-        for (bag_name, bag_group) in bag_groups {
+        for (group_name, bag_group) in bag_groups {
             if bag_group.len() > 1 {
-                CollapsingHeader::new(bag_name)
+                CollapsingHeader::new(group_name)
                     .header_truncate(true)
                     .show(ui, |ui| {
-                        for bag in bag_group {
-                            let bag = bag.read().unwrap();
-                            left_and_right_layout(
-                                ui,
-                                app,
-                                |_app, ui| {
-                                    ui.label(
-                                        &bag.created_at
-                                            .with_timezone(&Local)
-                                            .format("%Y-%m-%d %H:%M:%S")
-                                            .to_string(),
-                                    );
-                                },
-                                |app, ui| {
-                                    if ui.button("+").clicked() {
-                                        app.send_event(UpdateAppEvent::SwitchBag(bag.id));
+                        for (bag_name, bag_versions) in bag_group {
+                            if bag_versions.len() > 1 {
+                                CollapsingHeader::new(bag_name).show(ui, |ui| {
+                                    for bag in bag_versions {
+                                        let bag = bag.read().unwrap();
+                                        bag_view(
+                                            app,
+                                            ui,
+                                            &bag,
+                                            bag.created_at
+                                                .with_timezone(&Local)
+                                                .format("%Y-%m-%d %H:%M:%S")
+                                                .to_string(),
+                                        );
                                     }
-                                    if ui.button("💾").clicked() {
-                                        if let Some(file_path) = rfd::FileDialog::new().save_file()
-                                        {
-                                            let mut buf_writer = std::io::BufWriter::new(
-                                                std::fs::File::create(file_path).unwrap(),
-                                            );
-                                            bincode::serialize_into(&mut buf_writer, bag.deref())
-                                                .unwrap();
-                                        }
-                                    }
-                                },
-                            )
+                                });
+                            } else {
+                                for bag in bag_versions {
+                                    let bag = bag.read().unwrap();
+                                    bag_view(app, ui, &bag, bag.name.to_string());
+                                }
+                            }
                         }
                     });
             } else {
-                let bag = bag_group.first().unwrap().read().unwrap();
-                left_and_right_layout(
-                    ui,
-                    app,
-                    |_app, ui| {
-                        Label::new(bag_name).truncate(true).ui(ui);
-                    },
-                    |app, ui| {
-                        if ui.button("+").clicked() {
-                            app.send_event(UpdateAppEvent::SwitchBag(bag.id));
+                let versions = bag_group.iter().collect_vec();
+                let (name, bag_versions) = versions.first().unwrap();
+                if bag_versions.len() > 1 {
+                    CollapsingHeader::new(*name).show(ui, |ui| {
+                        for bag in *bag_versions {
+                            let bag = bag.read().unwrap();
+                            bag_view(
+                                app,
+                                ui,
+                                &bag,
+                                bag.created_at
+                                    .with_timezone(&Local)
+                                    .format("%Y-%m-%d %H:%M:%S")
+                                    .to_string(),
+                            );
                         }
-                        if ui.button("💾").clicked() {
-                            if let Some(file_path) = rfd::FileDialog::new().save_file() {
-                                let mut buf_writer = std::io::BufWriter::new(
-                                    std::fs::File::create(file_path).unwrap(),
-                                );
-                                bincode::serialize_into(&mut buf_writer, bag.deref()).unwrap();
-                            }
-                        }
-                    },
-                )
+                    });
+                } else {
+                    for bag in *bag_versions {
+                        let bag = bag.read().unwrap();
+                        bag_view(app, ui, &bag, bag.name.to_string());
+                    }
+                }
             }
         }
     });
+}
+
+fn bag_view(app: &App, ui: &mut Ui, bag: &Bag, label: String) {
+    left_and_right_layout(
+        ui,
+        app,
+        |_app, ui| {
+            ui.label(label);
+        },
+        |app, ui| {
+            if ui.button("+").clicked() {
+                app.send_event(UpdateAppEvent::SwitchBag(bag.id));
+            }
+            if ui.button("💾").clicked() {
+                if let Some(file_path) = rfd::FileDialog::new().save_file() {
+                    let mut buf_writer =
+                        std::io::BufWriter::new(std::fs::File::create(file_path).unwrap());
+                    bincode::serialize_into(&mut buf_writer, bag).unwrap();
+                }
+            }
+        },
+    );
 }
 
 fn data_list_view(app: &App, ui: &mut Ui) {
