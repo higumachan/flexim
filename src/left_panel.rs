@@ -168,7 +168,7 @@ fn data_bag_list_view(app: &App, ui: &mut Ui) {
                             } else {
                                 for bag in bag_versions {
                                     let bag = bag.read().unwrap();
-                                    bag_view(app, ui, &bag, bag.name.to_string());
+                                    bag_view(app, ui, &bag, bag_name.to_string());
                                 }
                             }
                         }
