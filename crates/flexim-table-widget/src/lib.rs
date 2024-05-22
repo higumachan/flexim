@@ -193,7 +193,7 @@ impl FlTable {
                             }
                         }
                         for c in &columns {
-                            let (_, response) = match special_columns.get(&c.to_string()) {
+                            let (_, mut response) = match special_columns.get(&c.to_string()) {
                                 Some(FlDataFrameSpecialColumn::Color) => {
                                     if let Ok(color) = FlDataFrameColor::try_from(
                                         dataframe.column(c).unwrap().get(row_idx).unwrap(),
@@ -217,6 +217,9 @@ impl FlTable {
                                     Label::new(c).selectable(!command_only).ui(ui);
                                 }),
                             };
+                            if command_only {
+                                response = response.on_hover_text("Copy to clipboard");
+                            }
                             if response.clicked() {
                                 if command_only {
                                     let mut clipboard = Clipboard::new().unwrap();
