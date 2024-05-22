@@ -2,6 +2,7 @@ use crate::cache::{Poll, VisualizedImageCache};
 
 use std::io::Cursor;
 use std::ops::Deref;
+use std::os::unix::raw::uid_t;
 
 use egui::{
     Align, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout,
@@ -27,6 +28,7 @@ use enum_iterator::all;
 use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
+use geo::{coord, EuclideanDistance, Line};
 use polars::datatypes::DataType;
 use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
@@ -51,6 +53,18 @@ impl VisualizeState {
         };
 
         Vec2::new(self.current_scale, self.current_scale * y)
+    }
+
+    pub fn absolute_to_screen(&self, pos: Vec2) -> Vec2 {
+        let scale = self.scale();
+        let pos = pos * scale;
+        pos + self.shift
+    }
+
+    pub fn screen_to_absolute(&self, pos: Vec2) -> Vec2 {
+        let scale = self.scale();
+        let pos = pos - self.shift;
+        pos / scale
     }
 }
 
@@ -215,6 +229,14 @@ impl DataRender {
             DataRender::DataFrameView(render) => render.dataframe_view.table.data_reference.clone(),
         }
     }
+
+    pub fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        match self {
+            DataRender::Image(render) => render.measurable_segments(ctx, bag),
+            DataRender::Tensor2D(render) => render.measurable_segments(ctx, bag),
+            DataRender::DataFrameView(render) => render.measurable_segments(ctx, bag),
+        }
+    }
 }
 
 impl From<FlImageRender> for DataRender {
@@ -278,6 +300,8 @@ pub trait DataRenderable {
         painter: &mut Painter,
         state: &VisualizeState,
     ) -> anyhow::Result<()>;
+
+    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>>;
     fn config_panel(&self, ui: &mut Ui, bag: &Bag);
 }
 
@@ -312,6 +336,24 @@ impl DataRenderable for FlImageRender {
 
             let size = Vec2::new(data.width as f32, data.height as f32) * state.scale();
             draw_image(painter, &image, state.shift, size, Color32::WHITE)
+        } else {
+            Err(anyhow::anyhow!(
+                "mismatched data type expected FlData::Image"
+            ))
+        }
+    }
+
+    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        let data = bag.data_by_reference(&self.content)?;
+
+        if let FlData::Image(data) = data {
+            let size = (data.width as f64, data.height as f64);
+            Ok(vec![
+                Line::new(coord!(x: 0.0, y: 0.0), coord!(x: size.0, y: 0.0)),
+                Line::new(coord!(x: 0.0, y: 0.0), coord!(x: 0.0, y: size.1)),
+                Line::new(coord!(x: size.0, y: 0.0), coord!(x: size.0, y: size.1)),
+                Line::new(coord!(x: 0.0, y: size.1), coord!(x: size.0, y: size.1)),
+            ])
         } else {
             Err(anyhow::anyhow!(
                 "mismatched data type expected FlData::Image"
@@ -457,6 +499,11 @@ impl DataRenderable for FlTensor2DRender {
         }
     }
 
+    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        // FIXME(higumachan): Implement
+        Ok(vec![])
+    }
+
     fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlTensor2D");
         CollapsingHeader::new("Config").show(ui, |ui| {
@@ -547,7 +594,7 @@ impl DataRenderable for FlDataFrameViewRender {
             .with_context(|| format!("special column not found: {}", self.column))?;
 
         let computed_dataframe = if let Some(DataFramePoll::Ready(computed_dataframe)) =
-            self.dataframe_view.table.computed_dataframe(ui, bag)
+            self.dataframe_view.table.computed_dataframe(ui.ctx(), bag)
         {
             computed_dataframe
         } else {
@@ -719,6 +766,58 @@ impl DataRenderable for FlDataFrameViewRender {
             }
         }
         Ok(())
+    }
+
+    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        let dataframe = self.dataframe_view.table.dataframe(bag)?;
+        let special_column = dataframe
+            .special_columns
+            .get(&self.column)
+            .with_context(|| format!("special column not found: {}", self.column))?;
+
+        let computed_dataframe = if let Some(DataFramePoll::Ready(computed_dataframe)) =
+            self.dataframe_view.table.computed_dataframe(ctx, bag)
+        {
+            computed_dataframe
+        } else {
+            dataframe
+                .value
+                .clone()
+                .with_row_count("__FleximRowId", None)
+                .unwrap()
+        };
+
+        let target_series = computed_dataframe
+            .column(self.column.as_str())
+            .unwrap()
+            .clone();
+
+        let shapes: Result<Vec<Option<Box<dyn SpecialColumnShape>>>, FlShapeConvertError> =
+            target_series
+                .iter()
+                .map(|x| match special_column {
+                    FlDataFrameSpecialColumn::Rectangle => {
+                        FlDataFrameRectangle::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
+                        .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    _ => Err(FlShapeConvertError::CanNotConvert),
+                })
+                .map(|x| {
+                    x.map(Some).or_else(|e| match e {
+                        FlShapeConvertError::NullValue => Ok(None),
+                        _ => Err(e),
+                    })
+                })
+                .collect();
+        let shapes = shapes?;
+
+        Ok(shapes
+            .iter()
+            .filter_map(|x| x.as_ref())
+            .flat_map(|x| x.measure_segments())
+            .collect_vec())
     }
 
     fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
@@ -924,10 +1023,34 @@ fn stack_visualize(
         stack_top
             .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
+        let mut segments = vec![];
         for (_i, render) in stack.iter().enumerate().skip(1) {
             render
                 .render(ui, bag, &mut painter, visualize_state)
                 .unwrap();
+            segments.extend(render.measurable_segments(ui.ctx(), bag).unwrap());
+        }
+
+        let tile_origin_pos = response
+            .hover_pos()
+            .map(|pos| pos - response.rect.min.to_vec2());
+        dbg!(&tile_origin_pos);
+        let absolute_pos =
+            tile_origin_pos.map(|pos| visualize_state.screen_to_absolute(pos.to_vec2()));
+
+        if let Some(absolute_pos) = absolute_pos {
+            // for segment in segments {
+            //     let pos = geo::Point::new(absolute_pos.x as f64, absolute_pos.y as f64);
+            //     dbg!(segment.euclidean_distance(&pos));
+            // }
+            // minimum distance
+            dbg!(segments
+                .iter()
+                .map(|segment| segment.euclidean_distance(&geo::Point::new(
+                    absolute_pos.x as f64,
+                    absolute_pos.y as f64
+                )))
+                .min_by_key(|x| UnwrapOrd(*x)));
         }
 
         response
