@@ -414,7 +414,7 @@ fn end_of_frame(ctx: &Context, app: &mut App) {
                 app.tree.tiles.set_visible(tile_id, visible);
             }
             UpdateAppEvent::SwitchLayout(layout) => {
-                app.layouts.push(layout);
+                app.tree = layout.tree;
             }
             UpdateAppEvent::RemoveLayout(id) => {
                 app.layouts.retain(|l| l.id != id);
