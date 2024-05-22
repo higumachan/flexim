@@ -58,24 +58,16 @@ impl ModifyMode {
     }
 
     fn is_command(&self) -> bool {
-        match self {
-            ModifyMode::Command => true,
-            _ => false,
-        }
+        matches!(self, ModifyMode::Command)
     }
 
     fn is_shift(&self) -> bool {
-        match self {
-            ModifyMode::Shift => true,
-            _ => false,
-        }
+        matches!(self, ModifyMode::Shift)
     }
 
+    #[allow(dead_code)]
     fn is_normal(&self) -> bool {
-        match self {
-            ModifyMode::Normal => true,
-            _ => false,
-        }
+        matches!(self, ModifyMode::Normal)
     }
 }
 
@@ -113,7 +105,7 @@ impl FlTable {
     pub fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
         puffin::profile_function!();
 
-        let mode = ui.input(|inp| ModifyMode::from_input(inp));
+        let mode = ui.input(ModifyMode::from_input);
 
         let dataframe = bag
             .data_by_reference(&self.data_reference)
