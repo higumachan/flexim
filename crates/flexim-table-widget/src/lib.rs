@@ -227,12 +227,10 @@ impl FlTable {
                                         .unwrap()
                                         .to_string();
                                     clipboard.set_text(c).unwrap();
+                                } else if highlight.contains(&d) {
+                                    highlight.remove(&d);
                                 } else {
-                                    if highlight.contains(&d) {
-                                        highlight.remove(&d);
-                                    } else {
-                                        highlight.insert(d);
-                                    }
+                                    highlight.insert(d);
                                 }
                             }
                         }
