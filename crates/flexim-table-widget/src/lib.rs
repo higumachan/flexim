@@ -4,7 +4,10 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
-use egui::{Align, Checkbox, Color32, ComboBox, Id, Label, Layout, Sense, Slider, Ui, Widget};
+use egui::{
+    Align, Checkbox, Color32, ComboBox, Id, Label, Layout, Rect, Response, Sense, Slider, Ui,
+    Widget,
+};
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
 use itertools::Itertools;
@@ -14,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, Deref, DerefMut};
 
 use anyhow::Context;
+use arboard::Clipboard;
 use flexim_storage::Bag;
 use std::sync::Mutex;
 
@@ -69,6 +73,9 @@ impl FlTable {
 
     pub fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
         puffin::profile_function!();
+
+        let command_only = ui.input(|inp| inp.modifiers.command_only());
+
         let dataframe = bag
             .data_by_reference(&self.data_reference)
             .unwrap()
@@ -186,37 +193,47 @@ impl FlTable {
                             }
                         }
                         for c in &columns {
-                            match special_columns.get(&c.to_string()) {
+                            let (_, response) = match special_columns.get(&c.to_string()) {
                                 Some(FlDataFrameSpecialColumn::Color) => {
                                     if let Ok(color) = FlDataFrameColor::try_from(
                                         dataframe.column(c).unwrap().get(row_idx).unwrap(),
                                     ) {
-                                        color_column(&mut row, color);
+                                        color_column(&mut row, color)
                                     } else {
                                         let c = dataframe.column(c).unwrap().get(row_idx).unwrap();
                                         row.col(|ui| {
                                             Label::new(format!("Invalid color: {:?}", c)).ui(ui);
-                                        });
+                                        })
                                     }
                                 }
-                                _ => {
-                                    row.col(|ui| {
-                                        let c = dataframe
-                                            .column(c)
-                                            .unwrap()
-                                            .get(row_idx)
-                                            .unwrap()
-                                            .to_string();
-                                        Label::new(c).ui(ui);
-                                    });
+                                _ => row.col(|ui| {
+                                    let c = dataframe
+                                        .column(c)
+                                        .unwrap()
+                                        .get(row_idx)
+                                        .unwrap()
+                                        .to_string();
+
+                                    Label::new(c).selectable(!command_only).ui(ui);
+                                }),
+                            };
+                            if response.clicked() {
+                                if command_only {
+                                    let mut clipboard = Clipboard::new().unwrap();
+                                    let c = dataframe
+                                        .column(c)
+                                        .unwrap()
+                                        .get(row_idx)
+                                        .unwrap()
+                                        .to_string();
+                                    clipboard.set_text(c).unwrap();
+                                } else {
+                                    if highlight.contains(&d) {
+                                        highlight.remove(&d);
+                                    } else {
+                                        highlight.insert(d);
+                                    }
                                 }
-                            }
-                        }
-                        if row.response().clicked() {
-                            if highlight.contains(&d) {
-                                highlight.remove(&d);
-                            } else {
-                                highlight.insert(d);
                             }
                         }
                     });
@@ -236,8 +253,8 @@ impl FlTable {
     }
 }
 
-fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) {
-    let (_, response) = row.col(|ui| {
+fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) -> (Rect, Response) {
+    let (rect, response) = row.col(|ui| {
         let size = ui.spacing().interact_size;
         let (rect, _response) = ui.allocate_exact_size(size, Sense::hover());
         ui.painter().rect_filled(
@@ -246,7 +263,10 @@ fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) {
             Color32::from_rgb(color.r as u8, color.g as u8, color.b as u8),
         );
     });
-    response.on_hover_text(format!("R: {}, G: {}, B: {}", color.r, color.g, color.b));
+    let response =
+        response.on_hover_text(format!("R: {}, G: {}, B: {}", color.r, color.g, color.b));
+
+    (rect, response)
 }
 
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
