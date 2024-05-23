@@ -40,6 +40,37 @@ pub struct FlTableDrawContext {
     pub show_columns: ShowColumns,
 }
 
+enum ModifyMode {
+    Normal,
+    Command,
+    Shift,
+}
+
+impl ModifyMode {
+    fn from_input(input: &egui::InputState) -> Self {
+        if input.modifiers.command_only() {
+            ModifyMode::Command
+        } else if input.modifiers.shift_only() {
+            ModifyMode::Shift
+        } else {
+            ModifyMode::Normal
+        }
+    }
+
+    fn is_command(&self) -> bool {
+        matches!(self, ModifyMode::Command)
+    }
+
+    fn is_shift(&self) -> bool {
+        matches!(self, ModifyMode::Shift)
+    }
+
+    #[allow(dead_code)]
+    fn is_normal(&self) -> bool {
+        matches!(self, ModifyMode::Normal)
+    }
+}
+
 impl FlTable {
     pub fn data_id(&self, bag: &Bag) -> anyhow::Result<Id> {
         let data = bag
@@ -74,7 +105,7 @@ impl FlTable {
     pub fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
         puffin::profile_function!();
 
-        let command_only = ui.input(|inp| inp.modifiers.command_only());
+        let mode = ui.input(ModifyMode::from_input);
 
         let dataframe = bag
             .data_by_reference(&self.data_reference)
@@ -214,14 +245,14 @@ impl FlTable {
                                         .unwrap()
                                         .to_string();
 
-                                    Label::new(c).selectable(!command_only).ui(ui);
+                                    Label::new(c).selectable(mode.is_shift()).ui(ui);
                                 }),
                             };
-                            if command_only {
+                            if mode.is_command() {
                                 response = response.on_hover_text("Copy to clipboard");
                             }
                             if response.clicked() {
-                                if command_only {
+                                if mode.is_command() {
                                     let mut clipboard = Clipboard::new().unwrap();
                                     let c = dataframe
                                         .column(c)
