@@ -1145,14 +1145,18 @@ fn stack_visualize(
 
                             let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2()
                                 + response.rect.min.to_vec2();
-                            let center = (from + to.to_vec2()) / 2.0;
+
+                            let cliped_from = response.rect.clamp(from);
+                            let cliped_to = response.rect.clamp(to);
+
+                            let center = (cliped_from + cliped_to.to_vec2()) / 2.0;
                             painter.line_segment([from, to], Stroke::new(3.0, Color32::GREEN));
                             let rect = painter.text(
                                 center,
                                 Align2::CENTER_CENTER,
                                 format!("{:.2}", distance),
                                 FontId::default(),
-                                Color32::WHITE,
+                                Color32::BLACK,
                             );
                             painter.rect_filled(rect, 0.0, Color32::GREEN);
                             let _rect = painter.text(
@@ -1160,7 +1164,7 @@ fn stack_visualize(
                                 Align2::CENTER_CENTER,
                                 format!("{:.2}", distance),
                                 FontId::default(),
-                                Color32::WHITE,
+                                Color32::BLACK,
                             );
                         }
                         _ => {}
