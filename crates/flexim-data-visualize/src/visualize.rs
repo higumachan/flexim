@@ -5,8 +5,9 @@ use std::ops::Deref;
 use std::os::unix::raw::uid_t;
 
 use egui::{
-    Align, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout,
-    Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
+    Align, Align2, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, FontId, Id,
+    Image, Layout, Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2,
+    Widget,
 };
 
 use flexim_data_type::{
@@ -28,7 +29,7 @@ use enum_iterator::all;
 use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
-use geo::{coord, EuclideanDistance, Line};
+use geo::{coord, Closest, ClosestPoint, EuclideanDistance, Line, Point, Vector2DOps};
 use polars::datatypes::DataType;
 use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
@@ -1020,10 +1021,12 @@ fn stack_visualize(
     let responses = ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
+
         stack_top
             .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
         let mut segments = vec![];
+        segments.extend(stack_top.measurable_segments(ui.ctx(), bag).unwrap());
         for (_i, render) in stack.iter().enumerate().skip(1) {
             render
                 .render(ui, bag, &mut painter, visualize_state)
@@ -1034,29 +1037,157 @@ fn stack_visualize(
         let tile_origin_pos = response
             .hover_pos()
             .map(|pos| pos - response.rect.min.to_vec2());
-        dbg!(&tile_origin_pos);
         let absolute_pos =
             tile_origin_pos.map(|pos| visualize_state.screen_to_absolute(pos.to_vec2()));
 
+        // TODO(higumachan): リファクタリングしたい
+        let command = ui.ctx().input(|input| input.modifiers.command_only());
         if let Some(absolute_pos) = absolute_pos {
-            // for segment in segments {
-            //     let pos = geo::Point::new(absolute_pos.x as f64, absolute_pos.y as f64);
-            //     dbg!(segment.euclidean_distance(&pos));
-            // }
-            // minimum distance
-            dbg!(segments
-                .iter()
-                .map(|segment| segment.euclidean_distance(&geo::Point::new(
-                    absolute_pos.x as f64,
-                    absolute_pos.y as f64
-                )))
-                .min_by_key(|x| UnwrapOrd(*x)));
+            if command {
+                // minimum distance
+                let config = Config::get_global(ui);
+
+                let d = segments
+                    .iter()
+                    .map(|segment| {
+                        segment.euclidean_distance(&geo::Point::new(
+                            absolute_pos.x as f64,
+                            absolute_pos.y as f64,
+                        ))
+                    })
+                    .enumerate()
+                    .min_by_key(|(_, x)| UnwrapOrd(*x));
+
+                if let Some((pos, min_distance)) = d {
+                    if min_distance < 5.0 {
+                        draw_segment(
+                            &mut painter,
+                            &segments[pos],
+                            visualize_state,
+                            response.rect.min.to_vec2(),
+                            Stroke::new(3.0, Color32::GREEN),
+                        );
+                    }
+                }
+
+                if ui.input(|input| input.pointer.primary_clicked()) {
+                    if let Some((pos, min_distance)) = d {
+                        dbg!(pos, min_distance);
+                        if min_distance < 5.0 {
+                            let segment = &segments[pos];
+                            ui.ctx().memory_mut(|memory| {
+                                memory
+                                    .data
+                                    .insert_temp(Id::new("measure_selected"), segment.clone());
+                            });
+                        }
+                    }
+                }
+                if let Some(selected_segment) = ui
+                    .ctx()
+                    .memory(|memory| memory.data.get_temp::<Line>(Id::new("measure_selected")))
+                {
+                    draw_segment(
+                        &mut painter,
+                        &selected_segment,
+                        visualize_state,
+                        response.rect.min.to_vec2(),
+                        Stroke::new(3.0, Color32::GREEN),
+                    );
+
+                    let snap_segment = d
+                        .filter(|(pos, min_distance)| {
+                            let vec1 = (selected_segment.end - selected_segment.start)
+                                .try_normalize()
+                                .unwrap_or_default();
+                            let vec2 = (segments[*pos].delta()).try_normalize().unwrap_or_default();
+
+                            vec1.dot_product(vec2).abs() > 0.1
+                                && (*min_distance as f32) < config.grid_snap_distance
+                        })
+                        .map(|(pos, _)| &segments[pos]);
+
+                    // distance absolute pos and segment
+                    let (distance, to) = if let Some(ss) = snap_segment {
+                        let closest = ss.closest_point(&geo::Point::new(
+                            absolute_pos.x as f64,
+                            absolute_pos.y as f64,
+                        ));
+                        (
+                            ss.euclidean_distance(&selected_segment),
+                            match closest {
+                                Closest::SinglePoint(p) | Closest::Intersection(p) => {
+                                    Pos2::new(p.x() as f32, p.y() as f32)
+                                }
+                                _ => absolute_pos.to_pos2(),
+                            },
+                        )
+                    } else {
+                        (
+                            selected_segment.euclidean_distance(&geo::Point::new(
+                                absolute_pos.x as f64,
+                                absolute_pos.y as f64,
+                            )),
+                            absolute_pos.to_pos2(),
+                        )
+                    };
+
+                    let closest = selected_segment.closest_point(&geo::Point::new(
+                        absolute_pos.x as f64,
+                        absolute_pos.y as f64,
+                    ));
+
+                    match closest {
+                        Closest::SinglePoint(p) | Closest::Intersection(p) => {
+                            let from = Pos2::new(p.x() as f32, p.y() as f32);
+                            let from = visualize_state.absolute_to_screen(from.to_vec2()).to_pos2()
+                                + response.rect.min.to_vec2();
+
+                            let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2()
+                                + response.rect.min.to_vec2();
+                            let center = (from + to.to_vec2()) / 2.0;
+                            painter.line_segment([from, to], Stroke::new(3.0, Color32::GREEN));
+                            let rect = painter.text(
+                                center,
+                                Align2::CENTER_CENTER,
+                                format!("{:.2}", distance),
+                                FontId::default(),
+                                Color32::WHITE,
+                            );
+                            painter.rect_filled(rect, 0.0, Color32::GREEN);
+                            let _rect = painter.text(
+                                center,
+                                Align2::CENTER_CENTER,
+                                format!("{:.2}", distance),
+                                FontId::default(),
+                                Color32::WHITE,
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         response
     });
 
     responses.inner
+}
+
+fn draw_segment(
+    painter: &mut Painter,
+    segment: &Line,
+    visualize_state: &VisualizeState,
+    origin: Vec2,
+    stroke: Stroke,
+) {
+    let from = Pos2::new(segment.start.x as f32, segment.start.y as f32);
+    let to = Pos2::new(segment.end.x as f32, segment.end.y as f32);
+    let from = visualize_state.absolute_to_screen(from.to_vec2()).to_pos2() + origin;
+    let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2() + origin;
+
+    painter.line_segment([from, to], stroke);
 }
 
 fn draw_image(

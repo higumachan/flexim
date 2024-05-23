@@ -449,7 +449,7 @@ fn right_panel(app: &mut App, ui: &mut Ui) {
                     _ => {}
                 }
             } else {
-                log::warn!("tile not found");
+                // log::warn!("tile not found");
             }
         }
     } else {

@@ -73,34 +73,41 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         }
         painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
 
+        let is_command = ui.input(|input| input.modifiers.command_only());
+        let sense = if is_command {
+            Sense::hover()
+        } else {
+            Sense::click()
+        };
+
         let mut responses = vec![
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     rect.x_range().expand(thickness),
                     Rangef::point(rect.top()).expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     rect.x_range().expand(thickness),
                     Rangef::point(rect.bottom()).expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     Rangef::point(rect.left()).expand(thickness),
                     rect.y_range().expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     Rangef::point(rect.right()).expand(thickness),
                     rect.y_range().expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
         ];
 

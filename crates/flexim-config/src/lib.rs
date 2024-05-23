@@ -12,6 +12,7 @@ pub struct Config {
     pub zoom_lower_limit: f32,
     pub zoom_speed: f32,
     pub scroll_speed: f32,
+    pub grid_snap_distance: f32,
 }
 
 impl Config {
@@ -31,6 +32,7 @@ impl Default for Config {
             zoom_lower_limit: 0.1,
             zoom_speed: 1.0,
             scroll_speed: 1.0,
+            grid_snap_distance: 5.0,
         }
     }
 }
