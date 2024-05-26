@@ -6,8 +6,8 @@ use std::os::unix::raw::uid_t;
 
 use egui::{
     Align, Align2, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, FontId, Id,
-    Image, Layout, Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Stroke, Ui, Vec2,
-    Widget,
+    Image, Layout, Painter, PointerButton, Pos2, Rect, Response, Sense, Shape, Slider, Stroke, Ui,
+    Vec2, Widget,
 };
 
 use flexim_data_type::{
@@ -29,7 +29,7 @@ use enum_iterator::all;
 use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
-use geo::{coord, Closest, ClosestPoint, EuclideanDistance, Line, Point, Vector2DOps};
+use geo::{coord, Closest, ClosestPoint, Coord, EuclideanDistance, Line, Point, Vector2DOps};
 use polars::datatypes::DataType;
 use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
@@ -1065,7 +1065,7 @@ fn stack_visualize(
                             &segments[pos],
                             visualize_state,
                             response.rect.min.to_vec2(),
-                            Stroke::new(3.0, Color32::GREEN),
+                            Stroke::new(config.measure_grid_width, Color32::GREEN),
                         );
                     }
                 }
@@ -1092,10 +1092,34 @@ fn stack_visualize(
                         &selected_segment,
                         visualize_state,
                         response.rect.min.to_vec2(),
-                        Stroke::new(3.0, Color32::GREEN),
+                        Stroke::new(config.measure_grid_width, Color32::GREEN),
                     );
 
-                    let snap_segment = d
+                    let extend_lines = segments
+                        .iter()
+                        .map(|s| {
+                            let minus_far_point = s.start - s.delta() * 100000.0;
+                            let plus_far_point = s.end + s.delta() * 100000.0;
+                            Line::new(minus_far_point, plus_far_point)
+                        })
+                        .collect_vec();
+
+                    let nearest_extend_line = extend_lines
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, s)| !same_line_parameter(&selected_segment, *s))
+                        .map(|(pos, segment)| {
+                            (
+                                pos,
+                                segment.euclidean_distance(&geo::Point::new(
+                                    absolute_pos.x as f64,
+                                    absolute_pos.y as f64,
+                                )),
+                            )
+                        })
+                        .min_by_key(|(_, x)| UnwrapOrd(*x));
+
+                    let snap_segment = nearest_extend_line
                         .filter(|(pos, min_distance)| {
                             let vec1 = (selected_segment.end - selected_segment.start)
                                 .try_normalize()
@@ -1105,10 +1129,24 @@ fn stack_visualize(
                             vec1.dot_product(vec2).abs() > 0.1
                                 && (*min_distance as f32) < config.grid_snap_distance
                         })
-                        .map(|(pos, _)| &segments[pos]);
+                        .map(|(pos, _)| &extend_lines[pos]);
 
                     // distance absolute pos and segment
                     let (distance, to) = if let Some(ss) = snap_segment {
+                        let from = Pos2::new(ss.start.x as f32, ss.start.y as f32);
+                        let from = visualize_state.absolute_to_screen(from.to_vec2()).to_pos2()
+                            + response.rect.min.to_vec2();
+                        let from = response.rect.clamp(from);
+                        let to = Pos2::new(ss.end.x as f32, ss.end.y as f32);
+                        let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2()
+                            + response.rect.min.to_vec2();
+                        let to = response.rect.clamp(to);
+                        painter.add(Shape::dashed_line(
+                            &[from, to],
+                            Stroke::new(config.measure_grid_width, Color32::GREEN),
+                            config.measure_grid_width * 3.0,
+                            config.measure_grid_width * 3.0,
+                        ));
                         let closest = ss.closest_point(&geo::Point::new(
                             absolute_pos.x as f64,
                             absolute_pos.y as f64,
@@ -1150,7 +1188,10 @@ fn stack_visualize(
                             let cliped_to = response.rect.clamp(to);
 
                             let center = (cliped_from + cliped_to.to_vec2()) / 2.0;
-                            painter.line_segment([from, to], Stroke::new(3.0, Color32::GREEN));
+                            painter.line_segment(
+                                [from, to],
+                                Stroke::new(config.measure_grid_width, Color32::GREEN),
+                            );
                             let rect = painter.text(
                                 center,
                                 Align2::CENTER_CENTER,
@@ -1251,8 +1292,71 @@ fn serise_value_to_color(field: &Field, value: &AnyValue) -> Color32 {
     }
 }
 
+fn segment_extened_line_parameter(segment: &Line) -> (Coord, f32) {
+    let delta = segment.delta();
+    let normal = Coord::from((delta.y, -delta.x))
+        .try_normalize()
+        .unwrap_or_default();
+    let c = -normal.dot_product(segment.start) as f32;
+    (normal, c)
+}
+
+fn same_line_parameter(segment1: &Line, segment2: &Line) -> bool {
+    let (n1, c1) = segment_extened_line_parameter(segment1);
+    let (n2, c2) = segment_extened_line_parameter(segment2);
+
+    ((n1.dot_product(n2)).abs() - 1.0) < 0.0001 && (c1.abs() - c2.abs()).abs() < 0.0001
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn same_line_parameter_test(
+            x1 in -1000.0..=1000.0,
+            y1 in -1000.0..=1000.0,
+            x2 in -1000.0..=1000.0,
+            y2 in -1000.0..=1000.0,
+            t1 in -1000.0..=1000.0,
+            t2 in -1000.0..=1000.0,
+        ) {
+            prop_assume!(x1 != x2 || y1 != y2);
+            let segment1: Line = Line::new(coord!(x: x1, y: y1), coord!(x: x2, y: y2));
+            let v = segment1.delta();
+            let s = segment1.start;
+
+            let segment2 = Line::new(s + v * t1, s + v * t2);
+
+            prop_assume!(t1 != t2);
+            prop_assert!(same_line_parameter(&segment1, &segment2));
+        }
+
+        #[test]
+        fn not_same_line_parameter_test(
+            x1 in -1000.0..=1000.0,
+            y1 in -1000.0..=1000.0,
+            x2 in -1000.0..=1000.0,
+            y2 in -1000.0..=1000.0,
+            t1 in -1000.0..=1000.0,
+            t2 in -1000.0..=1000.0,
+        ) {
+            prop_assume!(x1 != x2 || y1 != y2);
+            let segment1: Line = Line::new(coord!(x: x1, y: y1), coord!(x: x2, y: y2));
+            let normal = Coord::from((segment1.delta().y, -segment1.delta().x))
+                .try_normalize()
+                .unwrap_or_default();
+            let v = normal;
+            let s = segment1.start;
+
+            let segment2 = Line::new(s + v * t1, s + v * t2);
+
+            prop_assume!(t1 != t2);
+            prop_assert!(!same_line_parameter(&segment1, &segment2));
+        }
+    }
 
     #[test]
     fn it_works() {}
