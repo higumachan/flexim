@@ -2,7 +2,6 @@ use crate::cache::{Poll, VisualizedImageCache};
 
 use std::io::Cursor;
 use std::ops::Deref;
-use std::os::unix::raw::uid_t;
 
 use egui::{
     Align, Align2, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, FontId, Id,
@@ -29,7 +28,7 @@ use enum_iterator::all;
 use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
-use geo::{coord, Closest, ClosestPoint, Coord, EuclideanDistance, Line, Point, Vector2DOps};
+use geo::{coord, Closest, ClosestPoint, Coord, EuclideanDistance, Line, Vector2DOps};
 use polars::datatypes::DataType;
 use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
@@ -344,7 +343,7 @@ impl DataRenderable for FlImageRender {
         }
     }
 
-    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+    fn measurable_segments(&self, _ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
         let data = bag.data_by_reference(&self.content)?;
 
         if let FlData::Image(data) = data {
@@ -500,9 +499,33 @@ impl DataRenderable for FlTensor2DRender {
         }
     }
 
-    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
-        // FIXME(higumachan): Implement
-        Ok(vec![])
+    fn measurable_segments(&self, _ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        let data = bag
+            .data_by_reference(&self.content)?
+            .as_tensor()
+            .expect("not tensor");
+
+        let offset = (data.offset.1 as f64, data.offset.0 as f64);
+        let size = (data.value.shape()[1] as f64, data.value.shape()[0] as f64);
+
+        Ok(vec![
+            Line::new(
+                coord!(x: offset.0, y: offset.1),
+                coord!(x: size.0 + offset.0, y: offset.1),
+            ),
+            Line::new(
+                coord!(x: offset.0, y: offset.1),
+                coord!(x: offset.0, y: size.1 + offset.1),
+            ),
+            Line::new(
+                coord!(x: size.0 + offset.0, y: offset.1),
+                coord!(x: size.0 + offset.0, y: size.1 + offset.1),
+            ),
+            Line::new(
+                coord!(x: offset.0, y: size.1 + offset.1),
+                coord!(x: size.0 + offset.0, y: size.1 + offset.1),
+            ),
+        ])
     }
 
     fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
@@ -1072,13 +1095,12 @@ fn stack_visualize(
 
                 if ui.input(|input| input.pointer.primary_clicked()) {
                     if let Some((pos, min_distance)) = d {
-                        dbg!(pos, min_distance);
                         if min_distance < 5.0 {
-                            let segment = &segments[pos];
+                            let segment = segments[pos];
                             ui.ctx().memory_mut(|memory| {
                                 memory
                                     .data
-                                    .insert_temp(Id::new("measure_selected"), segment.clone());
+                                    .insert_temp(Id::new("measure_selected"), segment);
                             });
                         }
                     }
@@ -1107,7 +1129,7 @@ fn stack_visualize(
                     let nearest_extend_line = extend_lines
                         .iter()
                         .enumerate()
-                        .filter(|(_, s)| !same_line_parameter(&selected_segment, *s))
+                        .filter(|(_, s)| !same_line_parameter(&selected_segment, s))
                         .map(|(pos, segment)| {
                             (
                                 pos,
