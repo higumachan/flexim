@@ -21,7 +21,6 @@ log.workspace = true
 puffin.workspace = true
 rand.workspace = true
 anyhow.workspace = true
-arboard.workspace = true
 
 [dev-dependencies]
 eframe.workspace = true

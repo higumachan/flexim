@@ -5,8 +5,8 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
 use egui::{
-    Align, Checkbox, Color32, ComboBox, Id, Label, Layout, Rect, Response, Sense, Slider, Ui,
-    Widget,
+    Align, Checkbox, Color32, ComboBox, Event, Id, Key, Label, Layout, Modifiers, Rect, Response,
+    Sense, Slider, Ui, Widget,
 };
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, Deref, DerefMut};
 
 use anyhow::Context;
-use arboard::Clipboard;
 use flexim_storage::Bag;
 use std::sync::Mutex;
 
@@ -43,15 +42,15 @@ pub struct FlTableDrawContext {
 enum ModifyMode {
     Normal,
     Command,
-    Shift,
+    Select,
 }
 
 impl ModifyMode {
     fn from_input(input: &egui::InputState) -> Self {
         if input.modifiers.command_only() {
             ModifyMode::Command
-        } else if input.modifiers.shift_only() {
-            ModifyMode::Shift
+        } else if input.modifiers.contains(Modifiers::SHIFT) {
+            ModifyMode::Select
         } else {
             ModifyMode::Normal
         }
@@ -61,8 +60,8 @@ impl ModifyMode {
         matches!(self, ModifyMode::Command)
     }
 
-    fn is_shift(&self) -> bool {
-        matches!(self, ModifyMode::Shift)
+    fn is_select(&self) -> bool {
+        matches!(self, ModifyMode::Select)
     }
 
     #[allow(dead_code)]
@@ -104,6 +103,7 @@ impl FlTable {
 
     pub fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
         puffin::profile_function!();
+        let ctx = ui.ctx().clone();
 
         let mode = ui.input(ModifyMode::from_input);
 
@@ -245,22 +245,29 @@ impl FlTable {
                                         .unwrap()
                                         .to_string();
 
-                                    Label::new(c).selectable(mode.is_shift()).ui(ui);
+                                    Label::new(c).selectable(mode.is_select()).ui(ui);
                                 }),
                             };
                             if mode.is_command() {
                                 response = response.on_hover_text("Copy to clipboard");
                             }
+                            if mode.is_select() && ctx.input(|inp| inp.keys_down.contains(&Key::C))
+                            {
+                                // Shift + S で選択
+                                // TODO(higumachan): Cmd + Shift + S で選択にしたいが現状はフックできない
+                                ctx.input_mut(|inp| {
+                                    inp.events.push(Event::Copy);
+                                })
+                            }
                             if response.clicked() {
                                 if mode.is_command() {
-                                    let mut clipboard = Clipboard::new().unwrap();
                                     let c = dataframe
                                         .column(c)
                                         .unwrap()
                                         .get(row_idx)
                                         .unwrap()
                                         .to_string();
-                                    clipboard.set_text(c).unwrap();
+                                    ctx.copy_text(c);
                                 } else if highlight.contains(&d) {
                                     highlight.remove(&d);
                                 } else {
