@@ -5,8 +5,8 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
 use egui::{
-    Align, Checkbox, Color32, ComboBox, Id, Label, Layout, Modifiers, Rect, Response, Sense,
-    Slider, Ui, Widget,
+    Align, Checkbox, Color32, ComboBox, Event, Id, Key, Label, Layout, Modifiers, Rect, Response,
+    Sense, Slider, Ui, Widget,
 };
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
@@ -250,6 +250,14 @@ impl FlTable {
                             };
                             if mode.is_command() {
                                 response = response.on_hover_text("Copy to clipboard");
+                            }
+                            if mode.is_select() && ctx.input(|inp| inp.keys_down.contains(&Key::C))
+                            {
+                                // Shift + S で選択
+                                // TODO(higumachan): Cmd + Shift + S で選択にしたいが現状はフックできない
+                                ctx.input_mut(|inp| {
+                                    inp.events.push(Event::Copy);
+                                })
                             }
                             if response.clicked() {
                                 if mode.is_command() {
