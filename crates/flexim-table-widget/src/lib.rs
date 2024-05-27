@@ -5,8 +5,8 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
 use egui::{
-    Align, Checkbox, Color32, ComboBox, Context, Id, Label, Layout, Rect, Response, Sense, Slider,
-    Ui, Widget, Modifiers, Key, Event
+    Align, Checkbox, Color32, ComboBox, Context, Event, Id, Key, Label, Layout, Modifiers, Rect,
+    Response, Sense, Slider, Ui, Widget,
 };
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
