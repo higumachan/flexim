@@ -9,7 +9,7 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-polars-core = { version = "0.35.4", default-features = false, features = [ "dtype-struct", "dtype-categorical", "strings", "regex", "serde" ] }
+polars-core = { version = "0.35.4", default-features = false, features = [ "dtype-struct", "dtype-categorical", "strings", "regex", "serde", "rows" ] }
 polars-io = { version = "0.35.4", optional = true, default-features = false, features = ["serde", "dtype-categorical", "dtype-struct"] }
 polars-ops = { version = "0.35.4", default-features = false, features = [ "dtype-struct", "dtype-categorical", "strings", ] }
 
