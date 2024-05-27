@@ -4,8 +4,9 @@ use std::io::Cursor;
 use std::ops::Deref;
 
 use egui::{
-    Align, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, Id, Image, Layout,
-    Painter, PointerButton, Pos2, Rect, Response, Sense, Slider, Ui, Vec2, Widget,
+    Align, Align2, Button, CollapsingHeader, Color32, ComboBox, Context, DragValue, FontId, Id,
+    Image, Layout, Painter, PointerButton, Pos2, Rect, Response, Sense, Shape, Slider, Stroke, Ui,
+    Vec2, Widget,
 };
 
 use flexim_data_type::{
@@ -27,6 +28,7 @@ use enum_iterator::all;
 use flexim_config::Config;
 use flexim_storage::Bag;
 use flexim_utility::left_and_right_layout;
+use geo::{coord, Closest, ClosestPoint, Coord, EuclideanDistance, Line, Vector2DOps};
 use polars::datatypes::DataType;
 use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
@@ -51,6 +53,18 @@ impl VisualizeState {
         };
 
         Vec2::new(self.current_scale, self.current_scale * y)
+    }
+
+    pub fn absolute_to_screen(&self, pos: Vec2) -> Vec2 {
+        let scale = self.scale();
+        let pos = pos * scale;
+        pos + self.shift
+    }
+
+    pub fn screen_to_absolute(&self, pos: Vec2) -> Vec2 {
+        let scale = self.scale();
+        let pos = pos - self.shift;
+        pos / scale
     }
 }
 
@@ -215,6 +229,14 @@ impl DataRender {
             DataRender::DataFrameView(render) => render.dataframe_view.table.data_reference.clone(),
         }
     }
+
+    pub fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        match self {
+            DataRender::Image(render) => render.measurable_segments(ctx, bag),
+            DataRender::Tensor2D(render) => render.measurable_segments(ctx, bag),
+            DataRender::DataFrameView(render) => render.measurable_segments(ctx, bag),
+        }
+    }
 }
 
 impl From<FlImageRender> for DataRender {
@@ -278,6 +300,8 @@ pub trait DataRenderable {
         painter: &mut Painter,
         state: &VisualizeState,
     ) -> anyhow::Result<()>;
+
+    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>>;
     fn config_panel(&self, ui: &mut Ui, bag: &Bag);
 }
 
@@ -312,6 +336,24 @@ impl DataRenderable for FlImageRender {
 
             let size = Vec2::new(data.width as f32, data.height as f32) * state.scale();
             draw_image(painter, &image, state.shift, size, Color32::WHITE)
+        } else {
+            Err(anyhow::anyhow!(
+                "mismatched data type expected FlData::Image"
+            ))
+        }
+    }
+
+    fn measurable_segments(&self, _ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        let data = bag.data_by_reference(&self.content)?;
+
+        if let FlData::Image(data) = data {
+            let size = (data.width as f64, data.height as f64);
+            Ok(vec![
+                Line::new(coord!(x: 0.0, y: 0.0), coord!(x: size.0, y: 0.0)),
+                Line::new(coord!(x: 0.0, y: 0.0), coord!(x: 0.0, y: size.1)),
+                Line::new(coord!(x: size.0, y: 0.0), coord!(x: size.0, y: size.1)),
+                Line::new(coord!(x: 0.0, y: size.1), coord!(x: size.0, y: size.1)),
+            ])
         } else {
             Err(anyhow::anyhow!(
                 "mismatched data type expected FlData::Image"
@@ -457,6 +499,35 @@ impl DataRenderable for FlTensor2DRender {
         }
     }
 
+    fn measurable_segments(&self, _ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        let data = bag
+            .data_by_reference(&self.content)?
+            .as_tensor()
+            .expect("not tensor");
+
+        let offset = (data.offset.1 as f64, data.offset.0 as f64);
+        let size = (data.value.shape()[1] as f64, data.value.shape()[0] as f64);
+
+        Ok(vec![
+            Line::new(
+                coord!(x: offset.0, y: offset.1),
+                coord!(x: size.0 + offset.0, y: offset.1),
+            ),
+            Line::new(
+                coord!(x: offset.0, y: offset.1),
+                coord!(x: offset.0, y: size.1 + offset.1),
+            ),
+            Line::new(
+                coord!(x: size.0 + offset.0, y: offset.1),
+                coord!(x: size.0 + offset.0, y: size.1 + offset.1),
+            ),
+            Line::new(
+                coord!(x: offset.0, y: size.1 + offset.1),
+                coord!(x: size.0 + offset.0, y: size.1 + offset.1),
+            ),
+        ])
+    }
+
     fn config_panel(&self, ui: &mut Ui, _bag: &Bag) {
         ui.label("FlTensor2D");
         CollapsingHeader::new("Config").show(ui, |ui| {
@@ -547,7 +618,7 @@ impl DataRenderable for FlDataFrameViewRender {
             .with_context(|| format!("special column not found: {}", self.column))?;
 
         let computed_dataframe = if let Some(DataFramePoll::Ready(computed_dataframe)) =
-            self.dataframe_view.table.computed_dataframe(ui, bag)
+            self.dataframe_view.table.computed_dataframe(ui.ctx(), bag)
         {
             computed_dataframe
         } else {
@@ -719,6 +790,58 @@ impl DataRenderable for FlDataFrameViewRender {
             }
         }
         Ok(())
+    }
+
+    fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
+        let dataframe = self.dataframe_view.table.dataframe(bag)?;
+        let special_column = dataframe
+            .special_columns
+            .get(&self.column)
+            .with_context(|| format!("special column not found: {}", self.column))?;
+
+        let computed_dataframe = if let Some(DataFramePoll::Ready(computed_dataframe)) =
+            self.dataframe_view.table.computed_dataframe(ctx, bag)
+        {
+            computed_dataframe
+        } else {
+            dataframe
+                .value
+                .clone()
+                .with_row_count("__FleximRowId", None)
+                .unwrap()
+        };
+
+        let target_series = computed_dataframe
+            .column(self.column.as_str())
+            .unwrap()
+            .clone();
+
+        let shapes: Result<Vec<Option<Box<dyn SpecialColumnShape>>>, FlShapeConvertError> =
+            target_series
+                .iter()
+                .map(|x| match special_column {
+                    FlDataFrameSpecialColumn::Rectangle => {
+                        FlDataFrameRectangle::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
+                        .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    _ => Err(FlShapeConvertError::CanNotConvert),
+                })
+                .map(|x| {
+                    x.map(Some).or_else(|e| match e {
+                        FlShapeConvertError::NullValue => Ok(None),
+                        _ => Err(e),
+                    })
+                })
+                .collect();
+        let shapes = shapes?;
+
+        Ok(shapes
+            .iter()
+            .filter_map(|x| x.as_ref())
+            .flat_map(|x| x.measure_segments())
+            .collect_vec())
     }
 
     fn config_panel(&self, ui: &mut Ui, bag: &Bag) {
@@ -921,19 +1044,217 @@ fn stack_visualize(
     let responses = ui.centered_and_justified(|ui| {
         let stack_top = stack.first().unwrap();
         let (response, mut painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
+
         stack_top
             .render(ui, bag, &mut painter, visualize_state)
             .unwrap();
+        let mut segments = vec![];
+        segments.extend(stack_top.measurable_segments(ui.ctx(), bag).unwrap());
         for (_i, render) in stack.iter().enumerate().skip(1) {
             render
                 .render(ui, bag, &mut painter, visualize_state)
                 .unwrap();
+            segments.extend(render.measurable_segments(ui.ctx(), bag).unwrap());
+        }
+
+        let tile_origin_pos = response
+            .hover_pos()
+            .map(|pos| pos - response.rect.min.to_vec2());
+        let absolute_pos =
+            tile_origin_pos.map(|pos| visualize_state.screen_to_absolute(pos.to_vec2()));
+
+        // TODO(higumachan): リファクタリングしたい
+        let command = ui.ctx().input(|input| input.modifiers.command_only());
+        if let Some(absolute_pos) = absolute_pos {
+            if command {
+                // minimum distance
+                let config = Config::get_global(ui);
+
+                let d = segments
+                    .iter()
+                    .map(|segment| {
+                        segment.euclidean_distance(&geo::Point::new(
+                            absolute_pos.x as f64,
+                            absolute_pos.y as f64,
+                        ))
+                    })
+                    .enumerate()
+                    .min_by_key(|(_, x)| UnwrapOrd(*x));
+
+                if let Some((pos, min_distance)) = d {
+                    if min_distance < 5.0 {
+                        draw_segment(
+                            &mut painter,
+                            &segments[pos],
+                            visualize_state,
+                            response.rect.min.to_vec2(),
+                            Stroke::new(config.measure_grid_width, Color32::GREEN),
+                        );
+                    }
+                }
+
+                if ui.input(|input| input.pointer.primary_clicked()) {
+                    if let Some((pos, min_distance)) = d {
+                        if min_distance < 5.0 {
+                            let segment = segments[pos];
+                            ui.ctx().memory_mut(|memory| {
+                                memory
+                                    .data
+                                    .insert_temp(Id::new("measure_selected"), segment);
+                            });
+                        }
+                    }
+                }
+                if let Some(selected_segment) = ui
+                    .ctx()
+                    .memory(|memory| memory.data.get_temp::<Line>(Id::new("measure_selected")))
+                {
+                    draw_segment(
+                        &mut painter,
+                        &selected_segment,
+                        visualize_state,
+                        response.rect.min.to_vec2(),
+                        Stroke::new(config.measure_grid_width, Color32::GREEN),
+                    );
+
+                    let extend_lines = segments
+                        .iter()
+                        .map(|s| {
+                            let minus_far_point = s.start - s.delta() * 100000.0;
+                            let plus_far_point = s.end + s.delta() * 100000.0;
+                            Line::new(minus_far_point, plus_far_point)
+                        })
+                        .collect_vec();
+
+                    let nearest_extend_line = extend_lines
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, s)| !same_line_parameter(&selected_segment, s))
+                        .map(|(pos, segment)| {
+                            (
+                                pos,
+                                segment.euclidean_distance(&geo::Point::new(
+                                    absolute_pos.x as f64,
+                                    absolute_pos.y as f64,
+                                )),
+                            )
+                        })
+                        .min_by_key(|(_, x)| UnwrapOrd(*x));
+
+                    let snap_segment = nearest_extend_line
+                        .filter(|(pos, min_distance)| {
+                            let vec1 = (selected_segment.end - selected_segment.start)
+                                .try_normalize()
+                                .unwrap_or_default();
+                            let vec2 = (segments[*pos].delta()).try_normalize().unwrap_or_default();
+
+                            vec1.dot_product(vec2).abs() > 0.1
+                                && (*min_distance as f32) < config.grid_snap_distance
+                        })
+                        .map(|(pos, _)| &extend_lines[pos]);
+
+                    // distance absolute pos and segment
+                    let (distance, to) = if let Some(ss) = snap_segment {
+                        let from = Pos2::new(ss.start.x as f32, ss.start.y as f32);
+                        let from = visualize_state.absolute_to_screen(from.to_vec2()).to_pos2()
+                            + response.rect.min.to_vec2();
+                        let from = response.rect.clamp(from);
+                        let to = Pos2::new(ss.end.x as f32, ss.end.y as f32);
+                        let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2()
+                            + response.rect.min.to_vec2();
+                        let to = response.rect.clamp(to);
+                        painter.add(Shape::dashed_line(
+                            &[from, to],
+                            Stroke::new(config.measure_grid_width, Color32::GREEN),
+                            config.measure_grid_width * 3.0,
+                            config.measure_grid_width * 3.0,
+                        ));
+                        let closest = ss.closest_point(&geo::Point::new(
+                            absolute_pos.x as f64,
+                            absolute_pos.y as f64,
+                        ));
+                        (
+                            ss.euclidean_distance(&selected_segment),
+                            match closest {
+                                Closest::SinglePoint(p) | Closest::Intersection(p) => {
+                                    Pos2::new(p.x() as f32, p.y() as f32)
+                                }
+                                _ => absolute_pos.to_pos2(),
+                            },
+                        )
+                    } else {
+                        (
+                            selected_segment.euclidean_distance(&geo::Point::new(
+                                absolute_pos.x as f64,
+                                absolute_pos.y as f64,
+                            )),
+                            absolute_pos.to_pos2(),
+                        )
+                    };
+
+                    let closest = selected_segment.closest_point(&geo::Point::new(
+                        absolute_pos.x as f64,
+                        absolute_pos.y as f64,
+                    ));
+
+                    match closest {
+                        Closest::SinglePoint(p) | Closest::Intersection(p) => {
+                            let from = Pos2::new(p.x() as f32, p.y() as f32);
+                            let from = visualize_state.absolute_to_screen(from.to_vec2()).to_pos2()
+                                + response.rect.min.to_vec2();
+
+                            let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2()
+                                + response.rect.min.to_vec2();
+
+                            let cliped_from = response.rect.clamp(from);
+                            let cliped_to = response.rect.clamp(to);
+
+                            let center = (cliped_from + cliped_to.to_vec2()) / 2.0;
+                            painter.line_segment(
+                                [from, to],
+                                Stroke::new(config.measure_grid_width, Color32::GREEN),
+                            );
+                            let rect = painter.text(
+                                center,
+                                Align2::CENTER_CENTER,
+                                format!("{:.2}", distance),
+                                FontId::default(),
+                                Color32::BLACK,
+                            );
+                            painter.rect_filled(rect, 0.0, Color32::GREEN);
+                            let _rect = painter.text(
+                                center,
+                                Align2::CENTER_CENTER,
+                                format!("{:.2}", distance),
+                                FontId::default(),
+                                Color32::BLACK,
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         response
     });
 
     responses.inner
+}
+
+fn draw_segment(
+    painter: &mut Painter,
+    segment: &Line,
+    visualize_state: &VisualizeState,
+    origin: Vec2,
+    stroke: Stroke,
+) {
+    let from = Pos2::new(segment.start.x as f32, segment.start.y as f32);
+    let to = Pos2::new(segment.end.x as f32, segment.end.y as f32);
+    let from = visualize_state.absolute_to_screen(from.to_vec2()).to_pos2() + origin;
+    let to = visualize_state.absolute_to_screen(to.to_vec2()).to_pos2() + origin;
+
+    painter.line_segment([from, to], stroke);
 }
 
 fn draw_image(
@@ -993,8 +1314,71 @@ fn serise_value_to_color(field: &Field, value: &AnyValue) -> Color32 {
     }
 }
 
+fn segment_extened_line_parameter(segment: &Line) -> (Coord, f32) {
+    let delta = segment.delta();
+    let normal = Coord::from((delta.y, -delta.x))
+        .try_normalize()
+        .unwrap_or_default();
+    let c = -normal.dot_product(segment.start) as f32;
+    (normal, c)
+}
+
+fn same_line_parameter(segment1: &Line, segment2: &Line) -> bool {
+    let (n1, c1) = segment_extened_line_parameter(segment1);
+    let (n2, c2) = segment_extened_line_parameter(segment2);
+
+    ((n1.dot_product(n2)).abs() - 1.0) < 0.0001 && (c1.abs() - c2.abs()).abs() < 0.0001
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn same_line_parameter_test(
+            x1 in -1000.0..=1000.0,
+            y1 in -1000.0..=1000.0,
+            x2 in -1000.0..=1000.0,
+            y2 in -1000.0..=1000.0,
+            t1 in -1000.0..=1000.0,
+            t2 in -1000.0..=1000.0,
+        ) {
+            prop_assume!(x1 != x2 || y1 != y2);
+            let segment1: Line = Line::new(coord!(x: x1, y: y1), coord!(x: x2, y: y2));
+            let v = segment1.delta();
+            let s = segment1.start;
+
+            let segment2 = Line::new(s + v * t1, s + v * t2);
+
+            prop_assume!(t1 != t2);
+            prop_assert!(same_line_parameter(&segment1, &segment2));
+        }
+
+        #[test]
+        fn not_same_line_parameter_test(
+            x1 in -1000.0..=1000.0,
+            y1 in -1000.0..=1000.0,
+            x2 in -1000.0..=1000.0,
+            y2 in -1000.0..=1000.0,
+            t1 in -1000.0..=1000.0,
+            t2 in -1000.0..=1000.0,
+        ) {
+            prop_assume!(x1 != x2 || y1 != y2);
+            let segment1: Line = Line::new(coord!(x: x1, y: y1), coord!(x: x2, y: y2));
+            let normal = Coord::from((segment1.delta().y, -segment1.delta().x))
+                .try_normalize()
+                .unwrap_or_default();
+            let v = normal;
+            let s = segment1.start;
+
+            let segment2 = Line::new(s + v * t1, s + v * t2);
+
+            prop_assume!(t1 != t2);
+            prop_assert!(!same_line_parameter(&segment1, &segment2));
+        }
+    }
 
     #[test]
     fn it_works() {}

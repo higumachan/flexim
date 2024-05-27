@@ -65,6 +65,8 @@ puffin_http = "0.16.0"
 rfd = "0.13.0"
 rstest = "0.18.2"
 enum-iterator = "2.0.0"
+geo = "0.28.0"
+proptest = "1.4.0"
 
 
 [patch.crates-io]

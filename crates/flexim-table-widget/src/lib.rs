@@ -5,8 +5,8 @@ use egui::ahash::{HashMap, HashSet, HashSetExt};
 use crate::cache::{DataFramePoll, FilteredDataFrameCache};
 
 use egui::{
-    Align, Checkbox, Color32, ComboBox, Event, Id, Key, Label, Layout, Modifiers, Rect, Response,
-    Sense, Slider, Ui, Widget,
+    Align, Checkbox, Color32, ComboBox, Context, Event, Id, Key, Label, Layout, Modifiers, Rect,
+    Response, Sense, Slider, Ui, Widget,
 };
 use egui_extras::{Column, TableBuilder};
 use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
@@ -16,7 +16,7 @@ use rand::random;
 use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, Deref, DerefMut};
 
-use anyhow::Context;
+use anyhow::Context as _;
 use flexim_storage::Bag;
 use std::sync::Mutex;
 
@@ -282,8 +282,8 @@ impl FlTable {
         }
     }
 
-    pub fn computed_dataframe(&self, ui: &mut Ui, bag: &Bag) -> Option<DataFramePoll<DataFrame>> {
-        let dataframe = ui.ctx().memory_mut(|mem| {
+    pub fn computed_dataframe(&self, ctx: &Context, bag: &Bag) -> Option<DataFramePoll<DataFrame>> {
+        let dataframe = ctx.memory_mut(|mem| {
             let cache = mem.caches.cache::<FilteredDataFrameCache>();
             cache.get(self.data_id(bag).unwrap())
         });

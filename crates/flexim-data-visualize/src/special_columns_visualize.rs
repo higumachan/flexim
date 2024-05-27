@@ -5,6 +5,7 @@ use egui::{
 };
 use enum_iterator::Sequence;
 use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
+use geo::Line;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -16,6 +17,8 @@ pub trait SpecialColumnShape: Debug {
         parameter: RenderParameter,
         state: &VisualizeState,
     ) -> Option<Response>;
+
+    fn measure_segments(&self) -> Vec<Line>;
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Sequence)]
@@ -61,14 +64,21 @@ impl SpecialColumnShape for FlDataFrameRectangle {
 
         let rect = Rect::from_two_pos(
             painter.clip_rect().min
-                + (Vec2::new(self.x1 as f32, self.y1 as f32) * state.scale() + state.shift),
+                + state.absolute_to_screen(Vec2::new(self.x1 as f32, self.y1 as f32)),
             painter.clip_rect().min
-                + (Vec2::new(self.x2 as f32, self.y2 as f32) * state.scale() + state.shift),
+                + state.absolute_to_screen(Vec2::new(self.x2 as f32, self.y2 as f32)),
         );
         if let Some(fill_color) = fill_color {
             painter.rect_filled(rect, 0.0, fill_color);
         }
         painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
+
+        let is_command = ui.input(|input| input.modifiers.command_only());
+        let sense = if is_command {
+            Sense::hover()
+        } else {
+            Sense::click()
+        };
 
         let mut responses = vec![
             ui.allocate_rect(
@@ -76,28 +86,28 @@ impl SpecialColumnShape for FlDataFrameRectangle {
                     rect.x_range().expand(thickness),
                     Rangef::point(rect.top()).expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     rect.x_range().expand(thickness),
                     Rangef::point(rect.bottom()).expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     Rangef::point(rect.left()).expand(thickness),
                     rect.y_range().expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
             ui.allocate_rect(
                 Rect::from_x_y_ranges(
                     Rangef::point(rect.right()).expand(thickness),
                     rect.y_range().expand(thickness),
                 ),
-                Sense::click(),
+                sense,
             ),
         ];
 
@@ -122,6 +132,16 @@ impl SpecialColumnShape for FlDataFrameRectangle {
 
         let last = responses.pop()?;
         Some(responses.into_iter().fold(last, |acc, r| acc.union(r)))
+    }
+
+    fn measure_segments(&self) -> Vec<Line> {
+        // 4辺を表すVec<Line>を返す
+        vec![
+            Line::new([self.x1, self.y1], [self.x2, self.y1]),
+            Line::new([self.x2, self.y1], [self.x2, self.y2]),
+            Line::new([self.x2, self.y2], [self.x1, self.y2]),
+            Line::new([self.x1, self.y2], [self.x1, self.y1]),
+        ]
     }
 }
 
@@ -206,6 +226,10 @@ impl SpecialColumnShape for FlDataFrameSegment {
         };
 
         Some(response)
+    }
+
+    fn measure_segments(&self) -> Vec<Line> {
+        vec![Line::new([self.x1, self.y1], [self.x2, self.y2])]
     }
 }
 
