@@ -553,7 +553,7 @@ impl DataRenderable for FlDataFrameViewRender {
             dataframe
                 .value
                 .clone()
-                .with_row_count("__FleximRowId", None)
+                .with_row_index("__FleximRowId", None)
                 .unwrap()
         };
 

@@ -84,7 +84,7 @@ macro_rules! impl_from_data_value_with_special_column {
 }
 
 impl_from_data_value!(f64, f32, i64, i32);
-impl_from_data_value_with_value_name!(String, Utf8Owned);
+impl_from_data_value_with_value_name!(String, StringOwned);
 impl_from_data_value_with_value_name!(bool, Boolean);
 impl_from_data_value_with_special_column!(FlDataFrameRectangle, Rectangle);
 impl_from_data_value_with_special_column!(FlDataFrameSegment, Segment);
