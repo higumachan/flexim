@@ -49,7 +49,7 @@ flexim-layout = { path = "crates/flexim-layout" }
 flexim-utility = { path = "crates/flexim-utility" }
 flexim-config = { path = "crates/flexim-config" }
 num-derive = "0.4.1"
-chrono = { version = "0.4.31", features = ["serde"] }
+chrono = { version = "0.4.38", features = ["serde"] }
 env_logger = "0.10.1"
 scarlet = "1.2.0"
 unwrap-ord = "0.1.2"

@@ -15,7 +15,7 @@ fn read_rectangle(s: &Series) -> Series {
     let mut y1 = vec![];
     let mut x2 = vec![];
     let mut y2 = vec![];
-    for s in s.utf8().unwrap().into_iter() {
+    for s in s.str().unwrap().into_iter() {
         let s: Option<&str> = s;
         if let Some(s) = s {
             let t = serde_json::from_str::<FlDataFrameRectangle>(s).unwrap();
@@ -45,7 +45,7 @@ fn read_segment(s: &Series, name: &str) -> Series {
     let mut y1 = vec![];
     let mut x2 = vec![];
     let mut y2 = vec![];
-    for s in s.utf8().unwrap().into_iter() {
+    for s in s.str().unwrap().into_iter() {
         let s: Option<&str> = s;
         if let Some(s) = s {
             let t = serde_json::from_str::<FlDataFrameRectangle>(s).unwrap();
@@ -74,7 +74,7 @@ fn read_color(s: &Series, name: &str) -> Series {
     let mut r = vec![];
     let mut g = vec![];
     let mut b = vec![];
-    for s in s.utf8().unwrap().into_iter() {
+    for s in s.str().unwrap().into_iter() {
         let s: Option<&str> = s;
         if let Some(s) = s {
             let t = serde_json::from_str::<FlDataFrameColor>(s).unwrap();
@@ -98,7 +98,12 @@ fn read_color(s: &Series, name: &str) -> Series {
 fn main() {
     let data = Vec::from(include_bytes!("../assets/input.csv"));
     let data = Cursor::new(data);
-    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+    // let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+    let mut df = CsvReadOptions::default()
+        .with_has_header(true)
+        .into_reader_with_file_handle(data)
+        .finish()
+        .unwrap();
 
     let mut df = df.apply("Face", read_rectangle).unwrap().clone();
     let mut df = df
