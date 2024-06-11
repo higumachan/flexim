@@ -310,7 +310,7 @@ fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) -> (Re
 
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
-    let dataframe = dataframe.with_row_count("__FleximRowId", None).unwrap();
+    let dataframe = dataframe.with_row_index("__FleximRowId", None).unwrap();
     let mut col_filter_mask = std::iter::repeat(true)
         .take(dataframe.height())
         .collect::<BooleanChunked>();
@@ -462,13 +462,13 @@ impl ColumnFilter {
                 filter: Some(Filter::Categorical(None)),
                 ..Default::default()
             }
-        } else if dtype == &DataType::Utf8 {
+        } else if dtype == &DataType::String {
             Self {
                 aggregated,
                 filter: Some(Filter::Search(String::new())),
                 ..Default::default()
             }
-        } else if let DataType::Categorical(_d) = dtype {
+        } else if let DataType::Categorical(_d, _) = dtype {
             Self {
                 aggregated,
                 filter: Some(Filter::Categorical(None)),
@@ -494,15 +494,15 @@ enum Filter {
 impl Filter {
     fn apply(&self, series: &Series) -> Option<BooleanChunked> {
         match self {
-            Filter::Search(search) => Some(series.utf8().ok()?.contains(search, true).ok()?),
+            Filter::Search(search) => Some(series.str().ok()?.contains(search, true).ok()?),
             Filter::Range { min, max } => {
                 let series = series.cast(&DataType::Float64).ok()?;
                 let series = series.f64().ok()?;
                 Some(series.gt_eq(*min).bitand(series.lt_eq(*max)))
             }
             Filter::Categorical(Some(categories)) => {
-                let series = series.cast(&DataType::Utf8).unwrap();
-                let series = series.utf8().unwrap();
+                let series = series.cast(&DataType::String).unwrap();
+                let series = series.str().unwrap();
                 Some(
                     series
                         .into_iter()
@@ -522,11 +522,11 @@ impl Filter {
 }
 
 fn unique_series(series: &Series) -> Option<Vec<String>> {
-    let series = series.cast(&DataType::Utf8).ok()?;
+    let series = series.cast(&DataType::String).ok()?;
 
     Some(
         series
-            .utf8()
+            .str()
             .ok()?
             .into_iter()
             .filter_map(|t| t.map(|s| s.to_string()))

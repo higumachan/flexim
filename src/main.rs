@@ -24,7 +24,7 @@ use flexim_storage::{Bag, BagId, Storage, StorageQuery};
 use itertools::Itertools;
 use ndarray::Array2;
 use polars::datatypes::StructChunked;
-use polars::prelude::{CsvReader, IntoSeries, NamedFrom, SerReader, Series};
+use polars::prelude::{CsvReadOptions, IntoSeries, NamedFrom, SerReader, Series};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Debug, Formatter};
@@ -583,7 +583,13 @@ fn insert_root_tile(tree: &mut Tree<Pane>, name: &str, pane_content: PaneContent
 fn load_sample_data() -> FlDataFrame {
     let data = Vec::from(include_bytes!("../assets/sample.csv"));
     let data = Cursor::new(data);
-    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+    // let mut df = CsvReader::new(data).with_has_header(true).finish().unwrap();
+
+    let mut df = CsvReadOptions::default()
+        .with_has_header(true)
+        .into_reader_with_file_handle(data)
+        .finish()
+        .unwrap();
 
     let mut df = df
         .apply("Face", |s| read_rectangle(s, "Face"))
@@ -615,7 +621,12 @@ fn load_sample_data() -> FlDataFrame {
 fn load_long_sample_data() -> FlDataFrame {
     let data = Vec::from(include_bytes!("../assets/long_sample.csv"));
     let data = Cursor::new(data);
-    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+    // let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+    let mut df = CsvReadOptions::default()
+        .with_has_header(true)
+        .into_reader_with_file_handle(data)
+        .finish()
+        .unwrap();
 
     let mut df = df
         .apply("Face", |s| read_rectangle(s, "Face"))
@@ -641,7 +652,12 @@ fn load_long_sample_data() -> FlDataFrame {
 fn load_long_sample_data2() -> FlDataFrame {
     let data = Vec::from(include_bytes!("../assets/long_sample2.csv"));
     let data = Cursor::new(data);
-    let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
+
+    let mut df = CsvReadOptions::default()
+        .with_has_header(true)
+        .into_reader_with_file_handle(data)
+        .finish()
+        .unwrap();
 
     let mut df = df
         .apply("Face1", |s| read_rectangle(s, "Face"))
@@ -677,7 +693,7 @@ fn read_rectangle(s: &Series, name: &str) -> Series {
     let mut y1 = vec![];
     let mut x2 = vec![];
     let mut y2 = vec![];
-    for s in s.utf8().unwrap().into_iter() {
+    for s in s.str().unwrap().into_iter() {
         let s: Option<&str> = s;
         if let Some(s) = s {
             let t = serde_json::from_str::<FlDataFrameRectangle>(s).unwrap();
@@ -707,7 +723,7 @@ fn read_segment(s: &Series, name: &str) -> Series {
     let mut y1 = vec![];
     let mut x2 = vec![];
     let mut y2 = vec![];
-    for s in s.utf8().unwrap().into_iter() {
+    for s in s.str().unwrap().into_iter() {
         let s: Option<&str> = s;
         if let Some(s) = s {
             let t = serde_json::from_str::<FlDataFrameRectangle>(s).unwrap();
@@ -736,7 +752,7 @@ fn read_color(s: &Series, name: &str) -> Series {
     let mut r = vec![];
     let mut g = vec![];
     let mut b = vec![];
-    for s in s.utf8().unwrap().into_iter() {
+    for s in s.str().unwrap().into_iter() {
         let s: Option<&str> = s;
         if let Some(s) = s {
             let t = serde_json::from_str::<FlDataFrameColor>(s).unwrap();
