@@ -430,10 +430,12 @@ fn layout_list_view(app: &App, ui: &mut Ui) {
                 },
                 |app, ui| {
                     if let Some(current_bag) = app.current_bag_id {
-                        if check_applicable(
-                            &app.storage.get_bag(current_bag).unwrap().read().unwrap(),
-                            l,
-                        ) {
+                        let bag = app.storage.get_bag(current_bag);
+                        let is_applicable = bag
+                            .as_ref()
+                            .map(|b| check_applicable(&b.read().unwrap(), l))
+                            .unwrap_or(false);
+                        if is_applicable {
                             if ui.button("📲").clicked() {
                                 app.send_event(UpdateAppEvent::SwitchLayout(l.clone()));
                             }
