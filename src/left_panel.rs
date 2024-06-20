@@ -151,20 +151,23 @@ fn data_bag_list_view(app: &App, ui: &mut Ui) {
                     .show(ui, |ui| {
                         for (bag_name, bag_versions) in bag_group {
                             if bag_versions.len() > 1 {
-                                CollapsingHeader::new(bag_name).show(ui, |ui| {
-                                    for bag in bag_versions {
-                                        let bag = bag.read().unwrap();
-                                        bag_view(
-                                            app,
-                                            ui,
-                                            &bag,
-                                            bag.created_at
-                                                .with_timezone(&Local)
-                                                .format("%Y-%m-%d %H:%M:%S")
-                                                .to_string(),
-                                        );
-                                    }
-                                });
+                                CollapsingHeader::new(bag_name).header_truncate(true).show(
+                                    ui,
+                                    |ui| {
+                                        for bag in bag_versions {
+                                            let bag = bag.read().unwrap();
+                                            bag_view(
+                                                app,
+                                                ui,
+                                                &bag,
+                                                bag.created_at
+                                                    .with_timezone(&Local)
+                                                    .format("%Y-%m-%d %H:%M:%S")
+                                                    .to_string(),
+                                            );
+                                        }
+                                    },
+                                );
                             } else {
                                 for bag in bag_versions {
                                     let bag = bag.read().unwrap();
@@ -177,20 +180,22 @@ fn data_bag_list_view(app: &App, ui: &mut Ui) {
                 let versions = bag_group.iter().collect_vec();
                 let (name, bag_versions) = versions.first().unwrap();
                 if bag_versions.len() > 1 {
-                    CollapsingHeader::new(*name).show(ui, |ui| {
-                        for bag in *bag_versions {
-                            let bag = bag.read().unwrap();
-                            bag_view(
-                                app,
-                                ui,
-                                &bag,
-                                bag.created_at
-                                    .with_timezone(&Local)
-                                    .format("%Y-%m-%d %H:%M:%S")
-                                    .to_string(),
-                            );
-                        }
-                    });
+                    CollapsingHeader::new(*name)
+                        .header_truncate(true)
+                        .show(ui, |ui| {
+                            for bag in *bag_versions {
+                                let bag = bag.read().unwrap();
+                                bag_view(
+                                    app,
+                                    ui,
+                                    &bag,
+                                    bag.created_at
+                                        .with_timezone(&Local)
+                                        .format("%Y-%m-%d %H:%M:%S")
+                                        .to_string(),
+                                );
+                            }
+                        });
                 } else {
                     for bag in *bag_versions {
                         let bag = bag.read().unwrap();
@@ -207,7 +212,7 @@ fn bag_view(app: &App, ui: &mut Ui, bag: &Bag, label: String) {
         ui,
         app,
         |_app, ui| {
-            ui.label(label);
+            Label::new(label).truncate(true).ui(ui);
         },
         |app, ui| {
             if ui.button("+").clicked() {
