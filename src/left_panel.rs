@@ -212,7 +212,7 @@ fn bag_view(app: &App, ui: &mut Ui, bag: &Bag, label: String) {
         ui,
         app,
         |_app, ui| {
-            Label::new(label).truncate(true).ui(ui);
+            Label::new(label).truncate().ui(ui);
         },
         |app, ui| {
             if ui.button("+").clicked() {
@@ -499,7 +499,7 @@ fn layout_list_view(app: &App, ui: &mut Ui) {
 }
 
 fn list_item_label(ui: &mut Ui, name: &str) -> Response {
-    Label::new(name).truncate(true).sense(Sense::click()).ui(ui)
+    Label::new(name).truncate().sense(Sense::click()).ui(ui)
 }
 
 fn data_type_to_icon(data_type: FlDataType) -> &'static str {

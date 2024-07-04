@@ -192,7 +192,7 @@ impl FlTable {
                 .header(80.0, |mut header| {
                     for col in &columns {
                         header.col(|ui| {
-                            Label::new(col.to_string()).truncate(true).ui(ui);
+                            Label::new(col.to_string()).truncate().ui(ui);
                             let filter = state.filters.get_mut(col).unwrap();
                             Checkbox::new(&mut filter.allow_null_value, "Allow Null").ui(ui);
                             filter.draw(Id::new(self.id).with(col), ui);

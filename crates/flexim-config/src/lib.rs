@@ -73,7 +73,7 @@ impl ConfigWindow {
                     ui.label("Zoom Upper Limit");
                     ui.add(
                         egui::DragValue::new(&mut config.zoom_upper_limit)
-                            .clamp_range(0.0..=100.0)
+                            .range(0.0..=100.0)
                             .speed(0.01),
                     );
                 });
@@ -82,7 +82,7 @@ impl ConfigWindow {
                     ui.label("Zoom Lower Limit");
                     ui.add(
                         egui::DragValue::new(&mut config.zoom_lower_limit)
-                            .clamp_range(0.0..=config.zoom_upper_limit)
+                            .range(0.0..=config.zoom_upper_limit)
                             .speed(0.01),
                     );
                 });
@@ -91,7 +91,7 @@ impl ConfigWindow {
                     ui.label("Zoom Speed");
                     ui.add(
                         egui::DragValue::new(&mut config.zoom_speed)
-                            .clamp_range(0.0..=10.0)
+                            .range(0.0..=10.0)
                             .speed(0.01),
                     );
                 });
@@ -100,7 +100,7 @@ impl ConfigWindow {
                     ui.label("Scroll Speed");
                     ui.add(
                         egui::DragValue::new(&mut config.scroll_speed)
-                            .clamp_range(0.0..=10.0)
+                            .range(0.0..=10.0)
                             .speed(0.01),
                     );
                 });

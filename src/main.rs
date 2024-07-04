@@ -360,7 +360,7 @@ fn main() -> Result<(), eframe::Error> {
         Box::new(move |cc| {
             setup_custom_fonts(&cc.egui_ctx);
             install_image_loaders(&cc.egui_ctx);
-            Box::new(app)
+            Ok(Box::new(app))
         }),
     )
 }
