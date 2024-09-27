@@ -34,6 +34,7 @@ use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Number;
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
 
@@ -230,6 +231,7 @@ impl DataRender {
         }
     }
 
+    /// 検査可能な線分を返す
     pub fn measurable_segments(&self, ctx: &Context, bag: &Bag) -> anyhow::Result<Vec<Line>> {
         match self {
             DataRender::Image(render) => render.measurable_segments(ctx, bag),
@@ -1064,7 +1066,9 @@ fn stack_visualize(
             tile_origin_pos.map(|pos| visualize_state.screen_to_absolute(pos.to_vec2()));
 
         // TODO(higumachan): リファクタリングしたい
+        // 検査を行っている部分のコード
         let command = ui.ctx().input(|input| input.modifiers.command_only());
+        let alt = ui.ctx().input(|input| input.modifiers.alt);
         if let Some(absolute_pos) = absolute_pos {
             if command {
                 // minimum distance
@@ -1232,6 +1236,63 @@ fn stack_visualize(
                         }
                         _ => {}
                     }
+                }
+            } else if alt {
+                // Altを押しながらの場合は、矩形を描画する
+                // TODO(higumachan): リファクタリングしたい
+                let clicked = ui.input(|input| input.pointer.primary_clicked());
+                if let Some(start) = ui.ctx().memory(|memory| {
+                    memory
+                        .data
+                        .get_temp::<Vec2>(Id::new("show_rectangle_start"))
+                }) {
+                    {
+                        let start = visualize_state.absolute_to_screen(start).to_pos2()
+                            + response.rect.min.to_vec2();
+                        let end = visualize_state.absolute_to_screen(absolute_pos).to_pos2()
+                            + response.rect.min.to_vec2();
+
+                        let rect = Rect::from_two_pos(start, end);
+                        painter.rect_stroke(rect, 0.0, Stroke::new(5.0, Color32::GREEN));
+                    }
+
+                    if clicked {
+                        let rect_format =
+                            serde_json::Value::Object(serde_json::Map::from_iter(vec![
+                                (
+                                    "x1".to_string(),
+                                    serde_json::Value::Number(
+                                        Number::from_f64(start.x.into()).unwrap(),
+                                    ),
+                                ),
+                                (
+                                    "y1".to_string(),
+                                    serde_json::Value::Number(
+                                        Number::from_f64(start.y.into()).unwrap(),
+                                    ),
+                                ),
+                                (
+                                    "x2".to_string(),
+                                    serde_json::Value::Number(
+                                        Number::from_f64(absolute_pos.x.into()).unwrap(),
+                                    ),
+                                ),
+                                (
+                                    "y2".to_string(),
+                                    serde_json::Value::Number(
+                                        Number::from_f64(absolute_pos.y.into()).unwrap(),
+                                    ),
+                                ),
+                            ]));
+                        ui.ctx().copy_text(rect_format.to_string());
+                    }
+                }
+                if clicked {
+                    ui.ctx().memory_mut(|memory| {
+                        memory
+                            .data
+                            .insert_temp(Id::new("show_rectangle_start"), absolute_pos);
+                    });
                 }
             }
         }
