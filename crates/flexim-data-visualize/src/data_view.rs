@@ -1,7 +1,7 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use anyhow::Context;
 use egui::ahash::HashMap;
-use egui::{CollapsingHeader, ScrollArea, Ui};
+use egui::{CollapsingHeader, ScrollArea, Style, Ui};
 use flexim_data_type::{FlDataFrame, FlDataReference};
 use flexim_data_view::object::FlObjectView;
 use flexim_data_view::{FlDataFrameView, Id, ShowColumns};
@@ -171,7 +171,8 @@ impl DataViewable for FlObjectView {
             .context("Failed to serialize object")
             .expect("Failed to serialize object");
 
-        let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let theme =
+            egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), &Style::default());
         ScrollArea::both()
             .auto_shrink(false)
             .max_width(f32::INFINITY)

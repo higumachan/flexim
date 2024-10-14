@@ -902,7 +902,7 @@ impl DataRenderable for FlDataFrameViewRender {
 
                 ui.horizontal(|ui| {
                     ui.label("Color Scatter Column");
-                    ComboBox::from_id_source("Color Scatter Column")
+                    ComboBox::from_id_salt("Color Scatter Column")
                         .selected_text(render_context.color_scatter_column.as_deref().unwrap_or(""))
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut render_context.color_scatter_column, None, "");
@@ -917,7 +917,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Fill Color Scatter Column");
-                    ComboBox::from_id_source("Fill Color Scatter Column")
+                    ComboBox::from_id_salt("Fill Color Scatter Column")
                         .selected_text(
                             render_context
                                 .fill_color_scatter_column
@@ -947,7 +947,7 @@ impl DataRenderable for FlDataFrameViewRender {
                         .into_iter()
                         .filter(|c| c != &self.column)
                         .collect_vec();
-                    ComboBox::from_id_source("Label Column")
+                    ComboBox::from_id_salt("Label Column")
                         .selected_text(render_context.label_column.as_deref().unwrap_or(""))
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut render_context.label_column, None, "");
@@ -962,7 +962,7 @@ impl DataRenderable for FlDataFrameViewRender {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Edge Accent");
-                    ComboBox::from_id_source("Edge Accent Start")
+                    ComboBox::from_id_salt("Edge Accent Start")
                         .selected_text(render_context.edge_accent_start.to_string())
                         .show_ui(ui, |ui| {
                             for edge_accent in all::<EdgeAccent>() {
@@ -973,7 +973,7 @@ impl DataRenderable for FlDataFrameViewRender {
                                 );
                             }
                         });
-                    ComboBox::from_id_source("Edge Accent End")
+                    ComboBox::from_id_salt("Edge Accent End")
                         .selected_text(render_context.edge_accent_end.to_string())
                         .show_ui(ui, |ui| {
                             for edge_accent in all::<EdgeAccent>() {

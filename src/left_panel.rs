@@ -1,9 +1,9 @@
 use crate::{App, Managed, UpdateAppEvent};
 use chrono::Local;
-use egui::menu::menu_image_button;
+use egui::menu::menu_custom_button;
 use egui::scroll_area::ScrollBarVisibility;
 use egui::{
-    global_dark_light_mode_switch, CollapsingHeader, Id, Image, ImageButton, Label, Response,
+    global_theme_preference_switch, Button, CollapsingHeader, Id, Image, Label, Response,
     ScrollArea, Sense, Ui, Vec2, Widget,
 };
 use egui_tiles::Tile;
@@ -21,9 +21,9 @@ use std::sync::{Arc, Mutex};
 
 pub fn left_panel(app: &mut App, ui: &mut Ui) {
     puffin::profile_function!();
-    menu_image_button(
+    menu_custom_button(
         ui,
-        ImageButton::new(
+        Button::image(
             Image::from_bytes("bytes://logo.png", include_bytes!("../assets/logo.png"))
                 .max_size(Vec2::new(12.0, 12.0)),
         ),
@@ -33,7 +33,7 @@ pub fn left_panel(app: &mut App, ui: &mut Ui) {
                 .ctx()
                 .memory_mut(|mem| mem.data.get_persisted::<PathBuf>(layout_file_path_id));
 
-            global_dark_light_mode_switch(ui);
+            global_theme_preference_switch(ui);
             if ui.button("Save Layout").clicked() {
                 let fd = rfd::FileDialog::new();
                 let fd = if let Some(path) = path.as_ref() {
@@ -513,7 +513,7 @@ fn data_type_to_icon(data_type: FlDataType) -> &'static str {
 
 fn default_scroll_area(ui: &mut Ui, id: &str) -> ScrollArea {
     ScrollArea::vertical()
-        .id_source(id)
+        .id_salt(id)
         .max_height(ui.available_height() / 5.0)
         .vscroll(true)
         .drag_to_scroll(true)

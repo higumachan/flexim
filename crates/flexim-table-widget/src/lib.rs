@@ -414,7 +414,7 @@ impl ColumnFilter {
                     .as_ref()
                     .and_then(|t| t.iter().next().cloned())
                     .unwrap_or("".to_string());
-                ComboBox::from_id_source(id)
+                ComboBox::from_id_salt(id)
                     .selected_text(cat)
                     .show_ui(ui, |ui| {
                         let mut selected = None;
