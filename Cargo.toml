@@ -20,6 +20,7 @@ dbg_macro = "warn"
 
 
 [workspace.dependencies]
+clap = { version = "4.5.20", features = ["derive"] }
 tracing = { version = "0.1.40" }
 tracing-subscriber = { version = "0.3.18" }
 tonic = "0.10.2"
@@ -109,6 +110,7 @@ puffin.workspace = true
 chrono.workspace = true
 flexim-utility.workspace = true
 flexim-config.workspace = true
+clap.workspace = true
 
 
 [package.metadata.packager]
