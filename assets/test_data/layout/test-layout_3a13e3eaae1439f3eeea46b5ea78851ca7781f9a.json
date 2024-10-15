@@ -1,0 +1,337 @@
+[
+  {
+    "id": 3318923488073185425,
+    "name": "test1",
+    "tree": {
+      "id": 9900688705544321307,
+      "root": 3,
+      "tiles": {
+        "next_tile_id": 11,
+        "tiles": {
+          "3": {
+            "Container": {
+              "Linear": {
+                "children": [
+                  1,
+                  2,
+                  7,
+                  9
+                ],
+                "dir": "Horizontal",
+                "shares": {
+                  "shares": {}
+                }
+              }
+            }
+          },
+          "5": {
+            "Pane": {
+              "name": "image",
+              "content": {
+                "Visualize": {
+                  "Image": {
+                    "content": {
+                      "name": "logo",
+                      "generation": "Latest",
+                      "data_type": "Image"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "6": {
+            "Pane": {
+              "name": "tall",
+              "content": {
+                "Visualize": {
+                  "Image": {
+                    "content": {
+                      "name": "tall",
+                      "generation": "Latest",
+                      "data_type": "Image"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "9": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  10
+                ],
+                "active": 10
+              }
+            }
+          },
+          "2": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  6
+                ],
+                "active": 6
+              }
+            }
+          },
+          "1": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  5
+                ],
+                "active": 5
+              }
+            }
+          },
+          "10": {
+            "Pane": {
+              "name": "📊 long_tabledata #0",
+              "content": {
+                "DataView": {
+                  "FlDataFrameView": {
+                    "id": 4639859363010190944,
+                    "table": {
+                      "id": 5777357578328971963,
+                      "previous_state": null,
+                      "data_reference": {
+                        "name": "long_tabledata",
+                        "generation": {
+                          "Generation": 0
+                        },
+                        "data_type": "DataFrame"
+                      }
+                    },
+                    "view_context": {
+                      "show_columns": {
+                        "Some": {
+                          "Id": 0,
+                          "Face": 3,
+                          "Segment": 4
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "7": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  8
+                ],
+                "active": 8
+              }
+            }
+          },
+          "8": {
+            "Pane": {
+              "name": "🔢 gauss #0",
+              "content": {
+                "Visualize": {
+                  "Tensor2D": {
+                    "content": {
+                      "name": "gauss",
+                      "generation": {
+                        "Generation": 0
+                      },
+                      "data_type": "Tensor"
+                    },
+                    "context": {
+                      "transparency": 0.82
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "invisible": []
+      }
+    }
+  },
+  {
+    "id": 10218377580695186239,
+    "name": "test2",
+    "tree": {
+      "id": 14442255016197396866,
+      "root": 1,
+      "tiles": {
+        "next_tile_id": 9,
+        "tiles": {
+          "8": {
+            "Pane": {
+              "name": "Segment 📊 tabledata #0",
+              "content": {
+                "Visualize": {
+                  "DataFrameView": {
+                    "id": 16390592569288853155,
+                    "dataframe_view": {
+                      "id": 727664069016494466,
+                      "table": {
+                        "id": 13919968557567448926,
+                        "previous_state": null,
+                        "data_reference": {
+                          "name": "tabledata",
+                          "generation": {
+                            "Generation": 0
+                          },
+                          "data_type": "DataFrame"
+                        }
+                      },
+                      "view_context": {
+                        "show_columns": "All"
+                      }
+                    },
+                    "column": "Segment",
+                    "render_context": {
+                      "color_scatter_column": null,
+                      "fill_color_scatter_column": null,
+                      "label_column": "Name",
+                      "transparency": 0.5,
+                      "fill_transparency": 0.9,
+                      "normal_thickness": 1.0,
+                      "highlight_thickness": 3.0,
+                      "edge_accent_start": "Arrow",
+                      "edge_accent_end": "Arrow"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  8
+                ],
+                "active": 8
+              }
+            }
+          },
+          "2": {
+            "Pane": {
+              "name": "📊 tabledata #0",
+              "content": {
+                "DataView": {
+                  "FlDataFrameView": {
+                    "id": 727664069016494466,
+                    "table": {
+                      "id": 13919968557567448926,
+                      "previous_state": null,
+                      "data_reference": {
+                        "name": "tabledata",
+                        "generation": {
+                          "Generation": 0
+                        },
+                        "data_type": "DataFrame"
+                      }
+                    },
+                    "view_context": {
+                      "show_columns": "All"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "1": {
+            "Container": {
+              "Linear": {
+                "children": [
+                  5,
+                  3
+                ],
+                "dir": "Horizontal",
+                "shares": {
+                  "shares": {}
+                }
+              }
+            }
+          },
+          "5": {
+            "Container": {
+              "Linear": {
+                "children": [
+                  7,
+                  4
+                ],
+                "dir": "Vertical",
+                "shares": {
+                  "shares": {}
+                }
+              }
+            }
+          },
+          "3": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  6
+                ],
+                "active": 6
+              }
+            }
+          },
+          "7": {
+            "Container": {
+              "Tabs": {
+                "children": [
+                  2
+                ],
+                "active": 2
+              }
+            }
+          },
+          "6": {
+            "Pane": {
+              "name": "Face 📊 tabledata #0",
+              "content": {
+                "Visualize": {
+                  "DataFrameView": {
+                    "id": 14229049792677691457,
+                    "dataframe_view": {
+                      "id": 727664069016494466,
+                      "table": {
+                        "id": 13919968557567448926,
+                        "previous_state": null,
+                        "data_reference": {
+                          "name": "tabledata",
+                          "generation": {
+                            "Generation": 0
+                          },
+                          "data_type": "DataFrame"
+                        }
+                      },
+                      "view_context": {
+                        "show_columns": "All"
+                      }
+                    },
+                    "column": "Face",
+                    "render_context": {
+                      "color_scatter_column": "Id",
+                      "fill_color_scatter_column": "LongColumnNameIntegerValue",
+                      "label_column": "Age",
+                      "transparency": 0.5,
+                      "fill_transparency": 0.9,
+                      "normal_thickness": 1.0,
+                      "highlight_thickness": 3.0,
+                      "edge_accent_start": "None",
+                      "edge_accent_end": "None"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "invisible": []
+      }
+    }
+  }
+]

@@ -20,6 +20,7 @@ dbg_macro = "warn"
 
 
 [workspace.dependencies]
+clap = { version = "4.5.20", features = ["derive"] }
 tracing = { version = "0.1.40" }
 tracing-subscriber = { version = "0.3.18" }
 tonic = "0.10.2"
@@ -28,10 +29,10 @@ tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
-egui = "0.28.0"
-egui_extras = { version = "0.28.0", features = ["image", "svg", "syntect"] }
-eframe = "0.28.0"
-egui_tiles = "0.9.0"
+egui = "0.29.1"
+egui_extras = { version = "0.29.1", features = ["image", "svg", "syntect"] }
+eframe = "0.29.1"
+egui_tiles = "0.10.1"
 image = { version = "0.24", features = ["png", "jpeg"] }
 ndarray = { version = "0.15.6", features = ["serde"] }
 serde = { version = "1.0.130", features = ["derive"] }
@@ -70,9 +71,9 @@ proptest = "1.4.0"
 
 
 [patch.crates-io]
-egui = { git = "https://github.com/higumachan/egui.git", rev = "be32b3aaedcf0a67a3804a48759039acbce930dd" }
-egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "be32b3aaedcf0a67a3804a48759039acbce930dd" }
-eframe = { git = "https://github.com/higumachan/egui.git", rev = "be32b3aaedcf0a67a3804a48759039acbce930dd" }
+egui = { git = "https://github.com/higumachan/egui.git", rev = "4a9fc34c3da4d3d8eaf9deb1bafc2488cfc72e5a" }
+egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "4a9fc34c3da4d3d8eaf9deb1bafc2488cfc72e5a" }
+eframe = { git = "https://github.com/higumachan/egui.git", rev = "4a9fc34c3da4d3d8eaf9deb1bafc2488cfc72e5a" }
 
 
 [lints]
@@ -109,6 +110,7 @@ puffin.workspace = true
 chrono.workspace = true
 flexim-utility.workspace = true
 flexim-config.workspace = true
+clap.workspace = true
 
 
 [package.metadata.packager]

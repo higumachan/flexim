@@ -3,11 +3,65 @@
     "id": 3318923488073185425,
     "name": "test1",
     "tree": {
+      "height": null,
       "id": 9900688705544321307,
       "root": 3,
       "tiles": {
+        "invisible": [],
         "next_tile_id": 11,
         "tiles": {
+          "1": {
+            "Container": {
+              "Tabs": {
+                "active": 5,
+                "children": [
+                  5
+                ]
+              }
+            }
+          },
+          "10": {
+            "Pane": {
+              "content": {
+                "DataView": {
+                  "FlDataFrameView": {
+                    "id": 4639859363010190944,
+                    "table": {
+                      "data_reference": {
+                        "data_type": "DataFrame",
+                        "generation": {
+                          "Generation": 0
+                        },
+                        "name": "long_tabledata"
+                      },
+                      "id": 5777357578328971963,
+                      "previous_state": null
+                    },
+                    "view_context": {
+                      "show_columns": {
+                        "Some": {
+                          "Face": 3,
+                          "Id": 0,
+                          "Segment": 4
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "name": "📊 long_tabledata #0"
+            }
+          },
+          "2": {
+            "Container": {
+              "Tabs": {
+                "active": 6,
+                "children": [
+                  6
+                ]
+              }
+            }
+          },
           "3": {
             "Container": {
               "Linear": {
@@ -26,220 +80,93 @@
           },
           "5": {
             "Pane": {
-              "name": "image",
               "content": {
                 "Visualize": {
                   "Image": {
                     "content": {
-                      "name": "logo",
+                      "data_type": "Image",
                       "generation": "Latest",
-                      "data_type": "Image"
+                      "name": "logo"
                     }
                   }
                 }
-              }
+              },
+              "name": "image"
             }
           },
           "6": {
             "Pane": {
-              "name": "tall",
               "content": {
                 "Visualize": {
                   "Image": {
                     "content": {
-                      "name": "tall",
+                      "data_type": "Image",
                       "generation": "Latest",
-                      "data_type": "Image"
+                      "name": "tall"
                     }
                   }
                 }
-              }
-            }
-          },
-          "9": {
-            "Container": {
-              "Tabs": {
-                "children": [
-                  10
-                ],
-                "active": 10
-              }
-            }
-          },
-          "2": {
-            "Container": {
-              "Tabs": {
-                "children": [
-                  6
-                ],
-                "active": 6
-              }
-            }
-          },
-          "1": {
-            "Container": {
-              "Tabs": {
-                "children": [
-                  5
-                ],
-                "active": 5
-              }
-            }
-          },
-          "10": {
-            "Pane": {
-              "name": "📊 long_tabledata #0",
-              "content": {
-                "DataView": {
-                  "FlDataFrameView": {
-                    "id": 4639859363010190944,
-                    "table": {
-                      "id": 5777357578328971963,
-                      "previous_state": null,
-                      "data_reference": {
-                        "name": "long_tabledata",
-                        "generation": {
-                          "Generation": 0
-                        },
-                        "data_type": "DataFrame"
-                      }
-                    },
-                    "view_context": {
-                      "show_columns": {
-                        "Some": {
-                          "Id": 0,
-                          "Face": 3,
-                          "Segment": 4
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+              },
+              "name": "tall"
             }
           },
           "7": {
             "Container": {
               "Tabs": {
+                "active": 8,
                 "children": [
                   8
-                ],
-                "active": 8
+                ]
               }
             }
           },
           "8": {
             "Pane": {
-              "name": "🔢 gauss #0",
               "content": {
                 "Visualize": {
                   "Tensor2D": {
                     "content": {
-                      "name": "gauss",
+                      "data_type": "Tensor",
                       "generation": {
                         "Generation": 0
                       },
-                      "data_type": "Tensor"
+                      "name": "gauss"
                     },
                     "context": {
                       "transparency": 0.82
                     }
                   }
                 }
+              },
+              "name": "🔢 gauss #0"
+            }
+          },
+          "9": {
+            "Container": {
+              "Tabs": {
+                "active": 10,
+                "children": [
+                  10
+                ]
               }
             }
           }
-        },
-        "invisible": []
-      }
+        }
+      },
+      "width": null
     }
   },
   {
     "id": 10218377580695186239,
     "name": "test2",
     "tree": {
+      "height": null,
       "id": 14442255016197396866,
       "root": 1,
       "tiles": {
+        "invisible": [],
         "next_tile_id": 9,
         "tiles": {
-          "8": {
-            "Pane": {
-              "name": "Segment 📊 tabledata #0",
-              "content": {
-                "Visualize": {
-                  "DataFrameView": {
-                    "id": 16390592569288853155,
-                    "dataframe_view": {
-                      "id": 727664069016494466,
-                      "table": {
-                        "id": 13919968557567448926,
-                        "previous_state": null,
-                        "data_reference": {
-                          "name": "tabledata",
-                          "generation": {
-                            "Generation": 0
-                          },
-                          "data_type": "DataFrame"
-                        }
-                      },
-                      "view_context": {
-                        "show_columns": "All"
-                      }
-                    },
-                    "column": "Segment",
-                    "render_context": {
-                      "color_scatter_column": null,
-                      "fill_color_scatter_column": null,
-                      "label_column": "Name",
-                      "transparency": 0.5,
-                      "fill_transparency": 0.9,
-                      "normal_thickness": 1.0,
-                      "highlight_thickness": 3.0,
-                      "edge_accent_start": "Arrow",
-                      "edge_accent_end": "Arrow"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "4": {
-            "Container": {
-              "Tabs": {
-                "children": [
-                  8
-                ],
-                "active": 8
-              }
-            }
-          },
-          "2": {
-            "Pane": {
-              "name": "📊 tabledata #0",
-              "content": {
-                "DataView": {
-                  "FlDataFrameView": {
-                    "id": 727664069016494466,
-                    "table": {
-                      "id": 13919968557567448926,
-                      "previous_state": null,
-                      "data_reference": {
-                        "name": "tabledata",
-                        "generation": {
-                          "Generation": 0
-                        },
-                        "data_type": "DataFrame"
-                      }
-                    },
-                    "view_context": {
-                      "show_columns": "All"
-                    }
-                  }
-                }
-              }
-            }
-          },
           "1": {
             "Container": {
               "Linear": {
@@ -251,6 +178,52 @@
                 "shares": {
                   "shares": {}
                 }
+              }
+            }
+          },
+          "2": {
+            "Pane": {
+              "content": {
+                "DataView": {
+                  "FlDataFrameView": {
+                    "id": 727664069016494466,
+                    "table": {
+                      "data_reference": {
+                        "data_type": "DataFrame",
+                        "generation": {
+                          "Generation": 0
+                        },
+                        "name": "tabledata"
+                      },
+                      "id": 13919968557567448926,
+                      "previous_state": null
+                    },
+                    "view_context": {
+                      "show_columns": "All"
+                    }
+                  }
+                }
+              },
+              "name": "📊 tabledata #0"
+            }
+          },
+          "3": {
+            "Container": {
+              "Tabs": {
+                "active": 6,
+                "children": [
+                  6
+                ]
+              }
+            }
+          },
+          "4": {
+            "Container": {
+              "Tabs": {
+                "active": 8,
+                "children": [
+                  8
+                ]
               }
             }
           },
@@ -268,70 +241,101 @@
               }
             }
           },
-          "3": {
-            "Container": {
-              "Tabs": {
-                "children": [
-                  6
-                ],
-                "active": 6
-              }
-            }
-          },
-          "7": {
-            "Container": {
-              "Tabs": {
-                "children": [
-                  2
-                ],
-                "active": 2
-              }
-            }
-          },
           "6": {
             "Pane": {
-              "name": "Face 📊 tabledata #0",
               "content": {
                 "Visualize": {
                   "DataFrameView": {
-                    "id": 14229049792677691457,
+                    "column": "Face",
                     "dataframe_view": {
                       "id": 727664069016494466,
                       "table": {
-                        "id": 13919968557567448926,
-                        "previous_state": null,
                         "data_reference": {
-                          "name": "tabledata",
+                          "data_type": "DataFrame",
                           "generation": {
                             "Generation": 0
                           },
-                          "data_type": "DataFrame"
-                        }
+                          "name": "tabledata"
+                        },
+                        "id": 13919968557567448926,
+                        "previous_state": null
                       },
                       "view_context": {
                         "show_columns": "All"
                       }
                     },
-                    "column": "Face",
+                    "id": 14229049792677691457,
                     "render_context": {
                       "color_scatter_column": "Id",
-                      "fill_color_scatter_column": "LongColumnNameIntegerValue",
-                      "label_column": "Age",
-                      "transparency": 0.5,
-                      "fill_transparency": 0.9,
-                      "normal_thickness": 1.0,
-                      "highlight_thickness": 3.0,
+                      "edge_accent_end": "None",
                       "edge_accent_start": "None",
-                      "edge_accent_end": "None"
+                      "fill_color_scatter_column": "LongColumnNameIntegerValue",
+                      "fill_transparency": 0.9,
+                      "highlight_thickness": 3.0,
+                      "label_column": "Age",
+                      "normal_thickness": 1.0,
+                      "transparency": 0.5
                     }
                   }
                 }
+              },
+              "name": "Face 📊 tabledata #0"
+            }
+          },
+          "7": {
+            "Container": {
+              "Tabs": {
+                "active": 2,
+                "children": [
+                  2
+                ]
               }
             }
+          },
+          "8": {
+            "Pane": {
+              "content": {
+                "Visualize": {
+                  "DataFrameView": {
+                    "column": "Segment",
+                    "dataframe_view": {
+                      "id": 727664069016494466,
+                      "table": {
+                        "data_reference": {
+                          "data_type": "DataFrame",
+                          "generation": {
+                            "Generation": 0
+                          },
+                          "name": "tabledata"
+                        },
+                        "id": 13919968557567448926,
+                        "previous_state": null
+                      },
+                      "view_context": {
+                        "show_columns": "All"
+                      }
+                    },
+                    "id": 16390592569288853155,
+                    "render_context": {
+                      "color_scatter_column": null,
+                      "edge_accent_end": "Arrow",
+                      "edge_accent_start": "Arrow",
+                      "fill_color_scatter_column": null,
+                      "fill_transparency": 0.9,
+                      "highlight_thickness": 3.0,
+                      "label_column": "Name",
+                      "normal_thickness": 1.0,
+                      "transparency": 0.5
+                    }
+                  }
+                }
+              },
+              "name": "Segment 📊 tabledata #0"
+            }
           }
-        },
-        "invisible": []
-      }
+        }
+      },
+      "width": null
     }
   }
 ]
