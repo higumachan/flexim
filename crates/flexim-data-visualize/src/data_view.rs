@@ -1,7 +1,7 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use anyhow::Context;
-use egui::ahash::{HashMap, HashSet};
-use egui::{Button, CollapsingHeader, ScrollArea, Style, Ui};
+use egui::ahash::HashSet;
+use egui::{CollapsingHeader, ScrollArea, Style, Ui};
 use flexim_data_type::{FlDataFrame, FlDataReference};
 use flexim_data_view::object::FlObjectView;
 use flexim_data_view::{FlDataFrameView, Id, ShowColumns};
@@ -135,7 +135,7 @@ impl DataViewable for FlDataFrameView {
                             match &mut view_context.show_columns {
                                 ShowColumns::All => {
                                     let has_columns =
-                                        HashSet::from_iter(column_names.iter().map(|v| v.clone()));
+                                        HashSet::from_iter(column_names.iter().cloned());
 
                                     let mut new_names = column_names.clone();
 
@@ -159,7 +159,7 @@ impl DataViewable for FlDataFrameView {
                             match &mut view_context.show_columns {
                                 ShowColumns::All => {
                                     let has_columns =
-                                        HashSet::from_iter(column_names.iter().map(|v| v.clone()));
+                                        HashSet::from_iter(column_names.iter().cloned());
 
                                     let mut new_names = column_names.clone();
 
@@ -194,9 +194,8 @@ impl DataViewable for FlDataFrameView {
                             } else {
                                 match &mut view_context.show_columns {
                                     ShowColumns::All => {
-                                        let mut has_columns = HashSet::from_iter(
-                                            column_names.iter().map(|v| v.clone()),
-                                        );
+                                        let mut has_columns =
+                                            HashSet::from_iter(column_names.iter().cloned());
                                         has_columns.remove(&column_name.to_string());
                                         view_context.show_columns =
                                             ShowColumns::Some(has_columns, column_names.clone());

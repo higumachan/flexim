@@ -1,9 +1,8 @@
 pub mod object;
 
-use egui::ahash::{HashMap, HashSet};
+use egui::ahash::HashSet;
 use flexim_data_type::{FlData, FlDataReference};
 use flexim_table_widget::{FlTable, FlTableDrawContext};
-use itertools::Itertools;
 use std::sync::{Arc, Mutex};
 
 use rand::random;
@@ -39,7 +38,7 @@ impl From<FlDataFrameViewContext> for FlTableDrawContext {
                 columns
                     .iter()
                     .filter(|c| has_column.contains(*c))
-                    .map(|c| c.clone())
+                    .cloned()
                     .collect(),
             ),
         };
