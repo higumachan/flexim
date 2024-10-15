@@ -1,7 +1,7 @@
 use crate::visualize::{DataRender, FlDataFrameViewRender};
 use anyhow::Context;
-use egui::ahash::HashMap;
-use egui::{CollapsingHeader, ScrollArea, Style, Ui};
+use egui::ahash::{HashMap, HashSet};
+use egui::{Button, CollapsingHeader, ScrollArea, Style, Ui};
 use flexim_data_type::{FlDataFrame, FlDataReference};
 use flexim_data_view::object::FlObjectView;
 use flexim_data_view::{FlDataFrameView, Id, ShowColumns};
@@ -115,41 +115,99 @@ impl DataViewable for FlDataFrameView {
             .default_open(true)
             .show(ui, |ui| {
                 let dataframe = self.table.dataframe(bag).expect("DataFrame not found");
-                let column_names = dataframe.value.get_column_names();
-
                 let mut view_context = self.view_context.lock().unwrap();
+
+                let column_names = match &view_context.show_columns {
+                    ShowColumns::All => dataframe
+                        .value
+                        .get_column_names()
+                        .iter()
+                        .map(|v| v.to_string())
+                        .collect(),
+                    ShowColumns::Some(_, columns) => columns.clone(),
+                };
+                dataframe.value.get_column_names();
+
                 for (i, column_name) in column_names.iter().enumerate() {
-                    let mut checked = match &view_context.show_columns {
-                        ShowColumns::All => true,
-                        ShowColumns::Some(columns) => {
-                            columns.contains_key(&column_name.to_string())
-                        }
-                    };
-                    if ui.checkbox(&mut checked, *column_name).changed() {
-                        if checked {
-                            match &mut view_context.show_columns {
-                                ShowColumns::All => {}
-                                ShowColumns::Some(columns) => {
-                                    columns.insert(column_name.to_string(), i);
-                                }
-                            }
-                        } else {
+                    ui.horizontal(|ui| {
+                        let button = ui.small_button("↑");
+                        if i > 0 && button.clicked() {
                             match &mut view_context.show_columns {
                                 ShowColumns::All => {
-                                    let mut all_columns: HashMap<_, _> = column_names
-                                        .iter()
-                                        .enumerate()
-                                        .map(|(v, k)| (k.to_string(), v))
-                                        .collect();
-                                    all_columns.remove(*column_name);
-                                    view_context.show_columns = ShowColumns::Some(all_columns);
+                                    let has_columns =
+                                        HashSet::from_iter(column_names.iter().map(|v| v.clone()));
+
+                                    let mut new_names = column_names.clone();
+
+                                    let i =
+                                        new_names.iter().position(|v| v == column_name).unwrap();
+                                    new_names.swap(i, i - 1);
+
+                                    view_context.show_columns =
+                                        ShowColumns::Some(has_columns, new_names);
                                 }
-                                ShowColumns::Some(columns) => {
-                                    columns.remove(&column_name.to_string());
+                                ShowColumns::Some(has_columns, columns) => {
+                                    let mut columns = columns.clone();
+                                    columns.swap(i, i - 1);
+                                    view_context.show_columns =
+                                        ShowColumns::Some(has_columns.clone(), columns.clone());
                                 }
                             }
                         }
-                    }
+                        let button = ui.small_button("↓");
+                        if i < column_names.len() - 1 && button.clicked() {
+                            match &mut view_context.show_columns {
+                                ShowColumns::All => {
+                                    let has_columns =
+                                        HashSet::from_iter(column_names.iter().map(|v| v.clone()));
+
+                                    let mut new_names = column_names.clone();
+
+                                    let i =
+                                        new_names.iter().position(|v| v == column_name).unwrap();
+                                    new_names.swap(i, i + 1);
+
+                                    view_context.show_columns =
+                                        ShowColumns::Some(has_columns, new_names);
+                                }
+                                ShowColumns::Some(has_columns, columns) => {
+                                    let mut columns = columns.clone();
+                                    columns.swap(i, i + 1);
+                                    view_context.show_columns =
+                                        ShowColumns::Some(has_columns.clone(), columns.clone());
+                                }
+                            }
+                        }
+
+                        let mut checked = match &view_context.show_columns {
+                            ShowColumns::All => true,
+                            ShowColumns::Some(has_columns, _) => has_columns.contains(column_name),
+                        };
+                        if ui.checkbox(&mut checked, column_name).changed() {
+                            if checked {
+                                match &mut view_context.show_columns {
+                                    ShowColumns::All => {}
+                                    ShowColumns::Some(has_columns, _) => {
+                                        has_columns.insert(column_name.clone());
+                                    }
+                                }
+                            } else {
+                                match &mut view_context.show_columns {
+                                    ShowColumns::All => {
+                                        let mut has_columns = HashSet::from_iter(
+                                            column_names.iter().map(|v| v.clone()),
+                                        );
+                                        has_columns.remove(&column_name.to_string());
+                                        view_context.show_columns =
+                                            ShowColumns::Some(has_columns, column_names.clone());
+                                    }
+                                    ShowColumns::Some(has_columns, _) => {
+                                        has_columns.remove(&column_name.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    });
                 }
             });
     }

@@ -1,6 +1,6 @@
 pub mod object;
 
-use egui::ahash::HashMap;
+use egui::ahash::{HashMap, HashSet};
 use flexim_data_type::{FlData, FlDataReference};
 use flexim_table_widget::{FlTable, FlTableDrawContext};
 use itertools::Itertools;
@@ -23,7 +23,7 @@ pub struct FlDataFrameView {
 pub enum ShowColumns {
     #[default]
     All,
-    Some(HashMap<String, usize>),
+    Some(HashSet<String>, Vec<String>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -35,12 +35,13 @@ impl From<FlDataFrameViewContext> for FlTableDrawContext {
     fn from(view: FlDataFrameViewContext) -> Self {
         let draw_columns = match view.show_columns {
             ShowColumns::All => flexim_table_widget::ShowColumns::All,
-            ShowColumns::Some(columns) => {
-                let mut columns = columns.iter().map(|(k, v)| (k.clone(), *v)).collect_vec();
-                columns.sort_by_key(|(_, v)| *v);
-                let columns = columns.into_iter().map(|(k, _)| k).collect();
-                flexim_table_widget::ShowColumns::Some(columns)
-            }
+            ShowColumns::Some(has_column, columns) => flexim_table_widget::ShowColumns::Some(
+                columns
+                    .iter()
+                    .filter(|c| has_column.contains(*c))
+                    .map(|c| c.clone())
+                    .collect(),
+            ),
         };
 
         Self {
