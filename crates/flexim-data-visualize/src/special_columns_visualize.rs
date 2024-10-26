@@ -1,10 +1,11 @@
 use crate::visualize::VisualizeState;
 use egui::epaint::PathShape;
+use egui::epaint::{CubicBezierShape, PathStroke};
 use egui::{
     Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
 };
 use enum_iterator::Sequence;
-use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
+use flexim_data_type::{FlDataFrameCubicBezier, FlDataFrameRectangle, FlDataFrameSegment};
 use geo::Line;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
@@ -230,6 +231,66 @@ impl SpecialColumnShape for FlDataFrameSegment {
 
     fn measure_segments(&self) -> Vec<Line> {
         vec![Line::new([self.x1, self.y1], [self.x2, self.y2])]
+    }
+}
+
+impl SpecialColumnShape for FlDataFrameCubicBezier {
+    fn render(
+        &self,
+        ui: &mut Ui,
+        painter: &mut Painter,
+        parameter: RenderParameter,
+        state: &VisualizeState,
+    ) -> Option<Response> {
+        // TODO(higumachan): 適宜以下のパラメータを利用していく
+        // - label,
+        // - edge_accent_start,
+        // - edge_accent_end,
+
+        let RenderParameter {
+            stroke_color: color,
+            stroke_thickness: thickness,
+            ..
+        } = parameter;
+
+        let curve = CubicBezierShape {
+            points: [
+                state
+                    .absolute_to_screen(Vec2::new(self.position_x1 as f32, self.position_y1 as f32))
+                    .to_pos2(),
+                state
+                    .absolute_to_screen(Vec2::new(self.control_x1 as f32, self.control_y1 as f32))
+                    .to_pos2(),
+                state
+                    .absolute_to_screen(Vec2::new(self.control_x2 as f32, self.control_y2 as f32))
+                    .to_pos2(),
+                state
+                    .absolute_to_screen(Vec2::new(self.position_x2 as f32, self.position_y2 as f32))
+                    .to_pos2(),
+            ],
+            closed: false,
+            stroke: PathStroke::new(thickness, color),
+            fill: Color32::TRANSPARENT,
+        };
+
+        let response = ui
+            .allocate_rect(
+                Rect::from_center_size(curve.points[0], Vec2::splat(1.0)),
+                Sense::click(),
+            )
+            .union(ui.allocate_rect(
+                Rect::from_center_size(curve.points[3], Vec2::splat(1.0)),
+                Sense::click(),
+            ));
+
+        painter.add(curve);
+
+        Some(response)
+    }
+
+    fn measure_segments(&self) -> Vec<Line> {
+        // TODO(higumachan): 曲線の接線で計測をしたいならここの詳細実装が必要
+        vec![]
     }
 }
 

@@ -10,8 +10,8 @@ use egui::{
 };
 
 use flexim_data_type::{
-    FlData, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
-    FlDataReference, FlImage, FlShapeConvertError,
+    FlData, FlDataFrameColor, FlDataFrameCubicBezier, FlDataFrameRectangle, FlDataFrameSegment,
+    FlDataFrameSpecialColumn, FlDataReference, FlImage, FlShapeConvertError,
 };
 use flexim_data_view::FlDataFrameView;
 use image::{DynamicImage, ImageBuffer, Rgb};
@@ -685,7 +685,9 @@ impl DataRenderable for FlDataFrameViewRender {
                     }
                     FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
                         .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
-                    _ => Err(FlShapeConvertError::CanNotConvert),
+                    FlDataFrameSpecialColumn::Curve => FlDataFrameCubicBezier::try_from(x.clone())
+                        .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    FlDataFrameSpecialColumn::Color => Err(FlShapeConvertError::CanNotConvert),
                 })
                 .map(|x| {
                     x.map(Some).or_else(|e| match e {

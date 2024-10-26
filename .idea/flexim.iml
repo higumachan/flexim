@@ -34,6 +34,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-utility/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-client/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/flexim-config/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/flexim-data-type/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/crates/flexim-data-type/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />

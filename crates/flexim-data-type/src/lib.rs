@@ -207,6 +207,7 @@ pub enum FlDataFrameSpecialColumn {
     Rectangle,
     Segment,
     Color,
+    Curve,
 }
 
 impl FlDataFrameSpecialColumn {
@@ -215,6 +216,7 @@ impl FlDataFrameSpecialColumn {
             Self::Rectangle => true,
             Self::Segment => true,
             Self::Color => false,
+            Self::Curve => true,
         }
     }
 }
@@ -516,6 +518,145 @@ impl FlDataFrameColor {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlDataFrameCubicBezier {
+    pub position_x1: f32,
+    pub position_y1: f32,
+    pub position_x2: f32,
+    pub position_y2: f32,
+    pub control_x1: f32,
+    pub control_y1: f32,
+    pub control_x2: f32,
+    pub control_y2: f32,
+}
+
+impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameCubicBezier {
+    type Error = FlShapeConvertError;
+
+    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
+        let mut position_x1 = None;
+        let mut position_y1 = None;
+        let mut position_x2 = None;
+        let mut position_y2 = None;
+        let mut control_x1 = None;
+        let mut control_y1 = None;
+        let mut control_x2 = None;
+        let mut control_y2 = None;
+        let mut update_func = |field: &Field, value: AnyValue| {
+            if !field.dtype.is_float() {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected float field, found {:?}",
+                    field.dtype
+                )));
+            }
+            let value = if !value.is_nested_null() {
+                Some(Some(value.try_extract().context("Expected float")?))
+            } else {
+                Some(None)
+            };
+            match field.name().as_str() {
+                "position_x1" => {
+                    position_x1 = value;
+                }
+                "position_y1" => {
+                    position_y1 = value;
+                }
+                "position_x2" => {
+                    position_x2 = value;
+                }
+                "position_y2" => {
+                    position_y2 = value;
+                }
+                "control_x1" => {
+                    control_x1 = value;
+                }
+                "control_y1" => {
+                    control_y1 = value;
+                }
+                "control_x2" => {
+                    control_x2 = value;
+                }
+                "control_y2" => {
+                    control_y2 = value;
+                }
+                _ => {
+                    return Err(Self::Error::UnhandledError(anyhow!(
+                        "Unknown field {:?}",
+                        field.name()
+                    )));
+                }
+            }
+            Ok(())
+        };
+
+        let value = value.into_static().context("Failed to convert to static")?;
+        match value {
+            AnyValue::StructOwned(s) => {
+                for (field, value) in s.1.iter().zip(s.0) {
+                    update_func(field, value)?;
+                }
+            }
+            _ => {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected struct, found {:?}",
+                    value
+                )));
+            }
+        }
+
+        Ok(Self {
+            position_x1: position_x1
+                .context("Missing field position_x1")?
+                .ok_or(Self::Error::NullValue)?,
+            position_y1: position_y1
+                .context("Missing field position_y1")?
+                .ok_or(Self::Error::NullValue)?,
+            position_x2: position_x2
+                .context("Missing field position_x2")?
+                .ok_or(Self::Error::NullValue)?,
+            position_y2: position_y2
+                .context("Missing field position_y2")?
+                .ok_or(Self::Error::NullValue)?,
+            control_x1: control_x1
+                .context("Missing field control_x1")?
+                .ok_or(Self::Error::NullValue)?,
+            control_y1: control_y1
+                .context("Missing field control_y1")?
+                .ok_or(Self::Error::NullValue)?,
+            control_x2: control_x2
+                .context("Missing field control_x2")?
+                .ok_or(Self::Error::NullValue)?,
+            control_y2: control_y2
+                .context("Missing field control_y2")?
+                .ok_or(Self::Error::NullValue)?,
+        })
+    }
+}
+
+impl FlDataFrameCubicBezier {
+    pub fn validate_fields(fields: &[Field]) -> bool {
+        let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
+        [
+            "position_x1",
+            "position_y1",
+            "position_x2",
+            "position_y2",
+            "control_x1",
+            "control_y1",
+            "control_x2",
+            "control_y2",
+        ]
+        .into_iter()
+        .all(|key| {
+            if let Some(dt) = field_map.get(key) {
+                dt.is_float()
+            } else {
+                false
+            }
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum GenerationSelector {
     Latest,
@@ -571,7 +712,36 @@ fn gen_id() -> Id {
 
 #[cfg(test)]
 mod tests {
+    use polars::prelude::{AnyValue, Field, NamedFrom, SerReader};
 
     #[test]
     fn it_works() {}
+
+    #[test]
+    fn curve_data() {
+        let value = AnyValue::StructOwned(Box::new((
+            vec![
+                AnyValue::Float64(1.0),
+                AnyValue::Float64(2.0),
+                AnyValue::Float64(3.0),
+                AnyValue::Float64(4.0),
+                AnyValue::Float64(5.0),
+                AnyValue::Float64(6.0),
+                AnyValue::Float64(7.0),
+                AnyValue::Float64(8.0),
+            ],
+            vec![
+                Field::new("position_x1", polars::datatypes::DataType::Float64),
+                Field::new("position_y1", polars::datatypes::DataType::Float64),
+                Field::new("position_x2", polars::datatypes::DataType::Float64),
+                Field::new("position_y2", polars::datatypes::DataType::Float64),
+                Field::new("control_x1", polars::datatypes::DataType::Float64),
+                Field::new("control_y1", polars::datatypes::DataType::Float64),
+                Field::new("control_x2", polars::datatypes::DataType::Float64),
+                Field::new("control_y2", polars::datatypes::DataType::Float64),
+            ],
+        )));
+
+        let curve = super::FlDataFrameCubicBezier::try_from(value).unwrap();
+    }
 }
