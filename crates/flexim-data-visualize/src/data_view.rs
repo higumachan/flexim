@@ -119,13 +119,14 @@ impl DataViewable for FlDataFrameView {
 
                 let mut view_context = self.view_context.lock().unwrap();
                 for (i, column_name) in column_names.iter().enumerate() {
+                    let column_name = column_name.to_string();
                     let mut checked = match &view_context.show_columns {
                         ShowColumns::All => true,
                         ShowColumns::Some(columns) => {
                             columns.contains_key(&column_name.to_string())
                         }
                     };
-                    if ui.checkbox(&mut checked, *column_name).changed() {
+                    if ui.checkbox(&mut checked, column_name.to_string()).changed() {
                         if checked {
                             match &mut view_context.show_columns {
                                 ShowColumns::All => {}
@@ -141,7 +142,7 @@ impl DataViewable for FlDataFrameView {
                                         .enumerate()
                                         .map(|(v, k)| (k.to_string(), v))
                                         .collect();
-                                    all_columns.remove(*column_name);
+                                    all_columns.remove(&column_name);
                                     view_context.show_columns = ShowColumns::Some(all_columns);
                                 }
                                 ShowColumns::Some(columns) => {

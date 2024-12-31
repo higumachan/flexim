@@ -291,7 +291,7 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
             Ok(())
         };
 
-        let value = value.into_static().context("Failed to convert to static")?;
+        let value = value.into_static();
 
         match value {
             AnyValue::StructOwned(s) => {
@@ -388,7 +388,7 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameSegment {
             Ok(())
         };
 
-        let value = value.into_static().context("Failed to convert to static")?;
+        let value = value.into_static();
         match value {
             AnyValue::StructOwned(s) => {
                 for (field, value) in s.1.iter().zip(s.0) {
@@ -478,7 +478,7 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameColor {
             Ok(())
         };
 
-        let value = value.into_static().context("Failed to convert to static")?;
+        let value = value.into_static();
         match value {
             AnyValue::StructOwned(s) => {
                 for (field, value) in s.1.iter().zip(s.0) {

@@ -627,12 +627,14 @@ impl DataRenderable for FlDataFrameViewRender {
             dataframe
                 .value
                 .clone()
-                .with_row_index("__FleximRowId", None)
+                .with_row_index("__FleximRowId".into(), None)
                 .unwrap()
         };
 
         let target_series = computed_dataframe
             .column(self.column.as_str())
+            .unwrap()
+            .as_series()
             .unwrap()
             .clone();
         let stroke_color_series = self
@@ -641,16 +643,20 @@ impl DataRenderable for FlDataFrameViewRender {
             .unwrap()
             .color_scatter_column
             .as_ref()
-            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone())
+            .map(|c| c.as_series().unwrap().clone());
         let fill_color_series = self
             .render_context
             .lock()
             .unwrap()
             .fill_color_scatter_column
             .as_ref()
-            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone())
+            .map(|c| c.as_series().unwrap().clone());
         let indices = computed_dataframe
             .column("__FleximRowId")
+            .unwrap()
+            .as_series()
             .unwrap()
             .iter()
             .map(|v| v.extract::<u32>().unwrap() as u64)
@@ -663,6 +669,8 @@ impl DataRenderable for FlDataFrameViewRender {
                 Some(
                     computed_dataframe
                         .column("__FleximRowId")
+                        .unwrap()
+                        .as_series()
                         .unwrap()
                         .iter()
                         .map(|v| {
@@ -713,7 +721,8 @@ impl DataRenderable for FlDataFrameViewRender {
             .unwrap()
             .label_column
             .as_ref()
-            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone());
+            .map(|c| computed_dataframe.column(c.as_str()).unwrap().clone())
+            .map(|c| c.as_series().unwrap().clone());
         let labels = label_series
             .map(|label_series| label_series.iter().map(|v| v.to_string()).collect_vec());
 
@@ -809,12 +818,14 @@ impl DataRenderable for FlDataFrameViewRender {
             dataframe
                 .value
                 .clone()
-                .with_row_index("__FleximRowId", None)
+                .with_row_index("__FleximRowId".into(), None)
                 .unwrap()
         };
 
         let target_series = computed_dataframe
             .column(self.column.as_str())
+            .unwrap()
+            .as_series()
             .unwrap()
             .clone();
 
@@ -895,7 +906,8 @@ impl DataRenderable for FlDataFrameViewRender {
                 let columns = dataframe.value.get_column_names();
                 let columns = columns
                     .into_iter()
-                    .filter(|c| c != &self.column)
+                    .map(|c| c.as_str())
+                    .filter(|c| *c != self.column)
                     .collect_vec();
 
                 render_context.verification(&columns);
@@ -945,6 +957,7 @@ impl DataRenderable for FlDataFrameViewRender {
                     let columns = dataframe.value.get_column_names();
                     let columns = columns
                         .into_iter()
+                        .map(|c| c.as_str())
                         .filter(|c| c != &self.column)
                         .collect_vec();
                     ComboBox::from_id_salt("Label Column")

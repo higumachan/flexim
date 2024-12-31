@@ -1,5 +1,5 @@
+use egui::epaint::ahash::AHasher;
 use egui::Color32;
-use polars::export::ahash::AHasher;
 use scarlet::material_colors::{AccentTone, MaterialPrimary, MaterialTone};
 use scarlet::prelude::RGBColor;
 use std::hash::{Hash, Hasher};
