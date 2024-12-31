@@ -9,9 +9,9 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-polars-core = { version = "0.40.0", default-features = true, features = ["dtype-struct", "dtype-categorical", "strings", "regex", "serde", "rows", "private"] }
-polars-io = { version = "0.40.0", optional = true, default-features = true, features = ["serde", "dtype-categorical", "dtype-struct", "private"] }
-polars-ops = { version = "0.40.0", default-features = true, features = ["dtype-struct", "dtype-categorical", "strings", "private"] }
+polars-core = { version = "0.40.0", default-features = true, features = ["dtype-struct", "dtype-categorical", "strings", "regex", "serde", "rows"] }
+polars-io = { version = "0.40.0", optional = true, default-features = true, features = ["serde", "dtype-categorical", "dtype-struct"] }
+polars-ops = { version = "0.40.0", default-features = true, features = ["dtype-struct", "dtype-categorical", "strings"] }
 
 [features]
 io = ["polars-io"]
