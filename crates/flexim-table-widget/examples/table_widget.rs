@@ -91,7 +91,9 @@ fn read_color(s: &Series, name: &str) -> Series {
     let g = Series::new("g".into(), g);
     let b = Series::new("b".into(), b);
 
-    StructChunked::from_chunk_iter(name.into(), vec![r, g, b].into_iter()).unwrap().into_series()
+    StructChunked::from_chunk_iter(name.into(), vec![r, g, b].into_iter())
+        .unwrap()
+        .into_series()
 }
 
 #[allow(clippy::dbg_macro)]
@@ -105,7 +107,10 @@ fn main() {
         .finish()
         .unwrap();
 
-    let mut df = df.apply("Face", |col| read_rectangle(&col.into_series())).unwrap().clone();
+    let mut df = df
+        .apply("Face", |col| read_rectangle(&col.into_series()))
+        .unwrap()
+        .clone();
     let mut df = df
         .apply("Segment", |s| read_segment(&s.into_series(), "Segment"))
         .unwrap()

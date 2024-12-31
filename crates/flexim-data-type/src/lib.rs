@@ -257,7 +257,11 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
                     x1 = if !value.is_nested_null() {
                         Some(Some(match value.try_extract() {
                             Ok(v) => v,
-                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                            Err(_) => {
+                                return Err(FlShapeConvertError::UnhandledError(anyhow!(
+                                    "Expected float"
+                                )))
+                            }
                         }))
                     } else {
                         Some(None)
@@ -267,7 +271,11 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
                     y1 = if !value.is_nested_null() {
                         Some(Some(match value.try_extract() {
                             Ok(v) => v,
-                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                            Err(_) => {
+                                return Err(FlShapeConvertError::UnhandledError(anyhow!(
+                                    "Expected float"
+                                )))
+                            }
                         }))
                     } else {
                         Some(None)
@@ -277,7 +285,11 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
                     x2 = if !value.is_nested_null() {
                         Some(Some(match value.try_extract() {
                             Ok(v) => v,
-                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                            Err(_) => {
+                                return Err(FlShapeConvertError::UnhandledError(anyhow!(
+                                    "Expected float"
+                                )))
+                            }
                         }))
                     } else {
                         Some(None)
@@ -287,7 +299,11 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
                     y2 = if !value.is_nested_null() {
                         Some(Some(match value.try_extract() {
                             Ok(v) => v,
-                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                            Err(_) => {
+                                return Err(FlShapeConvertError::UnhandledError(anyhow!(
+                                    "Expected float"
+                                )))
+                            }
                         }))
                     } else {
                         Some(None)

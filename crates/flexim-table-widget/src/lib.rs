@@ -310,7 +310,9 @@ fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) -> (Re
 
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
-    let dataframe = dataframe.with_row_index("__FleximRowId".into(), None).unwrap();
+    let dataframe = dataframe
+        .with_row_index("__FleximRowId".into(), None)
+        .unwrap();
     let mut col_filter_mask = std::iter::repeat(true)
         .take(dataframe.height())
         .collect::<BooleanChunked>();
