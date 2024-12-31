@@ -12,6 +12,8 @@ workspace = true
 egui.workspace = true
 egui_extras.workspace = true
 polars = { workspace = true, features = ["io", "ipc", "csv", "fmt", "lazy"] }
+polars-arrow = { version = "0.45.1" }
+polars-lazy = { version = "0.45.1", features = ["dtype-struct", "dtype-categorical"] }
 itertools.workspace = true
 flexim-data-type.workspace = true
 flexim-storage.workspace = true

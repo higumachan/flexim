@@ -7,9 +7,11 @@ use flexim_table_widget::{FlTable, FlTableDrawContext};
 use flexim_storage::{Storage, StorageQuery};
 use polars::prelude::*;
 use polars::series::Series;
-use polars::chunked_array::builder::get_list_builder;
-use polars::lazy::dsl::{col, GetOutput};
-use polars::datatypes::{DataType, StructArray};
+use polars::datatypes::DataType;
+use polars_arrow::array::StructArray;
+use polars_lazy::dsl::{col, GetOutput};
+use polars::frame::DataFrame;
+use polars::lazy::frame::LazyFrame;
 use std::collections::HashMap;
 use std::io::Cursor;
 
