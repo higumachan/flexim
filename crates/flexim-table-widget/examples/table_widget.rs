@@ -7,11 +7,11 @@ use flexim_table_widget::{FlTable, FlTableDrawContext};
 use flexim_storage::{Storage, StorageQuery};
 use polars::prelude::*;
 use polars::series::Series;
-use polars::datatypes::DataType;
-use polars_arrow::array::StructArray;
-use polars_lazy::dsl::{col, GetOutput};
-use polars::frame::DataFrame;
-use polars::lazy::frame::LazyFrame;
+use polars::prelude::Column;
+use polars_lazy::dsl::col;
+use polars_lazy::frame::IntoLazy;
+use polars_lazy::prelude::GetOutput;
+use polars::datatypes::{DataType, Field};
 use std::collections::HashMap;
 use std::io::Cursor;
 
@@ -40,14 +40,17 @@ fn read_rectangle(s: &Series) -> Series {
     let x2 = Series::new("x2".into(), x2);
     let y2 = Series::new("y2".into(), y2);
 
-    StructArray::new(
-        "Face".into(),
-        vec![x1, y1, x2, y2],
-        None
-    ).into_series()
+    let df = DataFrame::new(vec![
+        Series::new("x1".into(), x1).into(),
+        Series::new("y1".into(), y1).into(),
+        Series::new("x2".into(), x2).into(),
+        Series::new("y2".into(), y2).into(),
+    ]).unwrap();
+    
+    df.into_struct("Rectangle".into()).into_series()
 }
 
-fn read_segment(s: &Series, name: &str) -> Series {
+fn read_segment(s: &Series, _name: &str) -> Series {
     let mut x1 = vec![];
     let mut y1 = vec![];
     let mut x2 = vec![];
@@ -72,15 +75,17 @@ fn read_segment(s: &Series, name: &str) -> Series {
     let x2 = Series::new("x2".into(), x2);
     let y2 = Series::new("y2".into(), y2);
 
-    StructArray::new(
-        name.into(),
-        vec![x1, y1, x2, y2],
-        None
-    ).into_series()
-        .into_series()
+    let df = DataFrame::new(vec![
+        Series::new("x1".into(), x1).into(),
+        Series::new("y1".into(), y1).into(),
+        Series::new("x2".into(), x2).into(),
+        Series::new("y2".into(), y2).into(),
+    ]).unwrap();
+    
+    df.into_struct("Segment".into()).into_series()
 }
 
-fn read_color(s: &Series, name: &str) -> Series {
+fn read_color(s: &Series, _name: &str) -> Series {
     let mut r = vec![];
     let mut g = vec![];
     let mut b = vec![];
@@ -101,12 +106,13 @@ fn read_color(s: &Series, name: &str) -> Series {
     let g = Series::new("g".into(), g);
     let b = Series::new("b".into(), b);
 
-    StructArray::new(
-        name.into(),
-        vec![r, g, b],
-        None
-    ).into_series()
-        .into_series()
+    let df = DataFrame::new(vec![
+        Series::new("r".into(), r).into(),
+        Series::new("g".into(), g).into(),
+        Series::new("b".into(), b).into(),
+    ]).unwrap();
+    
+    df.into_struct("Color".into()).into_series()
 }
 
 #[allow(clippy::dbg_macro)]
@@ -114,20 +120,43 @@ fn main() {
     let data = Vec::from(include_bytes!("../assets/input.csv"));
     let data = Cursor::new(data);
     // let mut df = CsvReader::new(data).has_header(true).finish().unwrap();
-    let mut df = CsvReadOptions::default()
+    let df = CsvReadOptions::default()
         .with_has_header(true)
         .into_reader_with_file_handle(data)
         .finish()
         .unwrap();
 
-    let mut df = df.lazy().with_column(
-        col("Face").map(|s| Ok(read_rectangle(&s)), GetOutput::from_type(DataType::Struct(vec![])))
-    ).collect().unwrap();
-    let mut df = df.lazy().with_column(
-        col("Segment").map(|s| Ok(read_segment(&s, "Segment")), GetOutput::from_type(DataType::Struct(vec![])))
+    let df = df.lazy().with_column(
+        col("Face").map(
+            |s| Ok(Some(Column::new("Face".into(), read_rectangle(s.as_series().unwrap())))),
+            GetOutput::from_type(DataType::Struct(vec![
+                Field::new("x1".into(), DataType::Float64),
+                Field::new("y1".into(), DataType::Float64),
+                Field::new("x2".into(), DataType::Float64),
+                Field::new("y2".into(), DataType::Float64),
+            ]))
+        ).alias("Face")
     ).collect().unwrap();
     let df = df.lazy().with_column(
-        col("Color").map(|s| Ok(read_color(&s, "Color")), GetOutput::from_type(DataType::Struct(vec![])))
+        col("Segment").map(
+            |s| Ok(Some(Column::new("Segment".into(), read_segment(s.as_series().unwrap(), "Segment")))),
+            GetOutput::from_type(DataType::Struct(vec![
+                Field::new("x1".into(), DataType::Float64),
+                Field::new("y1".into(), DataType::Float64),
+                Field::new("x2".into(), DataType::Float64),
+                Field::new("y2".into(), DataType::Float64),
+            ]))
+        ).alias("Segment")
+    ).collect().unwrap();
+    let df = df.lazy().with_column(
+        col("Color").map(
+            |s| Ok(Some(Column::new("Color".into(), read_color(s.as_series().unwrap(), "Color")))),
+            GetOutput::from_type(DataType::Struct(vec![
+                Field::new("r".into(), DataType::Float64),
+                Field::new("g".into(), DataType::Float64),
+                Field::new("b".into(), DataType::Float64),
+            ]))
+        ).alias("Color")
     ).collect().unwrap();
 
     dbg!(&df);

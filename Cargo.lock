@@ -1998,6 +1998,8 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "polars",
+ "polars-arrow",
+ "polars-lazy",
  "puffin",
  "rand",
  "serde",
