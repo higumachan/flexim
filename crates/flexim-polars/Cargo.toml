@@ -9,12 +9,16 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-polars-core = { version = "0.30.0", default-features = true, features = ["dtype-struct", "dtype-categorical", "strings", "regex", "serde", "rows"] }
-polars-io = { version = "0.30.0", optional = true, default-features = true, features = ["serde", "dtype-categorical", "dtype-struct", "csv"] }
-polars-ops = { version = "0.30.0", default-features = true, features = ["dtype-struct", "dtype-categorical", "strings"] }
+polars-core = { version = "0.45.1", features = ["dtype-struct", "dtype-categorical", "strings", "regex", "serde", "rows", "lazy"] }
+polars-io = { version = "0.45.1", optional = true, features = ["serde", "dtype-categorical", "dtype-struct", "csv"] }
+polars-ops = { version = "0.45.1", features = ["dtype-struct", "dtype-categorical", "strings"] }
+polars-lazy = { version = "0.45.1", features = ["dtype-struct", "dtype-categorical"] }
+arrow2 = { version = "0.18.0", features = ["io_ipc"] }
 
 [features]
+default = ["io", "ipc", "csv", "fmt", "lazy"]
 io = ["polars-io"]
 ipc = ["polars-io/ipc"]
 csv = ["polars-io/csv"]
 fmt = ["polars-core/fmt"]
+lazy = ["polars-core/lazy"]

@@ -125,7 +125,7 @@ impl DataViewable for FlDataFrameView {
                             columns.contains_key(&column_name.to_string())
                         }
                     };
-                    if ui.checkbox(&mut checked, *column_name).changed() {
+                    if ui.checkbox(&mut checked, column_name.to_string()).changed() {
                         if checked {
                             match &mut view_context.show_columns {
                                 ShowColumns::All => {}

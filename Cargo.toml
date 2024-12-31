@@ -29,6 +29,8 @@ tokio = { version = "1.35.1", features = ["full"] }
 prost = "0.12.3"
 anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
+hashbrown = "0.14"
+arrow2 = { version = "0.18.0", features = ["io_ipc"] }
 egui = "0.30.0"
 egui_extras = { version = "0.30.0", features = ["image", "svg", "syntect"] }
 eframe = "0.30.0"

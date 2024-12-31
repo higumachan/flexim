@@ -7,6 +7,9 @@ use flexim_table_widget::{FlTable, FlTableDrawContext};
 use flexim_storage::{Storage, StorageQuery};
 use polars::prelude::*;
 use polars::series::Series;
+use polars::chunked_array::builder::get_list_builder;
+use polars::lazy::dsl::{col, GetOutput};
+use polars::datatypes::{DataType, StructArray};
 use std::collections::HashMap;
 use std::io::Cursor;
 
@@ -30,14 +33,16 @@ fn read_rectangle(s: &Series) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new("Face", &[x1, y1, x2, y2])
-        .unwrap()
-        .into_series()
+    StructArray::new(
+        "Face".into(),
+        vec![x1, y1, x2, y2],
+        None
+    ).into_series()
 }
 
 fn read_segment(s: &Series, name: &str) -> Series {
@@ -60,13 +65,16 @@ fn read_segment(s: &Series, name: &str) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new(name, &[x1, y1, x2, y2])
-        .unwrap()
+    StructArray::new(
+        name.into(),
+        vec![x1, y1, x2, y2],
+        None
+    ).into_series()
         .into_series()
 }
 
@@ -87,11 +95,16 @@ fn read_color(s: &Series, name: &str) -> Series {
             b.push(None);
         }
     }
-    let r = Series::new("r", r);
-    let g = Series::new("g", g);
-    let b = Series::new("b", b);
+    let r = Series::new("r".into(), r);
+    let g = Series::new("g".into(), g);
+    let b = Series::new("b".into(), b);
 
-    StructChunked::new(name, &[r, g, b]).unwrap().into_series()
+    StructArray::new(
+        name.into(),
+        vec![r, g, b],
+        None
+    ).into_series()
+        .into_series()
 }
 
 #[allow(clippy::dbg_macro)]
@@ -105,15 +118,15 @@ fn main() {
         .finish()
         .unwrap();
 
-    let mut df = df.apply("Face", read_rectangle).unwrap().clone();
-    let mut df = df
-        .apply("Segment", |s| read_segment(s, "Segment"))
-        .unwrap()
-        .clone();
-    let df = df
-        .apply("Color", |s| read_color(s, "Color"))
-        .unwrap()
-        .clone();
+    let mut df = df.lazy().with_column(
+        col("Face").map(|s| Ok(read_rectangle(&s)), GetOutput::from_type(DataType::Struct(vec![])))
+    ).collect().unwrap();
+    let mut df = df.lazy().with_column(
+        col("Segment").map(|s| Ok(read_segment(&s, "Segment")), GetOutput::from_type(DataType::Struct(vec![])))
+    ).collect().unwrap();
+    let df = df.lazy().with_column(
+        col("Color").map(|s| Ok(read_color(&s, "Color")), GetOutput::from_type(DataType::Struct(vec![])))
+    ).collect().unwrap();
 
     dbg!(&df);
 

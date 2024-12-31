@@ -8,10 +8,14 @@ use egui::{
     Align, Checkbox, Color32, ComboBox, Context, Event, Id, Key, Label, Layout, Modifiers, Rect,
     Response, Sense, Slider, Ui, Widget,
 };
-use egui_extras::{Column, TableBuilder};
-use flexim_data_type::{FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference};
+use egui_extras::{Column as EguiColumn, TableBuilder};
+use flexim_data_type::{
+    FlDataFrame, FlDataFrameColor, FlDataFrameSpecialColumn, FlDataReference, FlDataType,
+    GenerationSelector,
+};
 use itertools::Itertools;
 use polars::prelude::*;
+
 use rand::random;
 use serde::{Deserialize, Serialize};
 use std::ops::{BitAnd, Deref, DerefMut};
@@ -20,11 +24,58 @@ use anyhow::Context as _;
 use flexim_storage::Bag;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct FlTable {
     id: Id,
     previous_state: Option<FlTableState>,
     pub data_reference: FlDataReference,
+}
+
+impl Serialize for FlTable {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("FlTable", 2)?;
+        state.serialize_field("previous_state", &self.previous_state)?;
+        state.serialize_field("data_reference", &self.data_reference)?;
+        state.end()
+    }
+}
+
+impl Default for FlTable {
+    fn default() -> Self {
+        Self {
+            id: Id::new("FlTable").with(random::<u64>()),
+            previous_state: None,
+            data_reference: FlDataReference::new(
+                "default".to_string(),
+                GenerationSelector::Latest,
+                FlDataType::DataFrame,
+            ),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for FlTable {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct FlTableHelper {
+            previous_state: Option<FlTableState>,
+            data_reference: FlDataReference,
+        }
+
+        let helper = FlTableHelper::deserialize(deserializer)?;
+        Ok(FlTable {
+            id: Id::new("FlTable").with(random::<u64>()),
+            previous_state: helper.previous_state,
+            data_reference: helper.data_reference,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -175,9 +226,9 @@ impl FlTable {
 
             let mut builder = TableBuilder::new(ui).vscroll(true).striped(true);
 
-            builder = builder.column(Column::auto().clip(true).resizable(true));
+            builder = builder.column(EguiColumn::auto().clip(true).resizable(true));
             for _col in &columns {
-                builder = builder.column(Column::auto().clip(true).resizable(true));
+                builder = builder.column(EguiColumn::auto().clip(true).resizable(true));
             }
             let selected = &mut state.selected;
             let builder = if let Some(selected) = selected {
@@ -310,20 +361,23 @@ fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) -> (Re
 
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
-    let dataframe = dataframe.with_row_index("__FleximRowId", None).unwrap();
+    let dataframe = dataframe.with_row_index("__FleximRowId".into(), None).unwrap();
     let mut col_filter_mask = std::iter::repeat(true)
         .take(dataframe.height())
         .collect::<BooleanChunked>();
 
     for col in &columns {
-        let filter = state.filters.get(*col).unwrap();
+        let filter = state.filters.get(&col.to_string()).unwrap();
         let allow_null_value = filter.allow_null_value;
         let filter = filter.filter.as_ref();
-        let series = dataframe.column(col).unwrap();
-        if let Some(filter) = filter.as_ref() {
-            if let Some(m) = filter.apply(series) {
-                col_filter_mask =
-                    col_filter_mask.bitand(m.fill_null_with_values(allow_null_value).unwrap());
+        if let Some(filter) = filter {
+            if let Ok(column) = dataframe.column(col) {
+                if let Some(series) = column.as_series() {
+                    if let Some(m) = filter.apply(series) {
+                        col_filter_mask =
+                            col_filter_mask.bitand(m.fill_null_with_values(allow_null_value).unwrap());
+                    }
+                }
             }
         }
     }
