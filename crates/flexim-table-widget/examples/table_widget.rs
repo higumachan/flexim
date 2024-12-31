@@ -30,12 +30,12 @@ fn read_rectangle(s: &Series) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new("Face", &[x1, y1, x2, y2])
+    StructChunked::from_chunk_iter("Face".into(), vec![x1, y1, x2, y2].into_iter())
         .unwrap()
         .into_series()
 }
@@ -60,12 +60,12 @@ fn read_segment(s: &Series, name: &str) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new(name, &[x1, y1, x2, y2])
+    StructChunked::from_chunk_iter(name.into(), vec![x1, y1, x2, y2].into_iter())
         .unwrap()
         .into_series()
 }
@@ -87,11 +87,11 @@ fn read_color(s: &Series, name: &str) -> Series {
             b.push(None);
         }
     }
-    let r = Series::new("r", r);
-    let g = Series::new("g", g);
-    let b = Series::new("b", b);
+    let r = Series::new("r".into(), r);
+    let g = Series::new("g".into(), g);
+    let b = Series::new("b".into(), b);
 
-    StructChunked::new(name, &[r, g, b]).unwrap().into_series()
+    StructChunked::from_chunk_iter(name.into(), vec![r, g, b].into_iter()).unwrap().into_series()
 }
 
 #[allow(clippy::dbg_macro)]
@@ -105,13 +105,13 @@ fn main() {
         .finish()
         .unwrap();
 
-    let mut df = df.apply("Face", read_rectangle).unwrap().clone();
+    let mut df = df.apply("Face", |col| read_rectangle(&col.into_series())).unwrap().clone();
     let mut df = df
-        .apply("Segment", |s| read_segment(s, "Segment"))
+        .apply("Segment", |s| read_segment(&s.into_series(), "Segment"))
         .unwrap()
         .clone();
     let df = df
-        .apply("Color", |s| read_color(s, "Color"))
+        .apply("Color", |s| read_color(&s.into_series(), "Color"))
         .unwrap()
         .clone();
 

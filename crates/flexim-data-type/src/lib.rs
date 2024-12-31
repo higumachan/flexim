@@ -255,28 +255,40 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
             match field.name().as_str() {
                 "x1" => {
                     x1 = if !value.is_nested_null() {
-                        Some(Some(value.try_extract().context("Expected float")?))
+                        Some(Some(match value.try_extract() {
+                            Ok(v) => v,
+                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                        }))
                     } else {
                         Some(None)
                     }
                 }
                 "y1" => {
                     y1 = if !value.is_nested_null() {
-                        Some(Some(value.try_extract().context("Expected float")?))
+                        Some(Some(match value.try_extract() {
+                            Ok(v) => v,
+                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                        }))
                     } else {
                         Some(None)
                     }
                 }
                 "x2" => {
                     x2 = if !value.is_nested_null() {
-                        Some(Some(value.try_extract().context("Expected float")?))
+                        Some(Some(match value.try_extract() {
+                            Ok(v) => v,
+                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                        }))
                     } else {
                         Some(None)
                     }
                 }
                 "y2" => {
                     y2 = if !value.is_nested_null() {
-                        Some(Some(value.try_extract().context("Expected float")?))
+                        Some(Some(match value.try_extract() {
+                            Ok(v) => v,
+                            Err(_) => return Err(FlShapeConvertError::UnhandledError(anyhow!("Expected float"))),
+                        }))
                     } else {
                         Some(None)
                     }
@@ -291,7 +303,7 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameRectangle {
             Ok(())
         };
 
-        let value = value.into_static().context("Failed to convert to static")?;
+        let value = value.into_static();
 
         match value {
             AnyValue::StructOwned(s) => {
@@ -388,7 +400,7 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameSegment {
             Ok(())
         };
 
-        let value = value.into_static().context("Failed to convert to static")?;
+        let value = value.into_static();
         match value {
             AnyValue::StructOwned(s) => {
                 for (field, value) in s.1.iter().zip(s.0) {
@@ -404,16 +416,16 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameSegment {
         }
         Ok(Self {
             x1: x1
-                .context("Missing field x1")?
+                .ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field x1")))?
                 .ok_or(Self::Error::NullValue)?,
             y1: y1
-                .context("Missing field y1")?
+                .ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field y1")))?
                 .ok_or(Self::Error::NullValue)?,
             x2: x2
-                .context("Missing field x2")?
+                .ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field x2")))?
                 .ok_or(Self::Error::NullValue)?,
             y2: y2
-                .context("Missing field y2")?
+                .ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field y2")))?
                 .ok_or(Self::Error::NullValue)?,
         })
     }
@@ -478,7 +490,7 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameColor {
             Ok(())
         };
 
-        let value = value.into_static().context("Failed to convert to static")?;
+        let value = value.into_static();
         match value {
             AnyValue::StructOwned(s) => {
                 for (field, value) in s.1.iter().zip(s.0) {
@@ -493,11 +505,11 @@ impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameColor {
             }
         }
         Ok(Self {
-            r: r.context("Missing field r")?
+            r: r.ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field r")))?
                 .ok_or(Self::Error::NullValue)?,
-            g: g.context("Missing field g")?
+            g: g.ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field g")))?
                 .ok_or(Self::Error::NullValue)?,
-            b: b.context("Missing field b")?
+            b: b.ok_or_else(|| FlShapeConvertError::UnhandledError(anyhow!("Missing field b")))?
                 .ok_or(Self::Error::NullValue)?,
         })
     }

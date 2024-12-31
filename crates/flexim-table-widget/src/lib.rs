@@ -310,20 +310,22 @@ fn color_column(row: &mut egui_extras::TableRow, color: FlDataFrameColor) -> (Re
 
 fn compute_dataframe(dataframe: &DataFrame, state: &FlTableState) -> DataFrame {
     let columns = dataframe.get_column_names();
-    let dataframe = dataframe.with_row_index("__FleximRowId", None).unwrap();
+    let dataframe = dataframe.with_row_index("__FleximRowId".into(), None).unwrap();
     let mut col_filter_mask = std::iter::repeat(true)
         .take(dataframe.height())
         .collect::<BooleanChunked>();
 
     for col in &columns {
-        let filter = state.filters.get(*col).unwrap();
+        let filter = state.filters.get(&(*col).to_string()).unwrap();
         let allow_null_value = filter.allow_null_value;
         let filter = filter.filter.as_ref();
         let series = dataframe.column(col).unwrap();
         if let Some(filter) = filter.as_ref() {
-            if let Some(m) = filter.apply(series) {
-                col_filter_mask =
-                    col_filter_mask.bitand(m.fill_null_with_values(allow_null_value).unwrap());
+            if let Some(series) = series.clone().as_series() {
+                if let Some(m) = filter.apply(series) {
+                    col_filter_mask =
+                        col_filter_mask.bitand(m.fill_null_with_values(allow_null_value).unwrap());
+                }
             }
         }
     }
