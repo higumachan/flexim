@@ -1087,13 +1087,21 @@ fn stack_visualize(
                 // Display coordinates in inspection mode
                 let text_pos = response.rect.min + visualize_state.absolute_to_screen(absolute_pos);
                 let coord_label = format!("x={:.1}, y={:.1}", absolute_pos.x, absolute_pos.y);
-                painter.text(
-                    text_pos,
-                    Align2::LEFT_TOP,
-                    coord_label,
-                    FontId::default(),
-                    Color32::WHITE,
+
+                // Layout the text to measure its size
+                let galley =
+                    painter.layout_no_wrap(coord_label.clone(), FontId::default(), Color32::WHITE);
+
+                // Create and fill the background rectangle
+                let text_rect = Rect::from_min_size(text_pos, galley.size());
+                painter.rect_filled(
+                    text_rect.expand(2.0), // Add padding
+                    0.0,                   // No corner rounding
+                    Color32::GREEN,        // Match existing green color usage
                 );
+
+                // Draw the text on top
+                painter.galley(text_pos, galley, Color32::WHITE);
 
                 // minimum distance
                 let config = Config::get_global(ui);
