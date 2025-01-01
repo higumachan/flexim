@@ -1,11 +1,9 @@
 use std::default::Default;
 
 use eframe::run_native;
-use egui::ahash::{HashMap, HashMapExt};
 
 use egui_extras::install_image_loaders;
 use egui_tiles::Tree;
-use flexim::left_panel::left_panel;
 use flexim::App;
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
@@ -22,9 +20,8 @@ use polars::prelude::{
     Column, CsvReadOptions, IntoSeries, NamedFrom, SerReader, Series, StructChunked,
 };
 use serde_json::Value;
-use std::fmt::Debug;
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tonic::transport::Server;
 
 fn main() -> Result<(), eframe::Error> {

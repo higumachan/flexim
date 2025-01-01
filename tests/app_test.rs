@@ -1,28 +1,20 @@
-use eframe::epaint::ahash::{HashMap, HashMapExt};
-use eframe::App as _;
-use egui::accesskit::Role;
 use egui::cache::CacheTrait;
-use egui::Id;
 use egui_extras::install_image_loaders;
 use egui_kittest::kittest::Queryable;
-use egui_kittest::{Harness, HarnessBuilder};
+use egui_kittest::HarnessBuilder;
 use egui_tiles::Tree;
 use flexim::App;
 use flexim_data_type::{
-    FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
-    FlDataType, GenerationSelector,
+    FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn,
 };
-use flexim_data_view::FlDataFrameView;
-use flexim_data_visualize::visualize::{DataRender, FlDataFrameViewRender, FlImageRender};
 use flexim_font::setup_custom_fonts;
-use flexim_layout::pane::{Pane, PaneContent};
 use flexim_storage::Storage;
 use flexim_table_widget::cache::FilteredDataFrameCache;
 use itertools::Itertools;
 use polars::chunked_array::StructChunked;
 use polars::prelude::{Column, CsvReadOptions, IntoSeries, NamedFrom, SerReader, Series};
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// シンプルなデータバッグでtabledataを表示するテスト
 #[test]
@@ -39,8 +31,8 @@ fn test_open_start_display() {
 
     let mut harness = HarnessBuilder::default().build_state(
         |ctx, _state| {
-            setup_custom_fonts(&ctx);
-            install_image_loaders(&ctx);
+            setup_custom_fonts(ctx);
+            install_image_loaders(ctx);
             app.show(ctx);
         },
         (),
@@ -49,6 +41,7 @@ fn test_open_start_display() {
     harness.run();
     let buttons = harness.get_all_by_label("+").collect_vec();
     assert_eq!(buttons.len(), 2);
+    // 二つ目の+ボタンにtabledataが表示されるボタンになっている
     let button = buttons[1];
     button.click();
     harness.run();
@@ -61,7 +54,7 @@ fn test_open_start_display() {
     harness.run();
     harness.run();
 
-    let result = harness.try_wgpu_snapshot(&format!("test_open_start_display"));
+    let result = harness.try_wgpu_snapshot("test_open_start_display");
     assert!(result.is_ok(), "error {:?}", result);
 }
 
