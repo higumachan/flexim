@@ -6,7 +6,7 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
     // .ttf and .otf files supported.
     fonts.font_data.insert(
         "NotoSans".to_owned(),
-        egui::FontData::from_static(include_bytes!("../fonts/NotoSansJP-Regular.ttf")),
+        std::sync::Arc::new(egui::FontData::from_static(include_bytes!("../fonts/NotoSansJP-Regular.ttf"))),
     );
 
     // Put my font first (highest priority) for proportional text:
