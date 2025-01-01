@@ -58,7 +58,8 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           uv venv .venv
-          echo "PYO3_PYTHON=$(pwd)/.venv/bin/python" >> $GITHUB_ENV
+          source .venv/bin/activate
+          echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.version }}
