@@ -1084,6 +1084,17 @@ fn stack_visualize(
         let alt = ui.ctx().input(|input| input.modifiers.alt);
         if let Some(absolute_pos) = absolute_pos {
             if command {
+                // Display coordinates in inspection mode
+                let text_pos = response.rect.min + visualize_state.absolute_to_screen(absolute_pos);
+                let coord_label = format!("x={:.1}, y={:.1}", absolute_pos.x, absolute_pos.y);
+                painter.text(
+                    text_pos,
+                    Align2::LEFT_TOP,
+                    coord_label,
+                    FontId::default(),
+                    Color32::WHITE,
+                );
+
                 // minimum distance
                 let config = Config::get_global(ui);
 
