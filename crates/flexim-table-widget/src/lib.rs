@@ -22,9 +22,18 @@ use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlTable {
+    #[serde(skip)]
     id: Id,
+    #[serde(default = "random::<u64>")]
+    id_value: u64,
     previous_state: Option<FlTableState>,
     pub data_reference: FlDataReference,
+}
+
+impl FlTable {
+    fn ensure_id(&mut self) {
+        self.id = Id::new("FlTable").with(self.id_value);
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -79,11 +88,41 @@ impl FlTable {
     }
 
     pub fn new(data_reference: FlDataReference) -> Self {
-        Self {
-            id: Id::new("FlTable").with(random::<u64>()),
+        let mut table = Self {
+            id: Id::default(),
+            id_value: random::<u64>(),
             previous_state: None,
             data_reference,
+        };
+        table.ensure_id();
+        table
+    }
+}
+
+impl serde::de::DeserializeOwned for FlTable {}
+
+impl<'de> serde::Deserialize<'de> for FlTable {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct Helper {
+            #[serde(default = "random::<u64>")]
+            id_value: u64,
+            previous_state: Option<FlTableState>,
+            data_reference: FlDataReference,
         }
+
+        let helper = Helper::deserialize(deserializer)?;
+        let mut table = FlTable {
+            id: Id::default(),
+            id_value: helper.id_value,
+            previous_state: helper.previous_state,
+            data_reference: helper.data_reference,
+        };
+        table.ensure_id();
+        Ok(table)
     }
 
     pub fn state(&self, ui: &mut Ui, bag: &Bag) -> Option<Arc<Mutex<FlTableState>>> {
