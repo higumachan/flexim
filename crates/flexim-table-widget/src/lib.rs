@@ -20,11 +20,10 @@ use anyhow::Context as _;
 use flexim_storage::Bag;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FlTable {
     #[serde(skip)]
     id: Id,
-    #[serde(default = "random::<u64>")]
     id_value: u64,
     previous_state: Option<FlTableState>,
     pub data_reference: FlDataReference,
@@ -89,7 +88,7 @@ impl FlTable {
 
     pub fn new(data_reference: FlDataReference) -> Self {
         let mut table = Self {
-            id: Id::default(),
+            id: Id::new("FlTable"),
             id_value: random::<u64>(),
             previous_state: None,
             data_reference,
@@ -99,7 +98,7 @@ impl FlTable {
     }
 }
 
-impl serde::de::DeserializeOwned for FlTable {}
+
 
 impl<'de> serde::Deserialize<'de> for FlTable {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -116,7 +115,7 @@ impl<'de> serde::Deserialize<'de> for FlTable {
 
         let helper = Helper::deserialize(deserializer)?;
         let mut table = FlTable {
-            id: Id::default(),
+            id: Id::new("FlTable"),
             id_value: helper.id_value,
             previous_state: helper.previous_state,
             data_reference: helper.data_reference,
@@ -124,8 +123,10 @@ impl<'de> serde::Deserialize<'de> for FlTable {
         table.ensure_id();
         Ok(table)
     }
+}
 
-    pub fn state(&self, ui: &mut Ui, bag: &Bag) -> Option<Arc<Mutex<FlTableState>>> {
+impl FlTable {
+    fn state(&self, ui: &mut Ui, bag: &Bag) -> Option<Arc<Mutex<FlTableState>>> {
         let state = ui
             .ctx()
             .memory_mut(|mem| mem.data.get_temp(self.data_id(bag).unwrap()).clone());
@@ -133,14 +134,14 @@ impl<'de> serde::Deserialize<'de> for FlTable {
         state
     }
 
-    pub fn dataframe(&self, bag: &Bag) -> anyhow::Result<Arc<FlDataFrame>> {
+    fn dataframe(&self, bag: &Bag) -> anyhow::Result<Arc<FlDataFrame>> {
         bag.data_by_reference(&self.data_reference)
             .context("Failed to get data by reference")?
             .as_data_frame()
             .context("Mismatched data type")
     }
 
-    pub fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
+    fn draw(&self, ui: &mut Ui, bag: &Bag, draw_context: &FlTableDrawContext) {
         puffin::profile_function!();
         let ctx = ui.ctx().clone();
 
@@ -321,7 +322,7 @@ impl<'de> serde::Deserialize<'de> for FlTable {
         }
     }
 
-    pub fn computed_dataframe(&self, ctx: &Context, bag: &Bag) -> Option<DataFramePoll<DataFrame>> {
+    fn computed_dataframe(&self, ctx: &Context, bag: &Bag) -> Option<DataFramePoll<DataFrame>> {
         let dataframe = ctx.memory_mut(|mem| {
             let cache = mem.caches.cache::<FilteredDataFrameCache>();
             cache.get(self.data_id(bag).unwrap())
