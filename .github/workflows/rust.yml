@@ -48,6 +48,18 @@ jobs:
       - name: Install ubuntu dependency
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt update && sudo apt install -y pkg-config libgtk-3-dev
+      - name: Install uv with Python 3.12
+        if: matrix.os == 'macos-latest'
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          python-version: "3.12"
+      - name: Create and configure Python virtual environment
+        if: matrix.os == 'macos-latest'
+        run: |
+          uv venv .venv
+          source .venv/bin/activate
+          echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.version }}
