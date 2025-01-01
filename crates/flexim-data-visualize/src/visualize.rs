@@ -34,9 +34,10 @@ use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
-use serde_json::Number;
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
+
+const PSEUDO_INFINITE: f32 = 100000.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizeState {
@@ -122,10 +123,10 @@ impl VisualizeState {
         let config = Config::get_global(ui);
         config.zoom_lower_limit <= self.current_scale
             && self.current_scale <= config.zoom_upper_limit
-            && -100000.0 <= self.shift.x
-            && self.shift.x <= 100000.0
-            && -100000.0 <= self.shift.y
-            && self.shift.y <= 100000.0
+            && -PSEUDO_INFINITE <= self.shift.x
+            && self.shift.x <= PSEUDO_INFINITE
+            && -PSEUDO_INFINITE <= self.shift.y
+            && self.shift.y <= PSEUDO_INFINITE
     }
 
     pub fn show_header(&mut self, ui: &mut Ui) {
@@ -1081,7 +1082,6 @@ fn stack_visualize(
         // TODO(higumachan): リファクタリングしたい
         // 検査を行っている部分のコード
         let command = ui.ctx().input(|input| input.modifiers.command_only());
-        let alt = ui.ctx().input(|input| input.modifiers.alt);
         if let Some(absolute_pos) = absolute_pos {
             if command {
                 inspection(
@@ -1105,7 +1105,7 @@ fn stack_visualize(
 fn inspection(
     view_rect: &Rect,
     visualize_state: &VisualizeState,
-    mut painter: &mut Painter,
+    painter: &mut Painter,
     ui: &mut Ui,
     segments: &[Line],
     absolute_pos: Vec2,
@@ -1146,7 +1146,7 @@ fn inspection(
     if let Some((pos, min_distance)) = d {
         if min_distance < 5.0 {
             draw_segment(
-                &mut painter,
+                painter,
                 &segments[pos],
                 visualize_state,
                 view_rect.min.to_vec2(),
@@ -1172,7 +1172,7 @@ fn inspection(
         .memory(|memory| memory.data.get_temp::<Line>(Id::new("measure_selected")))
     {
         draw_segment(
-            &mut painter,
+            painter,
             &selected_segment,
             visualize_state,
             view_rect.min.to_vec2(),
@@ -1182,8 +1182,8 @@ fn inspection(
         let extend_lines = segments
             .iter()
             .map(|s| {
-                let minus_far_point = s.start - s.delta() * 100000.0;
-                let plus_far_point = s.end + s.delta() * 100000.0;
+                let minus_far_point = s.start - s.delta() * PSEUDO_INFINITE.into();
+                let plus_far_point = s.end + s.delta() * PSEUDO_INFINITE.into();
                 Line::new(minus_far_point, plus_far_point)
             })
             .collect_vec();
