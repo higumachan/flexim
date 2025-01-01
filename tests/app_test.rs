@@ -52,6 +52,7 @@ fn test_open_start_display() {
     let button = buttons[1];
     button.click();
     harness.run();
+    // データが計算されて表示出来るようになるまで待つ
     while harness.ctx.memory_mut(|mem| {
         let cache = mem.caches.cache::<FilteredDataFrameCache>();
         cache.len()
