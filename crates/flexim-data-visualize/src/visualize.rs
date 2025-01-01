@@ -1079,7 +1079,6 @@ fn stack_visualize(
         let absolute_pos =
             tile_origin_pos.map(|pos| visualize_state.screen_to_absolute(pos.to_vec2()));
 
-        // TODO(higumachan): リファクタリングしたい
         // 検査を行っている部分のコード
         let command = ui.ctx().input(|input| input.modifiers.command_only());
         if let Some(absolute_pos) = absolute_pos {
