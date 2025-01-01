@@ -1090,7 +1090,7 @@ fn stack_visualize(
 
                 // Layout the text to measure its size
                 let galley =
-                    painter.layout_no_wrap(coord_label.clone(), FontId::default(), Color32::WHITE);
+                    painter.layout_no_wrap(coord_label.clone(), FontId::default(), Color32::BLACK);
 
                 // Create and fill the background rectangle
                 let text_rect = Rect::from_min_size(text_pos, galley.size());
@@ -1101,7 +1101,7 @@ fn stack_visualize(
                 );
 
                 // Draw the text on top
-                painter.galley(text_pos, galley, Color32::WHITE);
+                painter.galley(text_pos, galley, Color32::BLACK);
 
                 // minimum distance
                 let config = Config::get_global(ui);
