@@ -54,9 +54,11 @@ jobs:
         with:
           version: "latest"
           python-version: "3.12"
-      - name: Configure PYO3_PYTHON
+      - name: Create and configure Python virtual environment
         if: matrix.os == 'macos-latest'
-        run: echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
+        run: |
+          uv venv .venv
+          echo "PYO3_PYTHON=$(pwd)/.venv/bin/python" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.version }}
