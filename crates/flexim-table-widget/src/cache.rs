@@ -19,6 +19,7 @@ pub enum CacheState {
     Calculating(Calculating),
 }
 
+#[derive(Debug, Clone)]
 pub enum DataFramePoll<T> {
     Ready(T),
     Pending,
