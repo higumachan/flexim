@@ -42,10 +42,19 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Install uv with Python 3.12
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: "latest"
+        python-version: "3.12"
+    - name: Configure PYO3_PYTHON
+      run: echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
     - uses: PyO3/maturin-action@v1
       with:
         command: build
         args: --release -o dist --universal2 --find-interpreter
+      env:
+        PYO3_PYTHON: ${{ env.PYO3_PYTHON }}
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
