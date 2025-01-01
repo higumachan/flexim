@@ -99,7 +99,7 @@ impl DataViewable for FlDataFrameView {
             .filter(|field| {
                 special_columns
                     .get(&field.name().to_string())
-                    .map_or(false, |v| v.visualizable_attribute())
+                    .is_some_and(|v| v.visualizable_attribute())
             })
             .map(|field| field.name().to_string())
             .collect()

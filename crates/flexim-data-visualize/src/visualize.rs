@@ -743,7 +743,7 @@ impl DataRenderable for FlDataFrameViewRender {
             let transparent = self.render_context.lock().unwrap().transparency;
             let fill_transparent = self.render_context.lock().unwrap().fill_transparency;
 
-            let thickness = if highlight.as_ref().map_or(false, |h| h[i]) {
+            let thickness = if highlight.as_ref().is_some_and(|h| h[i]) {
                 self.render_context.lock().unwrap().highlight_thickness
             } else {
                 self.render_context.lock().unwrap().normal_thickness
