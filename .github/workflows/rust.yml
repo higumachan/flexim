@@ -17,29 +17,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ matrix.os }}-${{ matrix.version }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ matrix.os }}-${{ matrix.version }}-cargo-registry
-
-      - name: Cache Cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ matrix.os }}-${{ matrix.version }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-              ${{ matrix.os }}-${{ matrix.version }}-cargo-index
-
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ matrix.os }}-${{ matrix.version }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-              ${{ matrix.os }}-${{ matrix.version }}-cargo-build
+          # Use matrix values in cache key to maintain separate caches per OS and Rust version
+          key: ${{ matrix.os }}-${{ matrix.version }}
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
