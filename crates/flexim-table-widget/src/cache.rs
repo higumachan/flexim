@@ -120,7 +120,7 @@ impl CacheTrait for FilteredDataFrameCache {
     fn update(&mut self) {}
 
     fn len(&self) -> usize {
-        0
+        self.cached_dataframes.len()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

@@ -31,7 +31,7 @@ anyhow = { version = "1.0.78", features = ["backtrace"] }
 thiserror = { version = "1.0.57", features = [] }
 egui = "0.30.0"
 egui_extras = { version = "0.30.0", features = ["image", "svg", "syntect"] }
-eframe = "0.30.0"
+eframe = { version = "0.30.0", features = ["wgpu"] }
 egui_tiles = "0.11.0"
 image = { version = "0.24", features = ["png", "jpeg"] }
 ndarray = { version = "0.15.6", features = ["serde"] }
@@ -70,10 +70,12 @@ geo = "0.28.0"
 proptest = "1.4.0"
 
 
+
 [patch.crates-io]
 egui = { git = "https://github.com/higumachan/egui.git", rev = "c763b740af4c6c1199d77d31ca50d9a1677018a2" }
 egui_extras = { git = "https://github.com/higumachan/egui.git", rev = "c763b740af4c6c1199d77d31ca50d9a1677018a2" }
 eframe = { git = "https://github.com/higumachan/egui.git", rev = "c763b740af4c6c1199d77d31ca50d9a1677018a2" }
+egui_kittest = { git = "https://github.com/higumachan/egui.git", rev = "c763b740af4c6c1199d77d31ca50d9a1677018a2" }
 
 
 [lints]
@@ -113,7 +115,8 @@ flexim-config.workspace = true
 clap.workspace = true
 
 [dev-dependencies]
-egui_kittest = "0.30.0"
+egui_kittest = { version = "0.30.0", features = ["wgpu", "snapshot"] }
+flexim-table-widget.workspace = true
 
 
 [package.metadata.packager]
