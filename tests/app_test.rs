@@ -181,3 +181,109 @@ fn read_color(s: &Column, name: &str) -> Series {
         .unwrap()
         .into_series()
 }
+
+/// テーブルデータの列の表示/非表示を切り替えるテスト
+#[test]
+fn test_toggle_column_visibility() {
+    let storage = Arc::new(Storage::default());
+    let bag_id = storage.create_bag("test".to_string());
+    storage
+        .insert_data(bag_id, "tabledata".to_string(), load_sample_data().into())
+        .unwrap();
+
+    let tree = Tree::empty("flexim");
+    let mut app = App::new(tree, storage, Some(bag_id));
+
+    let mut harness = HarnessBuilder::default().build_state(
+        |ctx, _state| {
+            setup_custom_fonts(ctx);
+            install_image_loaders(ctx);
+            app.show(ctx);
+        },
+        (),
+    );
+
+    harness.run();
+    let buttons = harness.get_all_by_label("+").collect_vec();
+    assert_eq!(buttons.len(), 2);
+    // 二つ目の+ボタンにtabledataが表示されるボタンになっている
+    let button = buttons[1];
+    button.click();
+    harness.run();
+
+    // データが計算されて表示出来るようになるまで待つ
+    while harness.ctx.memory_mut(|mem| {
+        let cache = mem.caches.cache::<FilteredDataFrameCache>();
+        cache.len()
+    }) == 0
+    {}
+    harness.run();
+
+    // Take initial screenshot
+    let result = harness.try_wgpu_snapshot("test_toggle_column_visibility_before");
+    assert!(result.is_ok(), "error {:?}", result);
+
+    // Find and click column visibility toggle
+    let toggle_buttons = harness.get_all_by_label("👁").collect_vec();
+    assert!(
+        !toggle_buttons.is_empty(),
+        "No visibility toggle buttons found"
+    );
+    toggle_buttons[0].click();
+    harness.run();
+
+    // Take screenshot after toggling column
+    let result = harness.try_wgpu_snapshot("test_toggle_column_visibility_after");
+    assert!(result.is_ok(), "error {:?}", result);
+}
+
+/// 複数のデータタイルを表示するテスト
+#[test]
+fn test_multiple_data_tiles() {
+    let storage = Arc::new(Storage::default());
+    let bag_id = storage.create_bag("test".to_string());
+    storage
+        .insert_data(bag_id, "tabledata".to_string(), load_sample_data().into())
+        .unwrap();
+
+    let tree = Tree::empty("flexim");
+    let mut app = App::new(tree, storage, Some(bag_id));
+
+    let mut harness = HarnessBuilder::default().build_state(
+        |ctx, _state| {
+            setup_custom_fonts(ctx);
+            install_image_loaders(ctx);
+            app.show(ctx);
+        },
+        (),
+    );
+
+    harness.run();
+    let buttons = harness.get_all_by_label("+").collect_vec();
+    assert_eq!(buttons.len(), 2);
+
+    // Add first data tile
+    buttons[1].click();
+    harness.run();
+
+    // Wait for data to load
+    while harness.ctx.memory_mut(|mem| {
+        let cache = mem.caches.cache::<FilteredDataFrameCache>();
+        cache.len()
+    }) == 0
+    {}
+    harness.run();
+
+    // Add second data tile
+    let new_buttons = harness.get_all_by_label("+").collect_vec();
+    assert!(
+        !new_buttons.is_empty(),
+        "No + buttons found for second tile"
+    );
+    new_buttons[1].click();
+    harness.run();
+
+    // Take screenshot with multiple tiles
+    let result = harness.try_wgpu_snapshot("test_multiple_data_tiles");
+    assert!(result.is_ok(), "error {:?}", result);
+}
