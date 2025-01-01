@@ -1084,6 +1084,25 @@ fn stack_visualize(
         let alt = ui.ctx().input(|input| input.modifiers.alt);
         if let Some(absolute_pos) = absolute_pos {
             if command {
+                // Display coordinates in inspection mode
+                let text_pos = response.rect.min + visualize_state.absolute_to_screen(absolute_pos);
+                let coord_label = format!("x={:.1}, y={:.1}", absolute_pos.x, absolute_pos.y);
+
+                // Layout the text to measure its size
+                let galley =
+                    painter.layout_no_wrap(coord_label.clone(), FontId::default(), Color32::BLACK);
+
+                // Create and fill the background rectangle
+                let text_rect = Rect::from_min_size(text_pos, galley.size());
+                painter.rect_filled(
+                    text_rect.expand(2.0), // Add padding
+                    0.0,                   // No corner rounding
+                    Color32::GREEN,        // Match existing green color usage
+                );
+
+                // Draw the text on top
+                painter.galley(text_pos, galley, Color32::BLACK);
+
                 // minimum distance
                 let config = Config::get_global(ui);
 
