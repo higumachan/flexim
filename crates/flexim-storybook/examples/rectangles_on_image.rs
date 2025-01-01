@@ -15,7 +15,7 @@ use polars::series::Series;
 use std::collections::HashMap;
 use std::io::Cursor;
 
-fn read_rectangle(s: &Series) -> Series {
+fn read_rectangle(s: &Column) -> Series {
     let mut x1 = vec![];
     let mut y1 = vec![];
     let mut x2 = vec![];
@@ -35,12 +35,12 @@ fn read_rectangle(s: &Series) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new("Face", &[x1, y1, x2, y2])
+    StructChunked::from_series("Face".into(), x1.len(), [x1, y1, x2, y2].iter())
         .unwrap()
         .into_series()
 }

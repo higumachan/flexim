@@ -23,8 +23,9 @@ use flexim_layout::FlLayout;
 use flexim_storage::{Bag, BagId, Storage, StorageQuery};
 use itertools::Itertools;
 use ndarray::Array2;
-use polars::datatypes::StructChunked;
-use polars::prelude::{CsvReadOptions, IntoSeries, NamedFrom, SerReader, Series};
+use polars::prelude::{
+    Column, CsvReadOptions, IntoSeries, NamedFrom, SerReader, Series, StructChunked,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Debug, Formatter};
@@ -70,7 +71,7 @@ struct TreeBehavior<'a> {
     current_tile_id: &'a mut Option<TileId>,
 }
 
-impl<'a> egui_tiles::Behavior<Pane> for TreeBehavior<'a> {
+impl egui_tiles::Behavior<Pane> for TreeBehavior<'_> {
     fn tab_title_for_pane(&mut self, pane: &Pane) -> egui::WidgetText {
         pane.name.clone().into()
     }
@@ -688,7 +689,7 @@ fn load_object_sample_data() -> FlObject {
     FlObject::new(data)
 }
 
-fn read_rectangle(s: &Series, name: &str) -> Series {
+fn read_rectangle(s: &Column, name: &str) -> Series {
     let mut x1 = vec![];
     let mut y1 = vec![];
     let mut x2 = vec![];
@@ -708,17 +709,17 @@ fn read_rectangle(s: &Series, name: &str) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new(name, &[x1, y1, x2, y2])
+    StructChunked::from_series(name.into(), x1.len(), [x1, y1, x2, y2].iter())
         .unwrap()
         .into_series()
 }
 
-fn read_segment(s: &Series, name: &str) -> Series {
+fn read_segment(s: &Column, name: &str) -> Series {
     let mut x1 = vec![];
     let mut y1 = vec![];
     let mut x2 = vec![];
@@ -738,17 +739,17 @@ fn read_segment(s: &Series, name: &str) -> Series {
             y2.push(None);
         }
     }
-    let x1 = Series::new("x1", x1);
-    let y1 = Series::new("y1", y1);
-    let x2 = Series::new("x2", x2);
-    let y2 = Series::new("y2", y2);
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
 
-    StructChunked::new(name, &[x1, y1, x2, y2])
+    StructChunked::from_series(name.into(), x1.len(), [x1, y1, x2, y2].iter())
         .unwrap()
         .into_series()
 }
 
-fn read_color(s: &Series, name: &str) -> Series {
+fn read_color(s: &Column, name: &str) -> Series {
     let mut r = vec![];
     let mut g = vec![];
     let mut b = vec![];
@@ -765,9 +766,11 @@ fn read_color(s: &Series, name: &str) -> Series {
             b.push(None);
         }
     }
-    let r = Series::new("r", r);
-    let g = Series::new("g", g);
-    let b = Series::new("b", b);
+    let r = Series::new("r".into(), r);
+    let g = Series::new("g".into(), g);
+    let b = Series::new("b".into(), b);
 
-    StructChunked::new(name, &[r, g, b]).unwrap().into_series()
+    StructChunked::from_series(name.into(), r.len(), [r, g, b].iter())
+        .unwrap()
+        .into_series()
 }
