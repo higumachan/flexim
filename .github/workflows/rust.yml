@@ -54,13 +54,21 @@ jobs:
         shell: bash
         run: |
           os_name=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
-          mkdir -p screenshots/${os_name}_${{ matrix.version }}
+          dir_name="${os_name}_${{ matrix.version }}"
+          mkdir -p "screenshots/$dir_name"
+          
+          # Copy both .png and .new.png files
           if [ -d "tests/snapshots" ]; then
-            cp -r tests/snapshots/* screenshots/${os_name}_${{ matrix.version }}/
+            cp -r tests/snapshots/*.{png,new.png} "screenshots/$dir_name/" 2>/dev/null || true
+          fi
+          
+          # Also check for diff files in case of test failures
+          if [ -d "tests/snapshots" ]; then
+            cp -r tests/snapshots/*.diff.png "screenshots/$dir_name/" 2>/dev/null || true
           fi
       - name: Upload snapshots artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.os }}-${{ matrix.version }}-snapshots
+          name: test-snapshots
           path: screenshots

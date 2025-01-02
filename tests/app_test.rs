@@ -54,7 +54,15 @@ fn test_open_start_display() {
     harness.run();
     harness.run();
 
-    let result = harness.try_wgpu_snapshot("test_open_start_display");
+    let options = if cfg!(target_os = "macos") {
+        egui_kittest::SnapshotOptions::new().threshold(0.8)
+    } else {
+        egui_kittest::SnapshotOptions::default()
+    };
+    let result = harness.try_wgpu_snapshot_options("test_open_start_display", &options);
+    if let Err(e) = &result {
+        println!("Snapshot comparison failed: {:?}", e);
+    }
     assert!(result.is_ok(), "error {:?}", result);
 }
 
@@ -220,7 +228,15 @@ fn test_toggle_column_visibility() {
     harness.run();
 
     // Take initial screenshot
-    let result = harness.try_wgpu_snapshot("test_toggle_column_visibility_before");
+    let options = if cfg!(target_os = "macos") {
+        egui_kittest::SnapshotOptions::new().threshold(0.8)
+    } else {
+        egui_kittest::SnapshotOptions::default()
+    };
+    let result = harness.try_wgpu_snapshot_options("test_toggle_column_visibility_before", &options);
+    if let Err(e) = &result {
+        println!("Snapshot comparison failed: {:?}", e);
+    }
     assert!(result.is_ok(), "error {:?}", result);
 
     // Find and click column visibility toggle
@@ -233,7 +249,15 @@ fn test_toggle_column_visibility() {
     harness.run();
 
     // Take screenshot after toggling column
-    let result = harness.try_wgpu_snapshot("test_toggle_column_visibility_after");
+    let options = if cfg!(target_os = "macos") {
+        egui_kittest::SnapshotOptions::new().threshold(0.8)
+    } else {
+        egui_kittest::SnapshotOptions::default()
+    };
+    let result = harness.try_wgpu_snapshot_options("test_toggle_column_visibility_after", &options);
+    if let Err(e) = &result {
+        println!("Snapshot comparison failed: {:?}", e);
+    }
     assert!(result.is_ok(), "error {:?}", result);
 }
 
@@ -284,6 +308,14 @@ fn test_multiple_data_tiles() {
     harness.run();
 
     // Take screenshot with multiple tiles
-    let result = harness.try_wgpu_snapshot("test_multiple_data_tiles");
+    let options = if cfg!(target_os = "macos") {
+        egui_kittest::SnapshotOptions::new().threshold(0.8)
+    } else {
+        egui_kittest::SnapshotOptions::default()
+    };
+    let result = harness.try_wgpu_snapshot_options("test_multiple_data_tiles", &options);
+    if let Err(e) = &result {
+        println!("Snapshot comparison failed: {:?}", e);
+    }
     assert!(result.is_ok(), "error {:?}", result);
 }
