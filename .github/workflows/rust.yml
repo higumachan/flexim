@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+      - feature/test-screenshot
+      - 'devin/**'
 
 jobs:
   test:
