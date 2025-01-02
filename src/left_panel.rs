@@ -325,6 +325,7 @@ fn data_view_list_view(app: &App, ui: &mut Ui) {
                 app,
                 |app, ui| {
                     CollapsingHeader::new(&m.name)
+                        .id_salt(m.tile_id)
                         .header_truncate(true)
                         .show(ui, |ui| {
                             ui.set_width(parent_width - ui.spacing().indent);
