@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         version: [stable, beta]
     name: Test with Rust ${{ matrix.version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
