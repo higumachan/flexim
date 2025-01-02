@@ -59,7 +59,8 @@ fn test_open_start_display() {
     } else {
         egui_kittest::SnapshotOptions::default()
     };
-    let result = harness.try_wgpu_snapshot_options("test_open_start_display", &options);
+    let result =
+        harness.try_wgpu_snapshot_options("test_open_start_display", &options);
     if let Err(e) = &result {
         println!("Snapshot comparison failed: {:?}", e);
     }
@@ -233,7 +234,8 @@ fn test_toggle_column_visibility() {
     } else {
         egui_kittest::SnapshotOptions::default()
     };
-    let result = harness.try_wgpu_snapshot_options("test_toggle_column_visibility_before", &options);
+    let result =
+        harness.try_wgpu_snapshot_options("test_toggle_column_visibility_before", &options);
     if let Err(e) = &result {
         println!("Snapshot comparison failed: {:?}", e);
     }
@@ -254,7 +256,8 @@ fn test_toggle_column_visibility() {
     } else {
         egui_kittest::SnapshotOptions::default()
     };
-    let result = harness.try_wgpu_snapshot_options("test_toggle_column_visibility_after", &options);
+    let result =
+        harness.try_wgpu_snapshot_options("test_toggle_column_visibility_after", &options);
     if let Err(e) = &result {
         println!("Snapshot comparison failed: {:?}", e);
     }
@@ -313,7 +316,8 @@ fn test_multiple_data_tiles() {
     } else {
         egui_kittest::SnapshotOptions::default()
     };
-    let result = harness.try_wgpu_snapshot_options("test_multiple_data_tiles", &options);
+    let result =
+        harness.try_wgpu_snapshot_options("test_multiple_data_tiles", &options);
     if let Err(e) = &result {
         println!("Snapshot comparison failed: {:?}", e);
     }
