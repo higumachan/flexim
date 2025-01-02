@@ -49,3 +49,9 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets  --workspace --all-features -- -D warnings
       - run: cargo test  --workspace
+      - name: Upload snapshots artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-snapshots
+          path: tests/snapshots
