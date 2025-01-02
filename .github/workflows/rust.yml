@@ -49,3 +49,16 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets  --workspace --all-features -- -D warnings
       - run: cargo test  --workspace
+      - name: Organize snapshots
+        if: always()
+        shell: bash
+        run: |
+          os_name=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
+          mkdir -p screenshots/${os_name}_${{ matrix.version }}
+          cp -r tests/snapshots/* screenshots/${os_name}_${{ matrix.version }}/ || true
+      - name: Upload snapshots artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-${{ matrix.version }}-snapshots
+          path: screenshots
