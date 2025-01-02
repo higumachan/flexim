@@ -50,16 +50,16 @@ jobs:
       - run: cargo clippy --all-targets  --workspace --all-features -- -D warnings
       - run: cargo test  --workspace
       - name: Organize snapshots
-        if: success()
+        if: always()
         shell: bash
         run: |
           os_name=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
           mkdir -p screenshots/${os_name}_${{ matrix.version }}
-          if [ -d "tests/snapshots" ] && [ -n "$(ls -A tests/snapshots 2>/dev/null)" ]; then
+          if [ -d "tests/snapshots" ]; then
             cp -r tests/snapshots/* screenshots/${os_name}_${{ matrix.version }}/
           fi
       - name: Upload snapshots artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-${{ matrix.version }}-snapshots
