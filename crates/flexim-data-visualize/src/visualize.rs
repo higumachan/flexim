@@ -176,26 +176,17 @@ impl VisualizeState {
             }
 
             // Calculate center of gravity from rectangle centers
-            let mut sum_x = 0.0;
-            let mut sum_y = 0.0;
-            let mut total_area = 0.0;
-
-            for rect in rects {
-                // Calculate rectangle center and area
+            let (sum_x, sum_y, total_area) = rects.iter().fold((0.0_f32, 0.0_f32, 0.0_f32), |(sx, sy, ta), rect| {
                 let center_x = (rect.min.x + rect.max.x) * 0.5;
                 let center_y = (rect.min.y + rect.max.y) * 0.5;
                 let area = rect.width() * rect.height();
-
-                // Weight the center by the rectangle's area
-                sum_x += center_x * area;
-                sum_y += center_y * area;
-                total_area += area;
-            }
+                (sx + center_x * area, sy + center_y * area, ta + area)
+            });
 
             if total_area > 0.0 {
                 let center = Vec2::new(
-                    sum_x as f32 / total_area as f32,
-                    sum_y as f32 / total_area as f32,
+                    sum_x / total_area,
+                    sum_y / total_area,
                 );
 
                 // Calculate the shift needed to center this point
@@ -256,21 +247,12 @@ impl VisualizeState {
 
                 // Find next connected segment
                 let current = &segments[current_segment];
-                let mut next_segment = None;
-
-                for (j, segment) in segments.iter().enumerate() {
-                    if used_segments[j] {
-                        continue;
-                    }
-
-                    // Check if segments are connected at endpoints
-                    if (current.end.x == segment.start.x && current.end.y == segment.start.y)
-                        || (current.end.x == segment.end.x && current.end.y == segment.end.y)
-                    {
-                        next_segment = Some(j);
-                        break;
-                    }
-                }
+                let next_segment = segments.iter().enumerate().find(|&(j, segment)| {
+                    !used_segments[j] && (
+                        (current.end.x == segment.start.x && current.end.y == segment.start.y) ||
+                        (current.end.x == segment.end.x && current.end.y == segment.end.y)
+                    )
+                }).map(|(j, _)| j);
 
                 if let Some(next) = next_segment {
                     current_segment = next;
@@ -286,18 +268,22 @@ impl VisualizeState {
 
             if found_rect {
                 // Convert four segments to Rect
-                let mut min_x = f32::MAX;
-                let mut min_y = f32::MAX;
-                let mut max_x = f32::MIN;
-                let mut max_y = f32::MIN;
-
-                for &seg_idx in &rect_segments {
-                    let segment = &segments[seg_idx];
-                    min_x = min_x.min(segment.start.x as f32).min(segment.end.x as f32);
-                    min_y = min_y.min(segment.start.y as f32).min(segment.end.y as f32);
-                    max_x = max_x.max(segment.start.x as f32).max(segment.end.x as f32);
-                    max_y = max_y.max(segment.start.y as f32).max(segment.end.y as f32);
-                }
+                let (min_x, min_y, max_x, max_y) = rect_segments.iter().fold(
+                    (f32::INFINITY, f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
+                    |(min_x, min_y, max_x, max_y), &seg_idx| {
+                        let segment = &segments[seg_idx];
+                        let start_x = segment.start.x as f32;
+                        let start_y = segment.start.y as f32;
+                        let end_x = segment.end.x as f32;
+                        let end_y = segment.end.y as f32;
+                        (
+                            min_x.min(start_x).min(end_x),
+                            min_y.min(start_y).min(end_y),
+                            max_x.max(start_x).max(end_x),
+                            max_y.max(start_y).max(end_y),
+                        )
+                    },
+                );
 
                 rectangles.push(Rect::from_min_max(
                     Pos2::new(min_x, min_y),
