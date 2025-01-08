@@ -26,7 +26,7 @@ use flexim_table_widget::cache::DataFramePoll;
 
 use enum_iterator::all;
 use flexim_config::Config;
-use flexim_storage::Bag;
+use flexim_storage::{Bag, BagId};
 use flexim_utility::left_and_right_layout;
 use geo::{coord, Closest, ClosestPoint, Coord, EuclideanDistance, Line, Vector2DOps};
 use polars::datatypes::DataType;
@@ -34,6 +34,7 @@ use polars::prelude::{AnyValue, Field};
 use scarlet::color::RGBColor;
 use scarlet::colormap::ColorMap;
 use serde::{Deserialize, Serialize};
+use chrono;
 use std::sync::{Arc, Mutex};
 use unwrap_ord::UnwrapOrd;
 
