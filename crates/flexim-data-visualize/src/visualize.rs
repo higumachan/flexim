@@ -277,10 +277,10 @@ impl VisualizeState {
                     (f32::INFINITY, f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
                     |(min_x, min_y, max_x, max_y), &seg_idx| {
                         let segment = &segments[seg_idx];
-                        let start_x = segment.start.x;
-                        let start_y = segment.start.y;
-                        let end_x = segment.end.x;
-                        let end_y = segment.end.y;
+                        let start_x = segment.start.x as f32;
+                        let start_y = segment.start.y as f32;
+                        let end_x = segment.end.x as f32;
+                        let end_y = segment.end.y as f32;
                         (
                             min_x.min(start_x).min(end_x),
                             min_y.min(start_y).min(end_y),
