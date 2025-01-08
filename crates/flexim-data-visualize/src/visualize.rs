@@ -179,15 +179,15 @@ impl VisualizeState {
             let (sum_x, sum_y, total_area) =
                 rects
                     .iter()
-                    .fold((0.0_f32, 0.0_f32, 0.0_f32), |(sx, sy, ta), rect| {
-                        let center_x = (rect.min.x + rect.max.x) * 0.5;
-                        let center_y = (rect.min.y + rect.max.y) * 0.5;
-                        let area = rect.width() * rect.height();
+                    .fold((0.0_f64, 0.0_f64, 0.0_f64), |(sx, sy, ta), rect| {
+                        let center_x = (rect.min.x as f64 + rect.max.x as f64) * 0.5;
+                        let center_y = (rect.min.y as f64 + rect.max.y as f64) * 0.5;
+                        let area = rect.width() as f64 * rect.height() as f64;
                         (sx + center_x * area, sy + center_y * area, ta + area)
                     });
 
             if total_area > 0.0 {
-                let center = Vec2::new(sum_x / total_area, sum_y / total_area);
+                let center = Vec2::new((sum_x / total_area) as f32, (sum_y / total_area) as f32);
 
                 // Calculate the shift needed to center this point
                 let screen_center = ui.available_size() * 0.5;
@@ -489,18 +489,18 @@ impl DataRenderable for FlImageRender {
         let data = bag.data_by_reference(&self.content)?;
 
         if let FlData::Image(data) = data {
-            let size = (data.width as f32, data.height as f32);
+            let size = (data.width as f64, data.height as f64);
             Ok(vec![
                 Line::new(
-                    coord!(x: 0.0_f32, y: 0.0_f32),
-                    coord!(x: size.0, y: 0.0_f32),
+                    coord!(x: 0.0_f64, y: 0.0_f64),
+                    coord!(x: size.0, y: 0.0_f64),
                 ),
                 Line::new(
-                    coord!(x: 0.0_f32, y: 0.0_f32),
-                    coord!(x: 0.0_f32, y: size.1),
+                    coord!(x: 0.0_f64, y: 0.0_f64),
+                    coord!(x: 0.0_f64, y: size.1),
                 ),
-                Line::new(coord!(x: size.0, y: 0.0_f32), coord!(x: size.0, y: size.1)),
-                Line::new(coord!(x: 0.0_f32, y: size.1), coord!(x: size.0, y: size.1)),
+                Line::new(coord!(x: size.0, y: 0.0_f64), coord!(x: size.0, y: size.1)),
+                Line::new(coord!(x: 0.0_f64, y: size.1), coord!(x: size.0, y: size.1)),
             ])
         } else {
             Err(anyhow::anyhow!(
