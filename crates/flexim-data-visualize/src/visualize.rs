@@ -196,7 +196,6 @@ impl VisualizeState {
                     sum_x as f32 / point_count as f32,
                     sum_y as f32 / point_count as f32,
                 );
-                
                 // Calculate the shift needed to center this point
                 let screen_center = ui.available_size() * 0.5;
                 self.shift = screen_center - (center * self.current_scale);
