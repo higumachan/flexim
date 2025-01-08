@@ -499,14 +499,8 @@ impl DataRenderable for FlImageRender {
                     coord!(x: 0.0_f32, y: 0.0_f32),
                     coord!(x: 0.0_f32, y: size.1),
                 ),
-                Line::new(
-                    coord!(x: size.0, y: 0.0_f32),
-                    coord!(x: size.0, y: size.1),
-                ),
-                Line::new(
-                    coord!(x: 0.0_f32, y: size.1),
-                    coord!(x: size.0, y: size.1),
-                ),
+                Line::new(coord!(x: size.0, y: 0.0_f32), coord!(x: size.0, y: size.1)),
+                Line::new(coord!(x: 0.0_f32, y: size.1), coord!(x: size.0, y: size.1)),
             ])
         } else {
             Err(anyhow::anyhow!(
