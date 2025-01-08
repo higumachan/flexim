@@ -187,10 +187,7 @@ impl VisualizeState {
                     });
 
             if total_area > 0.0 {
-                let center = Vec2::new(
-                    sum_x / total_area,
-                    sum_y / total_area,
-                );
+                let center = Vec2::new(sum_x / total_area, sum_y / total_area);
 
                 // Calculate the shift needed to center this point
                 let screen_center = ui.available_size() * 0.5;
