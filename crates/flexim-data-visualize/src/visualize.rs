@@ -489,12 +489,24 @@ impl DataRenderable for FlImageRender {
         let data = bag.data_by_reference(&self.content)?;
 
         if let FlData::Image(data) = data {
-            let size = (data.width as f64, data.height as f64);
+            let size = (data.width as f32, data.height as f32);
             Ok(vec![
-                Line::new(coord!(x: 0.0, y: 0.0), coord!(x: size.0, y: 0.0)),
-                Line::new(coord!(x: 0.0, y: 0.0), coord!(x: 0.0, y: size.1)),
-                Line::new(coord!(x: size.0, y: 0.0), coord!(x: size.0, y: size.1)),
-                Line::new(coord!(x: 0.0, y: size.1), coord!(x: size.0, y: size.1)),
+                Line::new(
+                    coord!(x: 0.0_f32, y: 0.0_f32),
+                    coord!(x: size.0, y: 0.0_f32),
+                ),
+                Line::new(
+                    coord!(x: 0.0_f32, y: 0.0_f32),
+                    coord!(x: 0.0_f32, y: size.1),
+                ),
+                Line::new(
+                    coord!(x: size.0, y: 0.0_f32),
+                    coord!(x: size.0, y: size.1),
+                ),
+                Line::new(
+                    coord!(x: 0.0_f32, y: size.1),
+                    coord!(x: size.0, y: size.1),
+                ),
             ])
         } else {
             Err(anyhow::anyhow!(
