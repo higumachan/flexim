@@ -181,13 +181,13 @@ impl VisualizeState {
 
             for segment in segments {
                 // Add start point
-                sum_x += segment.start.x();
-                sum_y += segment.start.y();
+                sum_x += segment.start.x;
+                sum_y += segment.start.y;
                 point_count += 1;
 
                 // Add end point
-                sum_x += segment.end.x();
-                sum_y += segment.end.y();
+                sum_x += segment.end.x;
+                sum_y += segment.end.y;
                 point_count += 1;
             }
 
@@ -208,7 +208,7 @@ impl VisualizeState {
     fn get_measurable_segments(&self, ctx: &Context) -> Option<Vec<Line>> {
         ctx.memory_mut(|memory| {
             if let Some(render) = memory.data.get_temp::<Arc<DataRender>>(self.id) {
-                render.measurable_segments(ctx, &Bag::default()).ok()
+                render.measurable_segments(ctx, &Bag::new()).ok()
             } else {
                 None
             }
