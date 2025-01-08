@@ -170,32 +170,32 @@ impl VisualizeState {
     }
 
     fn fit_to_content(&mut self, ui: &mut Ui) {
-        if let Some(segments) = self.get_measurable_segments(ui.ctx()) {
-            if segments.is_empty() {
+        if let Some(rects) = self.get_measurable_rectangles(ui.ctx()) {
+            if rects.is_empty() {
                 return;
             }
 
-            // Calculate center of gravity from all segment endpoints
+            // Calculate center of gravity from rectangle centers
             let mut sum_x = 0.0;
             let mut sum_y = 0.0;
-            let mut point_count = 0;
+            let mut total_area = 0.0;
 
-            for segment in segments {
-                // Add start point
-                sum_x += segment.start.x;
-                sum_y += segment.start.y;
-                point_count += 1;
+            for rect in rects {
+                // Calculate rectangle center and area
+                let center_x = (rect.min.x + rect.max.x) * 0.5;
+                let center_y = (rect.min.y + rect.max.y) * 0.5;
+                let area = rect.width() * rect.height();
 
-                // Add end point
-                sum_x += segment.end.x;
-                sum_y += segment.end.y;
-                point_count += 1;
+                // Weight the center by the rectangle's area
+                sum_x += center_x * area;
+                sum_y += center_y * area;
+                total_area += area;
             }
 
-            if point_count > 0 {
+            if total_area > 0.0 {
                 let center = Vec2::new(
-                    sum_x as f32 / point_count as f32,
-                    sum_y as f32 / point_count as f32,
+                    sum_x as f32 / total_area as f32,
+                    sum_y as f32 / total_area as f32,
                 );
 
                 // Calculate the shift needed to center this point
@@ -209,17 +209,108 @@ impl VisualizeState {
     fn get_measurable_segments(&self, ctx: &Context) -> Option<Vec<Line>> {
         ctx.memory_mut(|memory| {
             if let Some(render) = memory.data.get_temp::<Arc<DataRender>>(self.id) {
-                render.measurable_segments(ctx, &Bag {
-                    id: BagId::new(0),
-                    name: String::new(),
-                    created_at: chrono::Utc::now(),
-                    data_list: vec![],
-                    generation_counter: std::collections::HashMap::new(),
-                }).ok()
+                render
+                    .measurable_segments(
+                        ctx,
+                        &Bag {
+                            id: BagId::new(0),
+                            name: String::new(),
+                            created_at: chrono::Utc::now(),
+                            data_list: vec![],
+                            generation_counter: std::collections::HashMap::new(),
+                        },
+                    )
+                    .ok()
             } else {
                 None
             }
         })
+    }
+
+    fn get_measurable_rectangles(&self, ctx: &Context) -> Option<Vec<Rect>> {
+        let segments = self.get_measurable_segments(ctx)?;
+        if segments.is_empty() {
+            return None;
+        }
+
+        // Group segments into rectangles by finding connected segments that form right angles
+        let mut rectangles = Vec::new();
+        let mut used_segments = vec![false; segments.len()];
+
+        for i in 0..segments.len() {
+            if used_segments[i] {
+                continue;
+            }
+
+            // Find segments that share endpoints and form right angles
+            let mut rect_segments = Vec::new();
+            let mut current_segment = i;
+            let mut found_rect = false;
+
+            for _ in 0..4 {
+                if used_segments[current_segment] {
+                    break;
+                }
+                rect_segments.push(current_segment);
+                used_segments[current_segment] = true;
+
+                // Find next connected segment
+                let current = &segments[current_segment];
+                let mut next_segment = None;
+
+                for (j, segment) in segments.iter().enumerate() {
+                    if used_segments[j] {
+                        continue;
+                    }
+
+                    // Check if segments are connected at endpoints
+                    if (current.end.x == segment.start.x && current.end.y == segment.start.y)
+                        || (current.end.x == segment.end.x && current.end.y == segment.end.y)
+                    {
+                        next_segment = Some(j);
+                        break;
+                    }
+                }
+
+                if let Some(next) = next_segment {
+                    current_segment = next;
+                } else {
+                    break;
+                }
+
+                if rect_segments.len() == 4 {
+                    found_rect = true;
+                    break;
+                }
+            }
+
+            if found_rect {
+                // Convert four segments to Rect
+                let mut min_x = f32::MAX;
+                let mut min_y = f32::MAX;
+                let mut max_x = f32::MIN;
+                let mut max_y = f32::MIN;
+
+                for &seg_idx in &rect_segments {
+                    let segment = &segments[seg_idx];
+                    min_x = min_x.min(segment.start.x as f32).min(segment.end.x as f32);
+                    min_y = min_y.min(segment.start.y as f32).min(segment.end.y as f32);
+                    max_x = max_x.max(segment.start.x as f32).max(segment.end.x as f32);
+                    max_y = max_y.max(segment.start.y as f32).max(segment.end.y as f32);
+                }
+
+                rectangles.push(Rect::from_min_max(
+                    Pos2::new(min_x, min_y),
+                    Pos2::new(max_x, max_y),
+                ));
+            }
+        }
+
+        if rectangles.is_empty() {
+            None
+        } else {
+            Some(rectangles)
+        }
     }
 
     pub fn show(&mut self, ui: &mut Ui, bag: &Bag, contents: &[Arc<DataRender>]) {
