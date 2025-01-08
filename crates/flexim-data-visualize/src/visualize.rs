@@ -176,12 +176,15 @@ impl VisualizeState {
             }
 
             // Calculate center of gravity from rectangle centers
-            let (sum_x, sum_y, total_area) = rects.iter().fold((0.0_f32, 0.0_f32, 0.0_f32), |(sx, sy, ta), rect| {
-                let center_x = (rect.min.x + rect.max.x) * 0.5;
-                let center_y = (rect.min.y + rect.max.y) * 0.5;
-                let area = rect.width() * rect.height();
-                (sx + center_x * area, sy + center_y * area, ta + area)
-            });
+            let (sum_x, sum_y, total_area) =
+                rects
+                    .iter()
+                    .fold((0.0_f32, 0.0_f32, 0.0_f32), |(sx, sy, ta), rect| {
+                        let center_x = (rect.min.x + rect.max.x) * 0.5;
+                        let center_y = (rect.min.y + rect.max.y) * 0.5;
+                        let area = rect.width() * rect.height();
+                        (sx + center_x * area, sy + center_y * area, ta + area)
+                    });
 
             if total_area > 0.0 {
                 let center = Vec2::new(
@@ -247,12 +250,17 @@ impl VisualizeState {
 
                 // Find next connected segment
                 let current = &segments[current_segment];
-                let next_segment = segments.iter().enumerate().find(|&(j, segment)| {
-                    !used_segments[j] && (
-                        (current.end.x == segment.start.x && current.end.y == segment.start.y) ||
-                        (current.end.x == segment.end.x && current.end.y == segment.end.y)
-                    )
-                }).map(|(j, _)| j);
+                let next_segment = segments
+                    .iter()
+                    .enumerate()
+                    .find(|&(j, segment)| {
+                        !used_segments[j]
+                            && ((current.end.x == segment.start.x
+                                && current.end.y == segment.start.y)
+                                || (current.end.x == segment.end.x
+                                    && current.end.y == segment.end.y))
+                    })
+                    .map(|(j, _)| j);
 
                 if let Some(next) = next_segment {
                     current_segment = next;
@@ -272,10 +280,10 @@ impl VisualizeState {
                     (f32::INFINITY, f32::INFINITY, -f32::INFINITY, -f32::INFINITY),
                     |(min_x, min_y, max_x, max_y), &seg_idx| {
                         let segment = &segments[seg_idx];
-                        let start_x = segment.start.x as f32;
-                        let start_y = segment.start.y as f32;
-                        let end_x = segment.end.x as f32;
-                        let end_y = segment.end.y as f32;
+                        let start_x = segment.start.x;
+                        let start_y = segment.start.y;
+                        let end_x = segment.end.x;
+                        let end_y = segment.end.y;
                         (
                             min_x.min(start_x).min(end_x),
                             min_y.min(start_y).min(end_y),
