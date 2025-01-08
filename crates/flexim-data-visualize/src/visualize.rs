@@ -208,7 +208,13 @@ impl VisualizeState {
     fn get_measurable_segments(&self, ctx: &Context) -> Option<Vec<Line>> {
         ctx.memory_mut(|memory| {
             if let Some(render) = memory.data.get_temp::<Arc<DataRender>>(self.id) {
-                render.measurable_segments(ctx, &Bag::new()).ok()
+                render.measurable_segments(ctx, &Bag {
+                    id: BagId::new(0),
+                    name: String::new(),
+                    created_at: chrono::Utc::now(),
+                    data_list: vec![],
+                    generation_counter: std::collections::HashMap::new(),
+                }).ok()
             } else {
                 None
             }
