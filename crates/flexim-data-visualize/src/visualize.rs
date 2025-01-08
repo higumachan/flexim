@@ -161,8 +161,58 @@ impl VisualizeState {
                         Origin::BottomLeft => Origin::TopLeft,
                     };
                 }
+                if ui.button("Fit").clicked() {
+                    state.fit_to_content(ui);
+                }
             },
         );
+    }
+
+    fn fit_to_content(&mut self, ui: &mut Ui) {
+        if let Some(segments) = self.get_measurable_segments(ui.ctx()) {
+            if segments.is_empty() {
+                return;
+            }
+
+            // Calculate center of gravity from all segment endpoints
+            let mut sum_x = 0.0;
+            let mut sum_y = 0.0;
+            let mut point_count = 0;
+
+            for segment in segments {
+                // Add start point
+                sum_x += segment.start.x();
+                sum_y += segment.start.y();
+                point_count += 1;
+
+                // Add end point
+                sum_x += segment.end.x();
+                sum_y += segment.end.y();
+                point_count += 1;
+            }
+
+            if point_count > 0 {
+                let center = Vec2::new(
+                    sum_x as f32 / point_count as f32,
+                    sum_y as f32 / point_count as f32,
+                );
+                
+                // Calculate the shift needed to center this point
+                let screen_center = ui.available_size() * 0.5;
+                self.shift = screen_center - (center * self.current_scale);
+                self.store(ui.ctx());
+            }
+        }
+    }
+
+    fn get_measurable_segments(&self, ctx: &Context) -> Option<Vec<Line>> {
+        ctx.memory_mut(|memory| {
+            if let Some(render) = memory.data.get_temp::<Arc<DataRender>>(self.id) {
+                render.measurable_segments(ctx, &Bag::default()).ok()
+            } else {
+                None
+            }
+        })
     }
 
     pub fn show(&mut self, ui: &mut Ui, bag: &Bag, contents: &[Arc<DataRender>]) {
