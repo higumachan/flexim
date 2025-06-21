@@ -31,7 +31,7 @@ fn _flexim_py_lib(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
 
         bincode::serialize(&array)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
-            .map(|v| PyBytes::new_bound(_py, &v))
+            .map(|v| PyBytes::new(_py, &v))
     }
 
     #[pyfn(m)]
