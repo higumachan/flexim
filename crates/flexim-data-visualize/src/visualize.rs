@@ -10,7 +10,8 @@ use egui::{
 };
 
 use flexim_data_type::{
-    FlData, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
+    FlData, FlDataFrameColor, FlDataFrameCubicBezier, FlDataFrameQuadraticBezier,
+    FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
     FlDataReference, FlImage, FlShapeConvertError,
 };
 use flexim_data_view::FlDataFrameView;
@@ -694,6 +695,14 @@ impl DataRenderable for FlDataFrameViewRender {
                     }
                     FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
                         .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    FlDataFrameSpecialColumn::QuadraticBezier => {
+                        FlDataFrameQuadraticBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::CubicBezier => {
+                        FlDataFrameCubicBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
                     _ => Err(FlShapeConvertError::CanNotConvert),
                 })
                 .map(|x| {
@@ -840,6 +849,14 @@ impl DataRenderable for FlDataFrameViewRender {
                     }
                     FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
                         .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    FlDataFrameSpecialColumn::QuadraticBezier => {
+                        FlDataFrameQuadraticBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::CubicBezier => {
+                        FlDataFrameCubicBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
                     _ => Err(FlShapeConvertError::CanNotConvert),
                 })
                 .map(|x| {
