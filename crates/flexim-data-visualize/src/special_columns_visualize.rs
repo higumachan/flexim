@@ -1,5 +1,5 @@
 use crate::visualize::VisualizeState;
-use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape};
+use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape, StrokeKind};
 use egui::{
     Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
 };
@@ -73,7 +73,7 @@ impl SpecialColumnShape for FlDataFrameRectangle {
         if let Some(fill_color) = fill_color {
             painter.rect_filled(rect, 0.0, fill_color);
         }
-        painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color));
+        painter.rect_stroke(rect, 0.0, Stroke::new(thickness, color), StrokeKind::Outside);
 
         let is_command = ui.input(|input| input.modifiers.command_only());
         let sense = if is_command {
