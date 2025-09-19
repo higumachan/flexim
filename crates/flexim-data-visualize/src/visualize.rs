@@ -10,7 +10,8 @@ use egui::{
 };
 
 use flexim_data_type::{
-    FlData, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
+    FlData, FlDataFrameColor, FlDataFrameCubicBezier, FlDataFrameQuadraticBezier,
+    FlDataFrameRectangle, FlDataFrameSegment, FlDataFrameSpecialColumn,
     FlDataReference, FlImage, FlShapeConvertError,
 };
 use flexim_data_view::FlDataFrameView;
@@ -557,6 +558,8 @@ pub struct FlDataFrameViewRenderContext {
     pub edge_accent_start: EdgeAccent,
     #[serde(default)]
     pub edge_accent_end: EdgeAccent,
+    #[serde(default = "default_show_bezier_control_points")]
+    pub show_bezier_control_points: bool,
 }
 
 impl FlDataFrameViewRenderContext {
@@ -577,6 +580,10 @@ fn default_fill_transparency() -> f64 {
     0.9
 }
 
+fn default_show_bezier_control_points() -> bool {
+    true
+}
+
 impl Default for FlDataFrameViewRenderContext {
     fn default() -> Self {
         Self {
@@ -589,6 +596,7 @@ impl Default for FlDataFrameViewRenderContext {
             highlight_thickness: 3.0,
             edge_accent_start: EdgeAccent::None,
             edge_accent_end: EdgeAccent::None,
+            show_bezier_control_points: true,
         }
     }
 }
@@ -694,6 +702,14 @@ impl DataRenderable for FlDataFrameViewRender {
                     }
                     FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
                         .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    FlDataFrameSpecialColumn::QuadraticBezier => {
+                        FlDataFrameQuadraticBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::CubicBezier => {
+                        FlDataFrameCubicBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
                     _ => Err(FlShapeConvertError::CanNotConvert),
                 })
                 .map(|x| {
@@ -752,6 +768,7 @@ impl DataRenderable for FlDataFrameViewRender {
 
             let edge_accent_start = self.render_context.lock().unwrap().edge_accent_start;
             let edge_accent_end = self.render_context.lock().unwrap().edge_accent_end;
+            let show_bezier_control_points = self.render_context.lock().unwrap().show_bezier_control_points;
             let response = shape.render(
                 ui,
                 painter,
@@ -762,6 +779,7 @@ impl DataRenderable for FlDataFrameViewRender {
                     fill_color: fill_color.map(|c| calc_transparent_color(c, fill_transparent)),
                     edge_accent_start,
                     edge_accent_end,
+                    show_bezier_control_points,
                 },
                 state,
             );
@@ -840,6 +858,14 @@ impl DataRenderable for FlDataFrameViewRender {
                     }
                     FlDataFrameSpecialColumn::Segment => FlDataFrameSegment::try_from(x.clone())
                         .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>),
+                    FlDataFrameSpecialColumn::QuadraticBezier => {
+                        FlDataFrameQuadraticBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
+                    FlDataFrameSpecialColumn::CubicBezier => {
+                        FlDataFrameCubicBezier::try_from(x.clone())
+                            .map(|x| Box::new(x) as Box<dyn SpecialColumnShape>)
+                    }
                     _ => Err(FlShapeConvertError::CanNotConvert),
                 })
                 .map(|x| {
@@ -1015,6 +1041,8 @@ impl DataRenderable for FlDataFrameViewRender {
                     ui.label("Normal Thickness");
                     Slider::new(&mut render_context.normal_thickness, 0.0..=10.0).ui(ui);
                 });
+                ui.separator();
+                ui.checkbox(&mut render_context.show_bezier_control_points, "Show Bezier Control Points");
             });
     }
 }

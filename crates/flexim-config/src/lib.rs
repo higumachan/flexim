@@ -14,6 +14,7 @@ pub struct Config {
     pub scroll_speed: f32,
     pub grid_snap_distance: f32,
     pub measure_grid_width: f32,
+    pub bezier_control_point_size: f32,
 }
 
 impl Config {
@@ -35,6 +36,7 @@ impl Default for Config {
             scroll_speed: 1.0,
             grid_snap_distance: 5.0,
             measure_grid_width: 3.0,
+            bezier_control_point_size: 4.0,
         }
     }
 }
@@ -102,6 +104,18 @@ impl ConfigWindow {
                         egui::DragValue::new(&mut config.scroll_speed)
                             .range(0.0..=10.0)
                             .speed(0.01),
+                    );
+                });
+
+                ui.separator();
+                ui.label("Bezier Curve Settings");
+
+                ui.horizontal(|ui| {
+                    ui.label("Control Point Size");
+                    ui.add(
+                        egui::DragValue::new(&mut config.bezier_control_point_size)
+                            .range(1.0..=10.0)
+                            .speed(0.1),
                     );
                 });
             });
