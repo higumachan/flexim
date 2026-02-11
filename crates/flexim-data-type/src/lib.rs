@@ -207,6 +207,8 @@ pub enum FlDataFrameSpecialColumn {
     Rectangle,
     Segment,
     Color,
+    QuadraticBezier,
+    CubicBezier,
 }
 
 impl FlDataFrameSpecialColumn {
@@ -215,6 +217,8 @@ impl FlDataFrameSpecialColumn {
             Self::Rectangle => true,
             Self::Segment => true,
             Self::Color => false,
+            Self::QuadraticBezier => true,
+            Self::CubicBezier => true,
         }
     }
 }
@@ -439,6 +443,28 @@ pub struct FlDataFrameColor {
     pub b: f32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlDataFrameQuadraticBezier {
+    pub x1: f64,
+    pub y1: f64,
+    pub cx: f64,
+    pub cy: f64,
+    pub x2: f64,
+    pub y2: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlDataFrameCubicBezier {
+    pub x1: f64,
+    pub y1: f64,
+    pub c1x: f64,
+    pub c1y: f64,
+    pub c2x: f64,
+    pub c2y: f64,
+    pub x2: f64,
+    pub y2: f64,
+}
+
 impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameColor {
     type Error = FlShapeConvertError;
 
@@ -507,6 +533,166 @@ impl FlDataFrameColor {
     pub fn validate_fields(fields: &[Field]) -> bool {
         let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
         ["r", "g", "b"].into_iter().all(|key| {
+            if let Some(dt) = field_map.get(key) {
+                dt.is_float()
+            } else {
+                false
+            }
+        })
+    }
+}
+
+impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameQuadraticBezier {
+    type Error = FlShapeConvertError;
+
+    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
+        let mut x1 = None;
+        let mut y1 = None;
+        let mut cx = None;
+        let mut cy = None;
+        let mut x2 = None;
+        let mut y2 = None;
+        let mut update_func = |field: &Field, value: AnyValue| {
+            if !field.dtype.is_float() {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected float field, found {:?}",
+                    field.dtype
+                )));
+            }
+            let value = if !value.is_nested_null() {
+                Some(Some(value.try_extract().context("Expected float")?))
+            } else {
+                Some(None)
+            };
+            match field.name().as_str() {
+                "x1" => x1 = value,
+                "y1" => y1 = value,
+                "cx" => cx = value,
+                "cy" => cy = value,
+                "x2" => x2 = value,
+                "y2" => y2 = value,
+                _ => {
+                    return Err(Self::Error::UnhandledError(anyhow!(
+                        "Unknown field {:?}",
+                        field.name()
+                    )));
+                }
+            }
+            Ok(())
+        };
+
+        let value = value.into_static();
+        match value {
+            AnyValue::StructOwned(s) => {
+                for (field, value) in s.1.iter().zip(s.0) {
+                    update_func(field, value)?;
+                }
+            }
+            _ => {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected struct, found {:?}",
+                    value
+                )));
+            }
+        }
+        Ok(Self {
+            x1: x1.context("Missing field x1")?.ok_or(Self::Error::NullValue)?,
+            y1: y1.context("Missing field y1")?.ok_or(Self::Error::NullValue)?,
+            cx: cx.context("Missing field cx")?.ok_or(Self::Error::NullValue)?,
+            cy: cy.context("Missing field cy")?.ok_or(Self::Error::NullValue)?,
+            x2: x2.context("Missing field x2")?.ok_or(Self::Error::NullValue)?,
+            y2: y2.context("Missing field y2")?.ok_or(Self::Error::NullValue)?,
+        })
+    }
+}
+
+impl FlDataFrameQuadraticBezier {
+    pub fn validate_fields(fields: &[Field]) -> bool {
+        let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
+        ["x1", "y1", "cx", "cy", "x2", "y2"].into_iter().all(|key| {
+            if let Some(dt) = field_map.get(key) {
+                dt.is_float()
+            } else {
+                false
+            }
+        })
+    }
+}
+
+impl<'a> TryFrom<AnyValue<'a>> for FlDataFrameCubicBezier {
+    type Error = FlShapeConvertError;
+
+    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
+        let mut x1 = None;
+        let mut y1 = None;
+        let mut c1x = None;
+        let mut c1y = None;
+        let mut c2x = None;
+        let mut c2y = None;
+        let mut x2 = None;
+        let mut y2 = None;
+        let mut update_func = |field: &Field, value: AnyValue| {
+            if !field.dtype.is_float() {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected float field, found {:?}",
+                    field.dtype
+                )));
+            }
+            let value = if !value.is_nested_null() {
+                Some(Some(value.try_extract().context("Expected float")?))
+            } else {
+                Some(None)
+            };
+            match field.name().as_str() {
+                "x1" => x1 = value,
+                "y1" => y1 = value,
+                "c1x" => c1x = value,
+                "c1y" => c1y = value,
+                "c2x" => c2x = value,
+                "c2y" => c2y = value,
+                "x2" => x2 = value,
+                "y2" => y2 = value,
+                _ => {
+                    return Err(Self::Error::UnhandledError(anyhow!(
+                        "Unknown field {:?}",
+                        field.name()
+                    )));
+                }
+            }
+            Ok(())
+        };
+
+        let value = value.into_static();
+        match value {
+            AnyValue::StructOwned(s) => {
+                for (field, value) in s.1.iter().zip(s.0) {
+                    update_func(field, value)?;
+                }
+            }
+            _ => {
+                return Err(Self::Error::UnhandledError(anyhow!(
+                    "Expected struct, found {:?}",
+                    value
+                )));
+            }
+        }
+        Ok(Self {
+            x1: x1.context("Missing field x1")?.ok_or(Self::Error::NullValue)?,
+            y1: y1.context("Missing field y1")?.ok_or(Self::Error::NullValue)?,
+            c1x: c1x.context("Missing field c1x")?.ok_or(Self::Error::NullValue)?,
+            c1y: c1y.context("Missing field c1y")?.ok_or(Self::Error::NullValue)?,
+            c2x: c2x.context("Missing field c2x")?.ok_or(Self::Error::NullValue)?,
+            c2y: c2y.context("Missing field c2y")?.ok_or(Self::Error::NullValue)?,
+            x2: x2.context("Missing field x2")?.ok_or(Self::Error::NullValue)?,
+            y2: y2.context("Missing field y2")?.ok_or(Self::Error::NullValue)?,
+        })
+    }
+}
+
+impl FlDataFrameCubicBezier {
+    pub fn validate_fields(fields: &[Field]) -> bool {
+        let field_map: HashMap<_, _> = fields.iter().map(|f| (f.name.as_str(), &f.dtype)).collect();
+        ["x1", "y1", "c1x", "c1y", "c2x", "c2y", "x2", "y2"].into_iter().all(|key| {
             if let Some(dt) = field_map.get(key) {
                 dt.is_float()
             } else {

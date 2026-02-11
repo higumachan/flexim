@@ -16,6 +16,8 @@ class SpecialColumn(str, Enum):
     Rectangle = "Rectangle"
     Segment = "Segment"
     Color = "Color"
+    QuadraticBezier = "QuadraticBezier"
+    CubicBezier = "CubicBezier"
 
 
 class Rectangle(BaseModel):
@@ -36,6 +38,26 @@ class Color(BaseModel):
     r: float
     g: float
     b: float
+
+
+class QuadraticBezier(BaseModel):
+    x1: float
+    y1: float
+    cx: float
+    cy: float
+    x2: float
+    y2: float
+
+
+class CubicBezier(BaseModel):
+    x1: float
+    y1: float
+    c1x: float
+    c1y: float
+    c2x: float
+    c2y: float
+    x2: float
+    y2: float
 
 
 class ImageData(BaseModel):

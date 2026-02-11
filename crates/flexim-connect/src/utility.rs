@@ -49,6 +49,8 @@ fn special_column_convert(
         SpecialColumn::Rectangle => Ok(FlDataFrameSpecialColumn::Rectangle),
         SpecialColumn::Segment => Ok(FlDataFrameSpecialColumn::Segment),
         SpecialColumn::Color => Ok(FlDataFrameSpecialColumn::Color),
+        SpecialColumn::QuadraticBezier => Ok(FlDataFrameSpecialColumn::QuadraticBezier),
+        SpecialColumn::CubicBezier => Ok(FlDataFrameSpecialColumn::CubicBezier),
         _ => anyhow::bail!("unknown special column"),
     }
 }

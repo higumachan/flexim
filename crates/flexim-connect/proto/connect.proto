@@ -37,6 +37,8 @@ message AppendDataRequest {
       Color = 2;
       Vector = 3;
       Point = 4;
+      QuadraticBezier = 5;
+      CubicBezier = 6;
     }
 
     map<string, SpecialColumn> special_columns = 5;

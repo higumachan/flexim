@@ -1,10 +1,11 @@
 use crate::visualize::VisualizeState;
-use egui::epaint::{PathShape, StrokeKind};
+use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape, StrokeKind};
 use egui::{
     Align2, Color32, FontId, Painter, Pos2, Rangef, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
 };
 use enum_iterator::Sequence;
-use flexim_data_type::{FlDataFrameRectangle, FlDataFrameSegment};
+use flexim_config::Config;
+use flexim_data_type::{FlDataFrameCubicBezier, FlDataFrameQuadraticBezier, FlDataFrameRectangle, FlDataFrameSegment};
 use geo::Line;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
@@ -44,6 +45,7 @@ pub struct RenderParameter {
     pub edge_accent_start: EdgeAccent,
     pub edge_accent_end: EdgeAccent,
     pub label: Option<String>,
+    pub show_bezier_control_points: bool,
 }
 
 impl SpecialColumnShape for FlDataFrameRectangle {
@@ -229,6 +231,265 @@ impl SpecialColumnShape for FlDataFrameSegment {
     }
 
     fn measure_segments(&self) -> Vec<Line> {
+        vec![Line::new([self.x1, self.y1], [self.x2, self.y2])]
+    }
+}
+
+impl SpecialColumnShape for FlDataFrameQuadraticBezier {
+    fn render(
+        &self,
+        ui: &mut Ui,
+        painter: &mut Painter,
+        parameter: RenderParameter,
+        state: &VisualizeState,
+    ) -> Option<Response> {
+        let RenderParameter {
+            stroke_color: color,
+            stroke_thickness: thickness,
+            label,
+            fill_color,
+            edge_accent_start,
+            edge_accent_end,
+            show_bezier_control_points,
+            ..
+        } = parameter;
+
+        // Get configuration for control point size
+        let config = Config::get_global(ui);
+
+        // Transform the bezier points to screen space
+        let mut p1 = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.x1 as f32, self.y1 as f32));
+        let control = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.cx as f32, self.cy as f32));
+        let mut p2 = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.x2 as f32, self.y2 as f32));
+
+        // Handle edge accents (arrows)
+        match edge_accent_start {
+            EdgeAccent::Arrow => {
+                // Calculate tangent at start point (direction from p1 towards control)
+                let v = (control - p1).normalized();
+                let (arrow_shape, arrow_offset) = arrow_head_shape(p1, v, thickness, color);
+                painter.add(arrow_shape);
+                p1 += arrow_offset;
+            }
+            EdgeAccent::None => {}
+        }
+
+        match edge_accent_end {
+            EdgeAccent::Arrow => {
+                // Calculate tangent at end point (direction from p2 towards control)
+                let v = (control - p2).normalized();
+                let (arrow_shape, arrow_offset) = arrow_head_shape(p2, v, thickness, color);
+                painter.add(arrow_shape);
+                p2 += arrow_offset;
+            }
+            EdgeAccent::None => {}
+        }
+
+        let points = [p1, control, p2];
+
+        let shape = QuadraticBezierShape {
+            points,
+            closed: false,
+            fill: fill_color.unwrap_or(Color32::TRANSPARENT),
+            stroke: Stroke::new(thickness, color).into(),
+        };
+
+        painter.add(Shape::QuadraticBezier(shape));
+
+        // Draw control points if enabled
+        if show_bezier_control_points {
+            let control_color = Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), 128);
+
+            // Draw control point
+            painter.circle_filled(control, config.bezier_control_point_size, control_color);
+
+            // Draw lines from endpoints to control point
+            painter.line_segment([p1, control], Stroke::new(1.0, control_color));
+            painter.line_segment([p2, control], Stroke::new(1.0, control_color));
+        }
+
+        // Create response for interaction
+        let bounding_rect = Rect::from_min_max(
+            Pos2::new(
+                points.iter().map(|p| p.x).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+                points.iter().map(|p| p.y).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+            ),
+            Pos2::new(
+                points.iter().map(|p| p.x).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+                points.iter().map(|p| p.y).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+            ),
+        );
+
+        let is_command = ui.input(|input| input.modifiers.command_only());
+        let sense = if is_command {
+            Sense::hover()
+        } else {
+            Sense::click()
+        };
+
+        let mut response = ui.allocate_rect(bounding_rect, sense);
+
+        if let Some(label) = label {
+            let center = (p1 + p2.to_vec2()) / 2.0;
+            let text_rect = painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                label.as_str(),
+                FontId::default(),
+                Color32::BLACK,
+            );
+            painter.rect_filled(text_rect, 0.0, color);
+            let text_rect = painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                label.as_str(),
+                FontId::default(),
+                Color32::BLACK,
+            );
+            response = response.union(ui.allocate_rect(text_rect, Sense::click()));
+        }
+
+        Some(response)
+    }
+
+    fn measure_segments(&self) -> Vec<Line> {
+        // For simplicity, return a line from start to end
+        // In future, could approximate the curve with multiple segments
+        vec![Line::new([self.x1, self.y1], [self.x2, self.y2])]
+    }
+}
+
+impl SpecialColumnShape for FlDataFrameCubicBezier {
+    fn render(
+        &self,
+        ui: &mut Ui,
+        painter: &mut Painter,
+        parameter: RenderParameter,
+        state: &VisualizeState,
+    ) -> Option<Response> {
+        let RenderParameter {
+            stroke_color: color,
+            stroke_thickness: thickness,
+            label,
+            fill_color,
+            edge_accent_start,
+            edge_accent_end,
+            show_bezier_control_points,
+            ..
+        } = parameter;
+
+        // Get configuration for control point size
+        let config = Config::get_global(ui);
+
+        // Transform the bezier points to screen space
+        let mut p1 = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.x1 as f32, self.y1 as f32));
+        let control1 = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.c1x as f32, self.c1y as f32));
+        let control2 = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.c2x as f32, self.c2y as f32));
+        let mut p2 = painter.clip_rect().min
+            + state.absolute_to_screen(Vec2::new(self.x2 as f32, self.y2 as f32));
+
+        // Handle edge accents (arrows)
+        match edge_accent_start {
+            EdgeAccent::Arrow => {
+                // Calculate tangent at start point (direction from p1 towards control1)
+                let v = (control1 - p1).normalized();
+                let (arrow_shape, arrow_offset) = arrow_head_shape(p1, v, thickness, color);
+                painter.add(arrow_shape);
+                p1 += arrow_offset;
+            }
+            EdgeAccent::None => {}
+        }
+
+        match edge_accent_end {
+            EdgeAccent::Arrow => {
+                // Calculate tangent at end point (direction from p2 towards control2)
+                let v = (control2 - p2).normalized();
+                let (arrow_shape, arrow_offset) = arrow_head_shape(p2, v, thickness, color);
+                painter.add(arrow_shape);
+                p2 += arrow_offset;
+            }
+            EdgeAccent::None => {}
+        }
+
+        let points = [p1, control1, control2, p2];
+
+        let shape = CubicBezierShape {
+            points,
+            closed: false,
+            fill: fill_color.unwrap_or(Color32::TRANSPARENT),
+            stroke: Stroke::new(thickness, color).into(),
+        };
+
+        painter.add(Shape::CubicBezier(shape));
+
+        // Draw control points if enabled
+        if show_bezier_control_points {
+            let control_color = Color32::from_rgba_premultiplied(color.r(), color.g(), color.b(), 128);
+
+            // Draw control points
+            painter.circle_filled(control1, config.bezier_control_point_size, control_color);
+            painter.circle_filled(control2, config.bezier_control_point_size, control_color);
+
+            // Draw lines from endpoints to control points
+            painter.line_segment([p1, control1], Stroke::new(1.0, control_color));
+            painter.line_segment([control2, p2], Stroke::new(1.0, control_color));
+            // Optional: Draw line between control points
+            painter.line_segment([control1, control2], Stroke::new(0.5, control_color));
+        }
+
+        // Create response for interaction
+        let bounding_rect = Rect::from_min_max(
+            Pos2::new(
+                points.iter().map(|p| p.x).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+                points.iter().map(|p| p.y).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+            ),
+            Pos2::new(
+                points.iter().map(|p| p.x).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+                points.iter().map(|p| p.y).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap(),
+            ),
+        );
+
+        let is_command = ui.input(|input| input.modifiers.command_only());
+        let sense = if is_command {
+            Sense::hover()
+        } else {
+            Sense::click()
+        };
+
+        let mut response = ui.allocate_rect(bounding_rect, sense);
+
+        if let Some(label) = label {
+            let center = (p1 + p2.to_vec2()) / 2.0;
+            let text_rect = painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                label.as_str(),
+                FontId::default(),
+                Color32::BLACK,
+            );
+            painter.rect_filled(text_rect, 0.0, color);
+            let text_rect = painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                label.as_str(),
+                FontId::default(),
+                Color32::BLACK,
+            );
+            response = response.union(ui.allocate_rect(text_rect, Sense::click()));
+        }
+
+        Some(response)
+    }
+
+    fn measure_segments(&self) -> Vec<Line> {
+        // For simplicity, return a line from start to end
+        // In future, could approximate the curve with multiple segments
         vec![Line::new([self.x1, self.y1], [self.x2, self.y2])]
     }
 }

@@ -13,7 +13,8 @@ use flexim_config::ConfigWindow;
 use flexim_connect::grpc::flexim_connect_server::FleximConnectServer;
 use flexim_connect::server::FleximConnectServerImpl;
 use flexim_data_type::{
-    FlDataFrame, FlDataFrameColor, FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
+    FlDataFrame, FlDataFrameColor, FlDataFrameCubicBezier, FlDataFrameQuadraticBezier,
+    FlDataFrameRectangle, FlDataFrameSpecialColumn, FlDataReference,
     FlDataType, FlImage, FlObject, FlTensor2D, GenerationSelector,
 };
 use flexim_data_visualize::visualize::{DataRender, FlImageRender, VisualizeState};
@@ -602,8 +603,18 @@ fn load_sample_data() -> FlDataFrame {
         .unwrap()
         .clone();
 
-    let df = df
+    let mut df = df
         .apply("Color", |s| read_color(s, "Color"))
+        .unwrap()
+        .clone();
+
+    let mut df = df
+        .apply("QuadraticCurve", |s| read_quadratic_bezier(s, "QuadraticCurve"))
+        .unwrap()
+        .clone();
+
+    let df = df
+        .apply("CubicCurve", |s| read_cubic_bezier(s, "CubicCurve"))
         .unwrap()
         .clone();
 
@@ -613,6 +624,8 @@ fn load_sample_data() -> FlDataFrame {
             ("Face".to_string(), FlDataFrameSpecialColumn::Rectangle),
             ("Segment".to_string(), FlDataFrameSpecialColumn::Segment),
             ("Color".to_string(), FlDataFrameSpecialColumn::Color),
+            ("QuadraticCurve".to_string(), FlDataFrameSpecialColumn::QuadraticBezier),
+            ("CubicCurve".to_string(), FlDataFrameSpecialColumn::CubicBezier),
         ]
         .into_iter()
         .collect(),
@@ -771,6 +784,90 @@ fn read_color(s: &Column, name: &str) -> Series {
     let b = Series::new("b".into(), b);
 
     StructChunked::from_series(name.into(), r.len(), [r, g, b].iter())
+        .unwrap()
+        .into_series()
+}
+
+fn read_quadratic_bezier(s: &Column, name: &str) -> Series {
+    let mut x1 = vec![];
+    let mut y1 = vec![];
+    let mut cx = vec![];
+    let mut cy = vec![];
+    let mut x2 = vec![];
+    let mut y2 = vec![];
+    for s in s.str().unwrap().into_iter() {
+        let s: Option<&str> = s;
+        if let Some(s) = s {
+            let t = serde_json::from_str::<FlDataFrameQuadraticBezier>(s).unwrap();
+            x1.push(Some(t.x1));
+            y1.push(Some(t.y1));
+            cx.push(Some(t.cx));
+            cy.push(Some(t.cy));
+            x2.push(Some(t.x2));
+            y2.push(Some(t.y2));
+        } else {
+            x1.push(None);
+            y1.push(None);
+            cx.push(None);
+            cy.push(None);
+            x2.push(None);
+            y2.push(None);
+        }
+    }
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let cx = Series::new("cx".into(), cx);
+    let cy = Series::new("cy".into(), cy);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
+
+    StructChunked::from_series(name.into(), x1.len(), [x1, y1, cx, cy, x2, y2].iter())
+        .unwrap()
+        .into_series()
+}
+
+fn read_cubic_bezier(s: &Column, name: &str) -> Series {
+    let mut x1 = vec![];
+    let mut y1 = vec![];
+    let mut c1x = vec![];
+    let mut c1y = vec![];
+    let mut c2x = vec![];
+    let mut c2y = vec![];
+    let mut x2 = vec![];
+    let mut y2 = vec![];
+    for s in s.str().unwrap().into_iter() {
+        let s: Option<&str> = s;
+        if let Some(s) = s {
+            let t = serde_json::from_str::<FlDataFrameCubicBezier>(s).unwrap();
+            x1.push(Some(t.x1));
+            y1.push(Some(t.y1));
+            c1x.push(Some(t.c1x));
+            c1y.push(Some(t.c1y));
+            c2x.push(Some(t.c2x));
+            c2y.push(Some(t.c2y));
+            x2.push(Some(t.x2));
+            y2.push(Some(t.y2));
+        } else {
+            x1.push(None);
+            y1.push(None);
+            c1x.push(None);
+            c1y.push(None);
+            c2x.push(None);
+            c2y.push(None);
+            x2.push(None);
+            y2.push(None);
+        }
+    }
+    let x1 = Series::new("x1".into(), x1);
+    let y1 = Series::new("y1".into(), y1);
+    let c1x = Series::new("c1x".into(), c1x);
+    let c1y = Series::new("c1y".into(), c1y);
+    let c2x = Series::new("c2x".into(), c2x);
+    let c2y = Series::new("c2y".into(), c2y);
+    let x2 = Series::new("x2".into(), x2);
+    let y2 = Series::new("y2".into(), y2);
+
+    StructChunked::from_series(name.into(), x1.len(), [x1, y1, c1x, c1y, c2x, c2y, x2, y2].iter())
         .unwrap()
         .into_series()
 }
